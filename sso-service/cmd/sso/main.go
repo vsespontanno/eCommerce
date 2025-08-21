@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/vsespontanno/eCommerce/sso-service/internal/app"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/config"
@@ -18,13 +19,16 @@ const (
 )
 
 func main() {
-	cfg := config.MustLoad()
-	logger := setupLogger(cfg.Env)
-	sDb, err := repository.ConnectToPostgres(cfg.DB.User, cfg.DB.Password, cfg.DB.Name, cfg.DB.Host, cfg.DB.Port)
+	cfg, err := config.MustLoad()
+	if err != nil {
+		panic(err)
+	}
+	logger := setupLogger(envLocal)
+	sDb, err := repository.ConnectToPostgres(cfg.User, cfg.Password, cfg.Name, cfg.Host, cfg.PGPort)
 	if err != nil {
 		panic("Failed to connect to db: " + err.Error())
 	}
-	application := app.New(logger, cfg.GRPC.Port, sDb, cfg.TokenTTL)
+	application := app.New(logger, cfg.GRPCPort, sDb, cfg.JWTSecret, time.Duration(1*time.Hour))
 	go func() {
 		application.GRPCServer.MustRun()
 	}()

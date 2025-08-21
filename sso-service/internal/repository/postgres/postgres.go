@@ -21,23 +21,25 @@ func NewStorage(db *sql.DB) *Storage {
 	}
 }
 
-func (s *Storage) SaveUser(ctx context.Context, email string, passHash []byte) (int64, error) {
+func (s *Storage) SaveUser(ctx context.Context, email, FirstName, LastName string, passHash []byte) (int64, error) {
 	const op = "postgres.SaveUser"
+	fmt.Println("Saving user:", email)
 	query := s.builder.Insert("users").
-		Columns("email", "pass_hash").
-		Values(email, passHash)
+		Columns("email", "first_name", "last_name", "pass_hash").
+		Values(email, FirstName, LastName, passHash)
 	sqlStr, args, err := query.ToSql()
 
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	res, err := s.db.ExecContext(ctx, sqlStr, args...)
+	_, err = s.db.ExecContext(ctx, sqlStr, args...)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
-	id, err := res.LastInsertId()
+	var id int64
+	err = s.db.QueryRowContext(ctx, "SELECT id FROM users WHERE email = $1", email).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
@@ -59,33 +61,10 @@ func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 	var user models.User
 	if err := row.Scan(&user.ID, &user.Email, &user.PassHash); err != nil {
 		if err == sql.ErrNoRows {
-			return models.User{}, fmt.Errorf("%s: user not found", op)
+			return models.User{}, fmt.Errorf("%s: User does not exist", op)
 		}
 		return models.User{}, fmt.Errorf("%s: %w", op, err)
 	}
 
 	return user, nil
-}
-
-func (s *Storage) App(ctx context.Context, appID int) (models.App, error) {
-	const op = "postgres.App"
-	query := s.builder.Select("id", "name", "secret").
-		From("apps").
-		Where(sq.Eq{"id": appID})
-
-	sqlStr, args, err := query.ToSql()
-	if err != nil {
-		return models.App{}, fmt.Errorf("%s: %w", op, err)
-	}
-
-	row := s.db.QueryRowContext(ctx, sqlStr, args...)
-	var app models.App
-	if err := row.Scan(&app.ID, &app.Name, &app.Secret); err != nil {
-		if err == sql.ErrNoRows {
-			return models.App{}, fmt.Errorf("%s: app not found", op)
-		}
-		return models.App{}, fmt.Errorf("%s: %w", op, err)
-	}
-
-	return app, nil
 }

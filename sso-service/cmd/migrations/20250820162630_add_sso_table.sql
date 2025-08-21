@@ -3,6 +3,8 @@
 CREATE TABLE IF NOT EXISTS users (
     id        SERIAL PRIMARY KEY,
     email     TEXT   NOT NULL UNIQUE,
+    first_name TEXT  NOT NULL,
+    last_name  TEXT  NOT NULL,
     pass_hash BYTEA  NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_email ON users (email);

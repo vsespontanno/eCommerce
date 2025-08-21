@@ -1,4 +1,4 @@
-package pg
+package postgres
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/vsespontanno/eCommerce/products-service/internal/models"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
 )
 
 type ProductStore struct {

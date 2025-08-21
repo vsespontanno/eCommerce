@@ -12,11 +12,8 @@ func TestNewToken(t *testing.T) {
 		ID:    1,
 		Email: "test@example.com",
 	}
-	app := models.App{
-		ID:     1,
-		Secret: "supersecret",
-	}
-	token, err := NewToken(user, app, time.Hour)
+	jwtSecret := "khadala_khay_sakhala"
+	token, err := NewToken(user, jwtSecret, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to create token: %v", err)
 	}

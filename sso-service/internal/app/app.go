@@ -14,10 +14,10 @@ type App struct {
 	GRPCServer *grpcapp.App
 }
 
-func New(log *slog.Logger, grpcPort int, db *sql.DB, tokenTTL time.Duration) *App {
+func New(log *slog.Logger, grpcPort int, db *sql.DB, jwtSecret string, tokenTTL time.Duration) *App {
 	pg := postgres.NewStorage(db)
 
-	authService := auth.NewAuth(log, pg, pg, tokenTTL)
+	authService := auth.NewAuth(log, pg, tokenTTL, jwtSecret)
 
 	grpcApp := grpcapp.NewApp(log, authService, grpcPort)
 

@@ -1,65 +1,77 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"log"
-	"net"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/joho/godotenv"
-	"github.com/vsespontanno/eCommerce/products-service/internal/db"
-	"github.com/vsespontanno/eCommerce/products-service/internal/repository/pg"
-	serv "github.com/vsespontanno/eCommerce/products-service/internal/server"
-	proto "github.com/vsespontanno/eCommerce/proto/products"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	_ "github.com/lib/pq"
+	"github.com/vsespontanno/eCommerce/products-service/config"
+	"github.com/vsespontanno/eCommerce/products-service/internal/app"
+	"github.com/vsespontanno/eCommerce/products-service/internal/handler"
+	"github.com/vsespontanno/eCommerce/products-service/internal/repository"
+	"go.uber.org/zap"
 )
 
 func main() {
-	err := godotenv.Load()
+	// Initialize logger
+	logger, err := zap.NewProduction()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	defer logger.Sync()
+	sugar := logger.Sugar()
+
+	cfg, err := config.MustLoad()
+	if err != nil {
+		sugar.Fatalf("Failed to load config: %v", err)
 	}
 
-	grpcEndpoint := ":8082"
-
-	conn, err := db.ConnectToPostgres(os.Getenv("PG_USER"), os.Getenv("PG_PASSWORD"), os.Getenv("PG_DB"), os.Getenv("PG_HOST"), os.Getenv("PG_PORT"))
+	// Initialize database (example: PostgreSQL)
+	db, err := repository.ConnectToPostgres(
+		cfg.PGUser,
+		cfg.PGPassword,
+		cfg.PGName,
+		cfg.PGHost,
+		cfg.PGPort,
+	)
 	if err != nil {
-		log.Fatal(err)
+		sugar.Fatalf("Failed to connect to database: %v", err)
 	}
+	defer db.Close()
 
-	productStore := pg.NewProductStore(conn)
+	// Initialize application
+	httpPort := 8080
+	app := app.New(*logger, httpPort, db)
 
-	log.Fatal(makeGRPCTransport(grpcEndpoint, productStore))
+	// Register handlers
+	handler := handler.New()
+	handler.RegisterRoutes(app.HTTPApp.Router())
 
+	// Start server in a goroutine
+	go func() {
+		if err := app.HTTPApp.Run(); err != nil {
+			sugar.Errorf("HTTP server failed: %v", err)
+		}
+	}()
+
+	// Handle graceful shutdown
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	<-stop
+	sugar.Info("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := app.HTTPApp.Shutdown(ctx); err != nil {
+		sugar.Errorf("Server shutdown failed: %v", err)
+	} else {
+		sugar.Info("Server gracefully stopped")
+	}
 }
-
-func makeGRPCTransport(endpoint string, productStore *pg.ProductStore) error {
-	ln, err := net.Listen("tcp", endpoint)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer ln.Close()
-
-	server := grpc.NewServer(grpc.Creds(insecure.NewCredentials()))
-	proto.RegisterProductsServer(server, serv.NewGrpcServer(productStore))
-	fmt.Println("GRPC transport running on port", endpoint)
-	// seedSomeProductsIntoDB(productStore)
-	return server.Serve(ln)
-
-}
-
-// func seedSomeProductsIntoDB(pg *pg.ProductStore) {
-// 	products := []*models.Product{
-// 		{ID: int64(uuid.New().ID()), Name: "Chocolate", Price: 10.0, Description: "Very Tasty", Category: "Food", Brand: "Dove", Rating: 4, NumReviews: 10, CountInStock: 100},
-// 		{ID: int64(uuid.New().ID()), Name: "Red Bull", Price: 20.0, Description: "Energetic drink for trainings", Category: "Cold Drinks", Brand: "Red Bull", Rating: 4, NumReviews: 5, CountInStock: 50},
-// 		{ID: int64(uuid.New().ID()), Name: "Tide", Price: 30.0, Description: "For laundry", Category: "Household", Brand: "Tide", Rating: 4, NumReviews: 2, CountInStock: 0},
-// 	}
-
-// 	for _, p := range products {
-// 		if err := pg.SaveProduct(context.Background(), p); err != nil {
-// 			log.Printf("Error seeding product %v: %v", p.Name, err)
-// 		}
-// 	}
-// 	fmt.Println("Products seeded successfully")
-// }

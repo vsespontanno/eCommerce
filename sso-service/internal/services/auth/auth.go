@@ -10,6 +10,7 @@ import (
 	"github.com/vsespontanno/eCommerce/sso-service/internal/domain/models"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/lib/jwt"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/lib/logger/sl"
+	"github.com/vsespontanno/eCommerce/sso-service/internal/lib/validator"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/repository"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -19,31 +20,27 @@ var (
 )
 
 type UserStorage interface {
-	SaveUser(ctx context.Context, email string, passHash []byte) (uid int64, err error)
+	SaveUser(ctx context.Context, email, FirstName, LastName string, passHash []byte) (uid int64, err error)
 	User(ctx context.Context, email string) (models.User, error)
-}
-
-type AppProvider interface {
-	App(ctx context.Context, appID int) (models.App, error)
 }
 
 type Auth struct {
 	log         *slog.Logger
 	userStorage UserStorage
-	appProvider AppProvider
 	tokenTTL    time.Duration
+	jwtSecret   string
 }
 
-func NewAuth(log *slog.Logger, userStorage UserStorage, appProvider AppProvider, tokenTTL time.Duration) *Auth {
+func NewAuth(log *slog.Logger, userStorage UserStorage, tokenTTL time.Duration, jwtSecret string) *Auth {
 	return &Auth{
 		log:         log,
 		userStorage: userStorage,
-		appProvider: appProvider,
 		tokenTTL:    tokenTTL,
+		jwtSecret:   jwtSecret,
 	}
 }
 
-func (a *Auth) RegisterNewUser(ctx context.Context, email, password string) (userID int64, err error) {
+func (a *Auth) RegisterNewUser(ctx context.Context, email, password, FirstName, LastName string) (userID int64, err error) {
 	// op (operation) - имя текущей функции и пакета. Такую метку удобно
 	// добавлять в логи и в текст ошибок, чтобы легче было искать хвосты
 	// в случае поломок.
@@ -51,13 +48,18 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email, password string) (use
 	log := a.log.With(slog.String("op", op), slog.String("email", email))
 	log.Info("registering user")
 
+	// Validate user input
+	if !validator.ValidateUser(email, password, FirstName, LastName) {
+		log.Info("invalid user input")
+		return 0, ErrInvalidCredentials
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Error("failed to generate password hash", sl.Err(err))
 		return 0, fmt.Errorf("%s: %w", op, err)
-
 	}
-	id, err := a.userStorage.SaveUser(ctx, email, hash)
+	id, err := a.userStorage.SaveUser(ctx, email, FirstName, LastName, hash)
 	if err != nil {
 		log.Error("failed to save user", sl.Err(err))
 		return 0, fmt.Errorf("%s: %w", op, err)
@@ -66,7 +68,7 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email, password string) (use
 	return id, nil
 }
 
-func (a *Auth) Login(ctx context.Context, email, password string, appID int) (token string, err error) {
+func (a *Auth) Login(ctx context.Context, email, password string) (token string, err error) {
 	const op = "Auth.Login"
 
 	log := a.log.With(
@@ -92,15 +94,10 @@ func (a *Auth) Login(ctx context.Context, email, password string, appID int) (to
 		return "", ErrInvalidCredentials
 	}
 
-	app, err := a.appProvider.App(ctx, appID)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", op, err)
-	}
-
 	log.Info("user logged in successfully")
 
 	// Generate a new token for the user
-	token, err = jwt.NewToken(user, app, a.tokenTTL)
+	token, err = jwt.NewToken(user, a.jwtSecret, a.tokenTTL)
 	if err != nil {
 		log.Error("failed to generate token", sl.Err(err))
 		return "", fmt.Errorf("%s: %w", op, err)

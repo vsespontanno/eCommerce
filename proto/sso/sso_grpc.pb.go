@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.21.12
-// source: proto/user/user.proto
+// source: proto/sso/sso.proto
 
-package proto
+package sso
 
 import (
 	context "context"
@@ -19,110 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Sender_SendMessage_FullMethodName = "/Sender/SendMessage"
-)
-
-// SenderClient is the client API for Sender service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type SenderClient interface {
-	SendMessage(ctx context.Context, in *MessageRequest, opts ...grpc.CallOption) (*MessageResponse, error)
-}
-
-type senderClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewSenderClient(cc grpc.ClientConnInterface) SenderClient {
-	return &senderClient{cc}
-}
-
-func (c *senderClient) SendMessage(ctx context.Context, in *MessageRequest, opts ...grpc.CallOption) (*MessageResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(MessageResponse)
-	err := c.cc.Invoke(ctx, Sender_SendMessage_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// SenderServer is the server API for Sender service.
-// All implementations must embed UnimplementedSenderServer
-// for forward compatibility.
-type SenderServer interface {
-	SendMessage(context.Context, *MessageRequest) (*MessageResponse, error)
-	mustEmbedUnimplementedSenderServer()
-}
-
-// UnimplementedSenderServer must be embedded to have
-// forward compatible implementations.
-//
-// NOTE: this should be embedded by value instead of pointer to avoid a nil
-// pointer dereference when methods are called.
-type UnimplementedSenderServer struct{}
-
-func (UnimplementedSenderServer) SendMessage(context.Context, *MessageRequest) (*MessageResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
-}
-func (UnimplementedSenderServer) mustEmbedUnimplementedSenderServer() {}
-func (UnimplementedSenderServer) testEmbeddedByValue()                {}
-
-// UnsafeSenderServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to SenderServer will
-// result in compilation errors.
-type UnsafeSenderServer interface {
-	mustEmbedUnimplementedSenderServer()
-}
-
-func RegisterSenderServer(s grpc.ServiceRegistrar, srv SenderServer) {
-	// If the following call pancis, it indicates UnimplementedSenderServer was
-	// embedded by pointer and is nil.  This will cause panics if an
-	// unimplemented method is ever invoked, so we test this at initialization
-	// time to prevent it from happening at runtime later due to I/O.
-	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
-		t.testEmbeddedByValue()
-	}
-	s.RegisterService(&Sender_ServiceDesc, srv)
-}
-
-func _Sender_SendMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MessageRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SenderServer).SendMessage(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Sender_SendMessage_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SenderServer).SendMessage(ctx, req.(*MessageRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-// Sender_ServiceDesc is the grpc.ServiceDesc for Sender service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var Sender_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "Sender",
-	HandlerType: (*SenderServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "SendMessage",
-			Handler:    _Sender_SendMessage_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/user/user.proto",
-}
-
-const (
-	Auth_Register_FullMethodName = "/Auth/Register"
-	Auth_Login_FullMethodName    = "/Auth/Login"
+	Auth_Register_FullMethodName = "/proto_sso.Auth/Register"
+	Auth_Login_FullMethodName    = "/proto_sso.Auth/Login"
 )
 
 // AuthClient is the client API for Auth service.
@@ -244,7 +142,7 @@ func _Auth_Login_Handler(srv interface{}, ctx context.Context, dec func(interfac
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Auth_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "Auth",
+	ServiceName: "proto_sso.Auth",
 	HandlerType: (*AuthServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -257,5 +155,5 @@ var Auth_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/user/user.proto",
+	Metadata: "proto/sso/sso.proto",
 }

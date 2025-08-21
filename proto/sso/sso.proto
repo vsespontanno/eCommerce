@@ -1,0 +1,44 @@
+
+syntax = "proto3";
+
+package proto_sso;
+
+option go_package = "github.com/vsespontanno/eCommerce/internal/proto/sso";
+
+service Auth {
+  rpc Register (RegisterRequest) returns (RegisterResponse);
+  rpc Login (LoginRequest) returns (LoginResponse);
+}
+
+service Validator {
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+}
+
+message RegisterRequest {
+  string email = 1; 
+  int64 password = 2; 
+  string first_name = 3; 
+  string last_name = 4; 
+}
+
+message RegisterResponse {
+  int64 user_id = 1; 
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string token = 1;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  string user_id = 1;
+  bool valid = 2;
+}
