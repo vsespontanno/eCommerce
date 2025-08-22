@@ -9,10 +9,12 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/vsespontanno/eCommerce/products-service/config"
 	"github.com/vsespontanno/eCommerce/products-service/internal/app"
+	"github.com/vsespontanno/eCommerce/products-service/internal/client"
+	"github.com/vsespontanno/eCommerce/products-service/internal/config"
 	"github.com/vsespontanno/eCommerce/products-service/internal/handler"
 	"github.com/vsespontanno/eCommerce/products-service/internal/repository"
+	"github.com/vsespontanno/eCommerce/products-service/internal/repository/postgres"
 	"go.uber.org/zap"
 )
 
@@ -44,12 +46,16 @@ func main() {
 	}
 	defer db.Close()
 
+	store := postgres.NewProductStore(db)
+	cartStore := postgres.NewCartStore(db)
 	// Initialize application
 	httpPort := 8080
-	app := app.New(*logger, httpPort, db)
+	app := app.New(*logger, httpPort, store)
+	grpcPort := "50051"
+	jwtClient := client.NewJwtClient(grpcPort)
 
 	// Register handlers
-	handler := handler.New()
+	handler := handler.New(cartStore, store, sugar, jwtClient)
 	handler.RegisterRoutes(app.HTTPApp.Router())
 
 	// Start server in a goroutine

@@ -8,6 +8,7 @@ import (
 	grpcapp "github.com/vsespontanno/eCommerce/sso-service/internal/app/grpc"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/repository/postgres"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/services/auth"
+	"github.com/vsespontanno/eCommerce/sso-service/internal/services/validator"
 )
 
 type App struct {
@@ -19,7 +20,9 @@ func New(log *slog.Logger, grpcPort int, db *sql.DB, jwtSecret string, tokenTTL 
 
 	authService := auth.NewAuth(log, pg, tokenTTL, jwtSecret)
 
-	grpcApp := grpcapp.NewApp(log, authService, grpcPort)
+	validateService := validator.New(jwtSecret)
+
+	grpcApp := grpcapp.NewApp(log, authService, validateService, grpcPort)
 
 	return &App{
 		GRPCServer: grpcApp,

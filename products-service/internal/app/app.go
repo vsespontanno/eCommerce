@@ -1,8 +1,6 @@
 package app
 
 import (
-	"database/sql"
-
 	"github.com/vsespontanno/eCommerce/products-service/internal/app/httpapp"
 	"github.com/vsespontanno/eCommerce/products-service/internal/repository/postgres"
 	"go.uber.org/zap"
@@ -13,8 +11,7 @@ type App struct {
 	Store   *postgres.ProductStore
 }
 
-func New(logger zap.Logger, httpPort int, db *sql.DB) *App {
-	store := postgres.NewProductStore(db)
+func New(logger zap.Logger, httpPort int, store *postgres.ProductStore) *App {
 	httpApp := httpapp.New(httpPort, &logger)
 	return &App{
 		HTTPApp: httpApp,

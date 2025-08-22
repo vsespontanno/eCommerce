@@ -22,3 +22,4 @@ func NewToken(user models.User, jwtSecret string, duration time.Duration) (strin
 
 	return tokenString, nil
 }
+

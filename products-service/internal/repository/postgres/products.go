@@ -3,11 +3,14 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
 )
+
+var ErrNoProductFound = errors.New("no product found")
 
 type ProductStore struct {
 	db      *sql.DB
@@ -51,4 +54,22 @@ func (s *ProductStore) GetProducts(ctx context.Context) ([]*models.Product, erro
 	}
 
 	return products, nil
+}
+
+func (s *ProductStore) GetProductByID(ctx context.Context, id string) (*models.Product, error) {
+	query := s.builder.Select("productID", "productName", "productDescription", "productPrice", "created_at").
+		From("products").
+		Where(sq.Eq{"productID": id}).
+		RunWith(s.db)
+
+	var p models.Product
+	err := query.QueryRowContext(ctx).Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.CreatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNoProductFound // No product found
+		}
+		return nil, err
+	}
+
+	return &p, nil
 }
