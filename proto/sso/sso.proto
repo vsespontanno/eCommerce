@@ -5,6 +5,7 @@ package proto_sso;
 
 option go_package = "github.com/vsespontanno/eCommerce/internal/proto/sso";
 
+
 service Auth {
   rpc Register (RegisterRequest) returns (RegisterResponse);
   rpc Login (LoginRequest) returns (LoginResponse);
@@ -42,3 +43,4 @@ message ValidateTokenResponse {
   bool valid = 1;
   int64 user_id = 2; // UUID of the user
 }
+

@@ -28,7 +28,7 @@ func main() {
 	if err != nil {
 		panic("Failed to connect to db: " + err.Error())
 	}
-	application := app.New(logger, cfg.GRPCPort, sDb, cfg.JWTSecret, time.Duration(1*time.Hour))
+	application := app.New(logger, cfg.GRPCPort, cfg.ClientPort, sDb, cfg.JWTSecret, time.Duration(1*time.Hour))
 	go func() {
 		application.GRPCServer.MustRun()
 	}()

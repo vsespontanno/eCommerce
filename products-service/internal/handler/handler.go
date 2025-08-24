@@ -36,6 +36,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.Handle("/product/{id}/add-to-cart", middleware.AuthMiddleware(http.HandlerFunc(h.AddProductToCart), h.grpcClient)).Methods(http.MethodPost)
 }
 
+// TODO: pagination
 func (h *Handler) GetProducts(w http.ResponseWriter, r *http.Request) {
 	ctx := context.TODO()
 	products, err := h.productStore.GetProducts(ctx)
@@ -88,9 +89,13 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 	ctx := context.TODO()
 	vars := mux.Vars(r)
-	id := vars["id"]
-
-	product, err := h.productStore.GetProductByID(ctx, id)
+	productId := vars["id"]
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
+	if !ok {
+		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
+		return
+	}
+	product, err := h.productStore.GetProductByID(ctx, productId)
 	if err != nil {
 		if err == postgres.ErrNoProductFound {
 			http.Error(w, "Product not found", http.StatusNotFound)
@@ -102,7 +107,7 @@ func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.sugarLogger.Infof("Retrieved product: %v", product)
-	_, err = h.cartStore.UpsertProductToCart(ctx, 123, product.ID)
+	_, err = h.cartStore.UpsertProductToCart(ctx, userID, product.ID)
 	if err != nil {
 		h.sugarLogger.Errorf("Failed to upsert product to cart: %v", err)
 		http.Error(w, "Failed to upsert product to cart", http.StatusInternalServerError)

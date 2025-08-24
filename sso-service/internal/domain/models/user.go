@@ -5,5 +5,7 @@ type User struct {
 	FirstName string
 	LastName  string
 	Email     string
+	Balance   float64
+	Role      string //TODO
 	PassHash  []byte
 }

@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package proto_product;
+
+option go_package = "github.com/vsespontanno/eCommerce/internal/proto/product";
+
+service Product {
+  rpc ReserveItems (ReserveItemsRequest) returns (ReserveItemsResponse);
+  rpc ReleaseItems (ReleaseItemsRequest) returns (ReleaseItemsResponse);
+}
+
+message Item {
+  string product_id = 1;
+  int32 quantity = 2;
+}
+
+message ReserveItemsRequest {
+  string user_id = 1;
+  repeated Item items = 2;
+}
+
+message ReserveItemsResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message ReleaseItemsRequest {
+  string user_id = 1;
+  repeated Item items = 2;
+}
+
+message ReleaseItemsResponse {
+  bool success = 1;
+  string error = 2;
+}

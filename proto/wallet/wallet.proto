@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package proto_wallet;
+
+option go_package = "github.com/vsespontanno/eCommerce/internal/proto/wallet";
+
+service Creator {
+  rpc CreateWallet (CreateWalletRequest) returns (CreateWalletResponse);
+}
+
+service WalletTopUP {
+  rpc Balance (BalanceRequest) returns (BalanceResponse);
+  rpc TopUp (TopUpRequest) returns (TopUpResponse);
+}
+
+service Wallet {
+  rpc ReserveFunds (ReserveFundsRequest) returns (ReserveFundsResponse);
+  rpc ReleaseFunds (ReleaseFundsRequest) returns (ReleaseFundsResponse);
+  rpc CommitFunds (CommitFundsRequest) returns (CommitFundsResponse);
+}
+
+message ReserveFundsRequest {
+  string user_id = 1;
+  double amount = 2;
+}
+
+message ReserveFundsResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message ReleaseFundsRequest {
+  string user_id = 1;
+  double amount = 2;
+}
+
+message ReleaseFundsResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message CommitFundsRequest {
+  string user_id = 1;
+  double amount = 2;
+}
+
+message CommitFundsResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message TopUpRequest {
+  double amount = 2; // Amount to top up
+}
+
+message TopUpResponse {
+  bool success = 1; // True if the top up was successful, false otherwise
+  string error = 2; // Error message if the top up failed
+}
+
+message BalanceRequest {
+}
+
+message BalanceResponse {
+  double balance = 1;
+}
+
+message CreateWalletRequest {
+  int64 user_id = 1; // UUID of the user
+}
+
+message CreateWalletResponse {
+  bool success = 1;
+  string message = 2;
+}

@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package proto_order;
+
+option go_package = "github.com/vsespontanno/eCommerce/internal/proto/order";
+
+service Order {
+  rpc Checkout (CheckoutRequest) returns (CheckoutResponse);
+}
+
+message CheckoutRequest {
+  string user_id = 1;
+}
+
+message CheckoutResponse {
+  bool success = 1;
+  string error = 2;
+}

@@ -3,9 +3,11 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 
 	proto "github.com/vsespontanno/eCommerce/proto/sso"
+	"github.com/vsespontanno/eCommerce/sso-service/internal/client"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/repository"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/services/auth"
 	"google.golang.org/grpc"
@@ -15,7 +17,8 @@ import (
 
 type AuthServer struct {
 	proto.UnimplementedAuthServer
-	auth Auth
+	auth   Auth
+	client *client.WalletClient
 }
 
 type Auth interface {
@@ -23,9 +26,9 @@ type Auth interface {
 	RegisterNewUser(ctx context.Context, email, FirstName, LastName, password string) (userID int64, err error)
 }
 
-func NewAuthServer(gRPCServer *grpc.Server, auth Auth) {
+func NewAuthServer(gRPCServer *grpc.Server, auth Auth, client *client.WalletClient) {
 	log.Println("Registering AuthServer")
-	proto.RegisterAuthServer(gRPCServer, &AuthServer{auth: auth})
+	proto.RegisterAuthServer(gRPCServer, &AuthServer{auth: auth, client: client})
 }
 
 func (s *AuthServer) Register(ctx context.Context, in *proto.RegisterRequest) (*proto.RegisterResponse, error) {
@@ -46,7 +49,12 @@ func (s *AuthServer) Register(ctx context.Context, in *proto.RegisterRequest) (*
 
 		return nil, status.Error(codes.Internal, "failed to register user")
 	}
-
+	fmt.Println("REGISTER COMPLETEED, NOW WE DO STUFF WITH WALLET")
+	ok, _, err := s.client.CreateWallet(context.Background(), uid)
+	if !ok || err != nil {
+		return nil, status.Error(codes.Internal, fmt.Sprintf("failed to create wallet: ok = %v; err = %s", ok, err))
+	}
+	fmt.Println("WALLET CREATED SUCCESSFULLY")
 	return &proto.RegisterResponse{UserId: uid}, nil
 
 }

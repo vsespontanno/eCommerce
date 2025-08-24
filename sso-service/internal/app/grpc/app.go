@@ -8,6 +8,7 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/vsespontanno/eCommerce/sso-service/internal/client"
 	authgrpc "github.com/vsespontanno/eCommerce/sso-service/internal/grpc/auth"
 	validategrpc "github.com/vsespontanno/eCommerce/sso-service/internal/grpc/validator"
 	"google.golang.org/grpc"
@@ -21,7 +22,7 @@ type App struct {
 	port       int
 }
 
-func NewApp(log *slog.Logger, authService authgrpc.Auth, validator validategrpc.Validator, port int) *App {
+func NewApp(log *slog.Logger, authService authgrpc.Auth, validator validategrpc.Validator, port int, clientPort string) *App {
 	recoveryOpts := []recovery.Option{
 		recovery.WithRecoveryHandler(func(p interface{}) (err error) {
 			// Логируем информацию о панике с уровнем Error
@@ -43,8 +44,8 @@ func NewApp(log *slog.Logger, authService authgrpc.Auth, validator validategrpc.
 		recovery.UnaryServerInterceptor(recoveryOpts...),
 		logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...),
 	))
-
-	authgrpc.NewAuthServer(gRPCServer, authService)
+	WalletClient := client.NewWalletClient(clientPort)
+	authgrpc.NewAuthServer(gRPCServer, authService, WalletClient)
 	validategrpc.NewValidationServer(gRPCServer, validator)
 	return &App{
 		log:        log,
