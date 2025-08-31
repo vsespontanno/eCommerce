@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/vsespontanno/eCommerce/products-service/internal/client"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
 	"github.com/vsespontanno/eCommerce/products-service/internal/handler/middleware"
 	"github.com/vsespontanno/eCommerce/products-service/internal/repository/postgres"
 	"go.uber.org/zap"
@@ -61,11 +63,15 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("GetProduct called")
 	ctx := context.TODO()
 	vars := mux.Vars(r)
-	id := vars["id"]
-
-	product, err := h.productStore.GetProductByID(ctx, id)
+	string_id := vars["id"]
+	int_id, err := strconv.Atoi(string_id)
 	if err != nil {
-		if err == postgres.ErrNoProductFound {
+		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		return
+	}
+	product, err := h.productStore.GetProductByID(ctx, int64(int_id))
+	if err != nil {
+		if err == models.ErrNoProductFound {
 			http.Error(w, "Product not found", http.StatusNotFound)
 		} else {
 			h.sugarLogger.Errorf("Failed to get product: %v", err)
@@ -89,15 +95,20 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 	ctx := context.TODO()
 	vars := mux.Vars(r)
-	productId := vars["id"]
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
 		return
 	}
-	product, err := h.productStore.GetProductByID(ctx, productId)
+	string_id := vars["id"]
+	int_id, err := strconv.Atoi(string_id)
 	if err != nil {
-		if err == postgres.ErrNoProductFound {
+		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		return
+	}
+	product, err := h.productStore.GetProductByID(ctx, int64(int_id))
+	if err != nil {
+		if err == models.ErrNoProductFound {
 			http.Error(w, "Product not found", http.StatusNotFound)
 		} else {
 			h.sugarLogger.Errorf("Failed to get product: %v", err)

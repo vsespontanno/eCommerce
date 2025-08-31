@@ -50,9 +50,10 @@ func main() {
 	cartStore := postgres.NewCartStore(db)
 	// Initialize application
 	httpPort := 8080
-	app := app.New(*logger, httpPort, store)
-	grpcPort := "50051"
-	jwtClient := client.NewJwtClient(grpcPort)
+	grpcServerPort := 12312
+	app := app.New(*logger, httpPort, grpcServerPort, store)
+	grpcClientPort := "50051"
+	jwtClient := client.NewJwtClient(grpcClientPort)
 
 	// Register handlers
 	handler := handler.New(cartStore, store, sugar, jwtClient)
@@ -62,6 +63,12 @@ func main() {
 	go func() {
 		if err := app.HTTPApp.Run(); err != nil {
 			sugar.Errorf("HTTP server failed: %v", err)
+		}
+	}()
+
+	go func() {
+		if err := app.GRPCApp.Run(); err != nil {
+			sugar.Errorf("gRPC server failed: %v", err)
 		}
 	}()
 
@@ -76,8 +83,12 @@ func main() {
 	defer cancel()
 
 	if err := app.HTTPApp.Shutdown(ctx); err != nil {
-		sugar.Errorf("Server shutdown failed: %v", err)
+		sugar.Errorf("HTTP server shutdown failed: %v", err)
 	} else {
-		sugar.Info("Server gracefully stopped")
+		sugar.Info("HTTP Server gracefully stopped")
 	}
+
+	app.GRPCApp.Stop()
+	sugar.Info("gRPC Server gracefully stopped")
+	sugar.Info("Server stopped")
 }

@@ -10,8 +10,6 @@ import (
 	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
 )
 
-var ErrNoProductFound = errors.New("no product found")
-
 type ProductStore struct {
 	db      *sql.DB
 	builder sq.StatementBuilderType
@@ -56,7 +54,7 @@ func (s *ProductStore) GetProducts(ctx context.Context) ([]*models.Product, erro
 	return products, nil
 }
 
-func (s *ProductStore) GetProductByID(ctx context.Context, id string) (*models.Product, error) {
+func (s *ProductStore) GetProductByID(ctx context.Context, id int64) (*models.Product, error) {
 	query := s.builder.Select("productID", "productName", "productDescription", "productPrice", "created_at").
 		From("products").
 		Where(sq.Eq{"productID": id}).
@@ -66,10 +64,26 @@ func (s *ProductStore) GetProductByID(ctx context.Context, id string) (*models.P
 	err := query.QueryRowContext(ctx).Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ErrNoProductFound // No product found
+			return nil, models.ErrNoProductFound // No product found
 		}
 		return nil, err
 	}
 
 	return &p, nil
+}
+
+func (s *ProductStore) GetProductsByID(ctx context.Context, ids []int64) ([]*models.Product, error) {
+	products := make([]*models.Product, 0, len(ids))
+	for _, id := range ids {
+		product, err := s.GetProductByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, models.ErrNoProductFound) {
+				continue
+			} else {
+				return nil, err
+			}
+		}
+		products = append(products, product)
+	}
+	return products, nil
 }
