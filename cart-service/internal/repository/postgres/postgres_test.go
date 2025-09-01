@@ -40,28 +40,3 @@ func TestGetCart(t *testing.T) {
 		fmt.Println(cart.Items)
 	}
 }
-
-func TestGetItemFromCart(t *testing.T) {
-	cfg, err := config.MustLoad()
-	if err != nil {
-		log.Fatalf("failed to load config: %v", err)
-	}
-	PG_USER := cfg.PGUser
-	PG_PASSWORD := cfg.PGPassword
-	PG_NAME := cfg.PGName
-	PG_HOST := cfg.PGHost
-	PG_PORT := cfg.PGPort
-	db, err := repository.ConnectToPostgres(PG_USER, PG_PASSWORD, PG_NAME, PG_HOST, PG_PORT)
-	if err != nil {
-		t.Errorf("failed to connect to Postgres: %v", err)
-	}
-	store := NewCartStore(db)
-	userID := int64(18)
-	productID := int64(1)
-
-	item, err := store.GetCartItem(context.Background(), userID, productID)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	fmt.Println(item)
-}

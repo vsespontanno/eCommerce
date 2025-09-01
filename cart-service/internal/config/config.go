@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -13,7 +14,7 @@ type Config struct {
 	PGName     string
 	PGHost     string
 	PGPort     string
-	// HTTPPort   int
+	HTTPPort   int
 	// GRPCPort   int
 }
 
@@ -23,10 +24,10 @@ func MustLoad() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	// HTTPPort, err := strconv.Atoi(os.Getenv("HTTP_PORT"))
-	// if err != nil {
-	// 	return nil, fmt.Errorf("%s: %w", op, err)
-	// }
+	HTTPPort, err := strconv.Atoi(os.Getenv("HTTP_PORT"))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
 	// GRPCPort, err := strconv.Atoi(os.Getenv("GRPC_PORT"))
 	// if err != nil {
 	// 	return nil, fmt.Errorf("%s: %w", op, err)
@@ -38,7 +39,7 @@ func MustLoad() (*Config, error) {
 		PGName:     os.Getenv("PG_NAME"),
 		PGHost:     os.Getenv("PG_HOST"),
 		PGPort:     os.Getenv("PG_PORT"),
-		// HTTPPort:   HTTPPort,
+		HTTPPort:   HTTPPort,
 		// GRPCPort:   GRPCPort,
 	}, nil
 }

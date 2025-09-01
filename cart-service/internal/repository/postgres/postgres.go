@@ -49,21 +49,3 @@ func (s *CartStore) GetCart(ctx context.Context, userID int64) (models.Cart, err
 	}
 	return cart, nil
 }
-
-func (s *CartStore) GetCartItem(ctx context.Context, userID int64, productID int64) (models.CartItem, error) {
-	var item models.CartItem
-	query := s.builder.
-		Select("id, user_id, product_id, quantity").
-		From("cart").
-		Where(sq.Eq{"user_id": userID, "product_id": productID}).
-		RunWith(s.db)
-
-	row := query.QueryRowContext(ctx)
-	if err := row.Scan(&item.ID, &item.UserID, &item.ProductID, &item.Quantity); err != nil {
-		if err == sql.ErrNoRows {
-			return models.CartItem{}, ErrNoCartFound
-		}
-		return models.CartItem{}, err
-	}
-	return item, nil
-}
