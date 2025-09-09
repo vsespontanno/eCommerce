@@ -15,6 +15,8 @@ import (
 	"github.com/vsespontanno/eCommerce/cart-service/internal/handler"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/repository"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/postgres"
+	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/redis"
+	"github.com/vsespontanno/eCommerce/cart-service/internal/service"
 	"go.uber.org/zap"
 )
 
@@ -46,14 +48,21 @@ func main() {
 	}
 	defer db.Close()
 
+	redisClient := repository.ConnectToRedis("6379")
+	defer redisClient.Close()
+
+	// Initialize cart service
 	cartStore := postgres.NewCartStore(db)
+	redisStore := redis.NewOrderStore(redisClient)
+	cartService := service.NewCart(logger.Sugar(), cartStore)
+	orderService := service.NewOrder(logger.Sugar(), redisStore)
+
 	// Initialize application
-	app := app.New(*logger, cfg.HTTPPort, cartStore)
+	app := app.New(*logger, cfg.HTTPPort, cartService)
 	grpcClientPort := "50051"
 	jwtClient := client.NewJwtClient(grpcClientPort)
-
 	// Register handlers
-	handler := handler.New(cartStore, sugar, jwtClient)
+	handler := handler.New(cartService, sugar, jwtClient, orderService)
 	handler.RegisterRoutes(app.HTTPApp.Router())
 
 	// Start server in a goroutine

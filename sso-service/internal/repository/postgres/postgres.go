@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/google/uuid"
+
 	sq "github.com/Masterminds/squirrel"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/domain/models"
 )
@@ -24,9 +26,11 @@ func NewStorage(db *sql.DB) *Storage {
 func (s *Storage) SaveUser(ctx context.Context, email, FirstName, LastName string, passHash []byte) (int64, error) {
 	const op = "postgres.SaveUser"
 	fmt.Println("Saving user:", email)
+	userID := uuid.New().ID()
 	query := s.builder.Insert("users").
-		Columns("email", "first_name", "last_name", "pass_hash").
-		Values(email, FirstName, LastName, passHash)
+		Columns("userID", "email", "first_name", "last_name", "pass_hash").
+		Values(int64(userID), email, FirstName, LastName, passHash)
+
 	sqlStr, args, err := query.ToSql()
 
 	if err != nil {

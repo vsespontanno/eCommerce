@@ -23,7 +23,7 @@ func NewCartStore(db *sql.DB) *CartStore {
 	}
 }
 
-func (s *CartStore) GetCart(ctx context.Context, userID int64) (models.Cart, error) {
+func (s *CartStore) GetCart(ctx context.Context, userID int64) (*models.Cart, error) {
 	var cart models.Cart
 	query := s.builder.
 		Select("id, user_id, product_id, quantity").
@@ -34,18 +34,18 @@ func (s *CartStore) GetCart(ctx context.Context, userID int64) (models.Cart, err
 	rows, err := query.QueryContext(ctx)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return models.Cart{}, ErrNoCartFound
+			return &models.Cart{}, ErrNoCartFound
 		}
-		return models.Cart{}, err
+		return &models.Cart{}, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		var item models.CartItem
 		if err := rows.Scan(&item.ID, &item.UserID, &item.ProductID, &item.Quantity); err != nil {
-			return models.Cart{}, err
+			return &models.Cart{}, err
 		}
 		cart.Items = append(cart.Items, item)
 	}
-	return cart, nil
+	return &cart, nil
 }

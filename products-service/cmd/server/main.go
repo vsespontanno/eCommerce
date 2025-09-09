@@ -58,6 +58,7 @@ func main() {
 	// Register handlers
 	handler := handler.New(cartStore, store, sugar, jwtClient)
 	handler.RegisterRoutes(app.HTTPApp.Router())
+	// seedSomeValues(store)
 
 	// Start server in a goroutine
 	go func() {
@@ -92,3 +93,22 @@ func main() {
 	sugar.Info("gRPC Server gracefully stopped")
 	sugar.Info("Server stopped")
 }
+
+// func seedSomeValues(store *postgres.ProductStore) {
+// 	product1 := &models.Product{
+// 		Name:        "Red Bull",
+// 		Description: "Good energy drink for gym",
+// 		Price:       141.0,
+// 		ID:          1,
+// 	}
+
+// 	product2 := &models.Product{
+// 		Name:        "Chapman Red",
+// 		Description: "vERy tasty ciagarettes for your deepression",
+// 		Price:       253.0,
+// 		ID:          2,
+// 	}
+
+// 	store.SaveProduct(context.TODO(), product1)
+// 	store.SaveProduct(context.TODO(), product2)
+// }
