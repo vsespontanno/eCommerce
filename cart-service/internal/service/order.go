@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/redis"
 	"go.uber.org/zap"
 )
@@ -28,9 +29,26 @@ func (s *OrderService) AddAllProducts(ctx context.Context, userID int64, product
 }
 
 func (s *OrderService) AddProductToCart(ctx context.Context, userID int64, productID int64) error {
-	err := s.redisStore.AddToCart(ctx, userID, productID)
+	q, err := s.redisStore.GetProductQuantity(ctx, userID, productID)
+	if err != nil {
+		if err != models.ErrProductIsNotInCart {
+			return err
+		}
+	}
+	if q == 100 {
+		return models.ErrTooManyProductsOfOneType
+	}
+	err = s.redisStore.AddToCart(ctx, userID, productID)
 	if err != nil {
 		s.sugarLogger.Errorf("error while adding 1 product to cart: %w", err)
+	}
+	return err
+}
+
+func (s *OrderService) DeleteProductFromCart(ctx context.Context, userID int64, productID int64) error {
+	err := s.redisStore.RemoveOneFromCart(ctx, userID, productID)
+	if err != nil {
+		s.sugarLogger.Errorf("error while deleting 1 product to cart: %w", err)
 	}
 	return err
 }

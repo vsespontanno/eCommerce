@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
 )
 
 type OrderStore struct {
@@ -77,6 +78,19 @@ func (s *OrderStore) GetCart(ctx context.Context, userID int64) (map[int64]int64
 		result[pid] = qty
 	}
 	return result, nil
+}
+
+func (s *OrderStore) GetProductQuantity(ctx context.Context, userID int64, productID int64) (int64, error) {
+	key := "cart:" + strconv.FormatInt(userID, 10)
+	field := strconv.FormatInt(productID, 10)
+	q, err := s.rdb.HGet(ctx, key, field).Int64()
+	if err != nil {
+		if err == redis.Nil {
+			return 0, models.ErrProductIsNotInCart
+		}
+		return 0, err
+	}
+	return q, err
 }
 
 // To weird cause user never writes quantity; he only uses the button "+" or "-" so default value would be 1

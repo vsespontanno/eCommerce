@@ -94,12 +94,12 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 	ctx := context.TODO()
-	vars := mux.Vars(r)
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
 		return
 	}
+	vars := mux.Vars(r)
 	string_id := vars["id"]
 	int_id, err := strconv.Atoi(string_id)
 	if err != nil {
