@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -50,7 +51,7 @@ func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
 	}
 	cart, err := h.cartService.Cart(ctx, userID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			writeJSON(w, http.StatusOK, "Your cart is empty")
 			return
 		}
@@ -58,7 +59,7 @@ func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get cart", http.StatusInternalServerError)
 		return
 	}
-	productIDs := []int64{}
+	var productIDs []int64
 	for _, item := range cart.Items {
 		productIDs = append(productIDs, item.ProductID)
 	}
@@ -77,7 +78,11 @@ func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(serialized)
+	_, err = w.Write(serialized)
+	if err != nil {
+		h.sugarLogger.Errorf("Failed to write response: %v", err)
+		return
+	}
 }
 
 func (h *Handler) AddProduct(w http.ResponseWriter, r *http.Request) {
@@ -88,22 +93,27 @@ func (h *Handler) AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	vars := mux.Vars(r)
-	string_id := vars["id"]
-	int_id, err := strconv.Atoi(string_id)
+	stringID := vars["id"]
+	intID, err := strconv.Atoi(stringID)
 	if err != nil {
 		http.Error(w, "Invalid product ID", http.StatusBadRequest)
 		return
 	}
-	err = h.orderService.AddProductToCart(ctx, userID, int64(int_id))
+	err = h.orderService.AddProductToCart(ctx, userID, int64(intID))
 	if err != nil {
-		if err == models.ErrTooManyProductsOfOneType {
+		if errors.Is(err, models.ErrTooManyProductsOfOneType) {
 			writeJSON(w, http.StatusUnprocessableEntity, "You cannot add more than 100 products of one")
 			return
 		}
 		http.Error(w, "Error while adding product", http.StatusBadRequest)
 		return
 	}
-	writeJSON(w, http.StatusOK, "")
+	err = writeJSON(w, http.StatusOK, "")
+	if err != nil {
+		h.sugarLogger.Errorf("Failed to add product: %v", err)
+		http.Error(w, "Failed to add product", http.StatusInternalServerError)
+		return
+	}
 
 }
 
