@@ -31,4 +31,6 @@ go.work.sum
 # .idea/
 .vscode/
 Makefile
+.idea*
 *seed*
+.idea/
