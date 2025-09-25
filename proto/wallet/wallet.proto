@@ -4,11 +4,8 @@ package proto_wallet;
 
 option go_package = "github.com/vsespontanno/eCommerce/internal/proto/wallet";
 
-service Creator {
-  rpc CreateWallet (CreateWalletRequest) returns (CreateWalletResponse);
-}
-
 service WalletTopUP {
+  rpc CreateWallet (CreateWalletRequest) returns (CreateWalletResponse);
   rpc Balance (BalanceRequest) returns (BalanceResponse);
   rpc TopUp (TopUpRequest) returns (TopUpResponse);
 }
@@ -31,7 +28,7 @@ message ReserveFundsResponse {
 
 message ReleaseFundsRequest {
   string user_id = 1;
-  double amount = 2;
+  int64 amount = 2;
 }
 
 message ReleaseFundsResponse {
@@ -41,7 +38,7 @@ message ReleaseFundsResponse {
 
 message CommitFundsRequest {
   string user_id = 1;
-  double amount = 2;
+  int64 amount = 2;
 }
 
 message CommitFundsResponse {
@@ -50,7 +47,7 @@ message CommitFundsResponse {
 }
 
 message TopUpRequest {
-  double amount = 2; // Amount to top up
+  int64 amount = 2; // Amount to top up
 }
 
 message TopUpResponse {
@@ -62,11 +59,11 @@ message BalanceRequest {
 }
 
 message BalanceResponse {
-  double balance = 1;
+  int64 balance = 1;
+  string error = 2;
 }
 
 message CreateWalletRequest {
-  int64 user_id = 1; // UUID of the user
 }
 
 message CreateWalletResponse {

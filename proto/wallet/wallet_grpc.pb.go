@@ -19,116 +19,16 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Creator_CreateWallet_FullMethodName = "/proto_wallet.Creator/CreateWallet"
-)
-
-// CreatorClient is the client API for Creator service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type CreatorClient interface {
-	CreateWallet(ctx context.Context, in *CreateWalletRequest, opts ...grpc.CallOption) (*CreateWalletResponse, error)
-}
-
-type creatorClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewCreatorClient(cc grpc.ClientConnInterface) CreatorClient {
-	return &creatorClient{cc}
-}
-
-func (c *creatorClient) CreateWallet(ctx context.Context, in *CreateWalletRequest, opts ...grpc.CallOption) (*CreateWalletResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CreateWalletResponse)
-	err := c.cc.Invoke(ctx, Creator_CreateWallet_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// CreatorServer is the server API for Creator service.
-// All implementations must embed UnimplementedCreatorServer
-// for forward compatibility.
-type CreatorServer interface {
-	CreateWallet(context.Context, *CreateWalletRequest) (*CreateWalletResponse, error)
-	mustEmbedUnimplementedCreatorServer()
-}
-
-// UnimplementedCreatorServer must be embedded to have
-// forward compatible implementations.
-//
-// NOTE: this should be embedded by value instead of pointer to avoid a nil
-// pointer dereference when methods are called.
-type UnimplementedCreatorServer struct{}
-
-func (UnimplementedCreatorServer) CreateWallet(context.Context, *CreateWalletRequest) (*CreateWalletResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateWallet not implemented")
-}
-func (UnimplementedCreatorServer) mustEmbedUnimplementedCreatorServer() {}
-func (UnimplementedCreatorServer) testEmbeddedByValue()                 {}
-
-// UnsafeCreatorServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to CreatorServer will
-// result in compilation errors.
-type UnsafeCreatorServer interface {
-	mustEmbedUnimplementedCreatorServer()
-}
-
-func RegisterCreatorServer(s grpc.ServiceRegistrar, srv CreatorServer) {
-	// If the following call pancis, it indicates UnimplementedCreatorServer was
-	// embedded by pointer and is nil.  This will cause panics if an
-	// unimplemented method is ever invoked, so we test this at initialization
-	// time to prevent it from happening at runtime later due to I/O.
-	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
-		t.testEmbeddedByValue()
-	}
-	s.RegisterService(&Creator_ServiceDesc, srv)
-}
-
-func _Creator_CreateWallet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateWalletRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(CreatorServer).CreateWallet(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Creator_CreateWallet_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CreatorServer).CreateWallet(ctx, req.(*CreateWalletRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-// Creator_ServiceDesc is the grpc.ServiceDesc for Creator service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var Creator_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "proto_wallet.Creator",
-	HandlerType: (*CreatorServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "CreateWallet",
-			Handler:    _Creator_CreateWallet_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/wallet/wallet.proto",
-}
-
-const (
-	WalletTopUP_Balance_FullMethodName = "/proto_wallet.WalletTopUP/Balance"
-	WalletTopUP_TopUp_FullMethodName   = "/proto_wallet.WalletTopUP/TopUp"
+	WalletTopUP_CreateWallet_FullMethodName = "/proto_wallet.WalletTopUP/CreateWallet"
+	WalletTopUP_Balance_FullMethodName      = "/proto_wallet.WalletTopUP/Balance"
+	WalletTopUP_TopUp_FullMethodName        = "/proto_wallet.WalletTopUP/TopUp"
 )
 
 // WalletTopUPClient is the client API for WalletTopUP service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type WalletTopUPClient interface {
+	CreateWallet(ctx context.Context, in *CreateWalletRequest, opts ...grpc.CallOption) (*CreateWalletResponse, error)
 	Balance(ctx context.Context, in *BalanceRequest, opts ...grpc.CallOption) (*BalanceResponse, error)
 	TopUp(ctx context.Context, in *TopUpRequest, opts ...grpc.CallOption) (*TopUpResponse, error)
 }
@@ -139,6 +39,16 @@ type walletTopUPClient struct {
 
 func NewWalletTopUPClient(cc grpc.ClientConnInterface) WalletTopUPClient {
 	return &walletTopUPClient{cc}
+}
+
+func (c *walletTopUPClient) CreateWallet(ctx context.Context, in *CreateWalletRequest, opts ...grpc.CallOption) (*CreateWalletResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateWalletResponse)
+	err := c.cc.Invoke(ctx, WalletTopUP_CreateWallet_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *walletTopUPClient) Balance(ctx context.Context, in *BalanceRequest, opts ...grpc.CallOption) (*BalanceResponse, error) {
@@ -165,6 +75,7 @@ func (c *walletTopUPClient) TopUp(ctx context.Context, in *TopUpRequest, opts ..
 // All implementations must embed UnimplementedWalletTopUPServer
 // for forward compatibility.
 type WalletTopUPServer interface {
+	CreateWallet(context.Context, *CreateWalletRequest) (*CreateWalletResponse, error)
 	Balance(context.Context, *BalanceRequest) (*BalanceResponse, error)
 	TopUp(context.Context, *TopUpRequest) (*TopUpResponse, error)
 	mustEmbedUnimplementedWalletTopUPServer()
@@ -177,6 +88,9 @@ type WalletTopUPServer interface {
 // pointer dereference when methods are called.
 type UnimplementedWalletTopUPServer struct{}
 
+func (UnimplementedWalletTopUPServer) CreateWallet(context.Context, *CreateWalletRequest) (*CreateWalletResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateWallet not implemented")
+}
 func (UnimplementedWalletTopUPServer) Balance(context.Context, *BalanceRequest) (*BalanceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Balance not implemented")
 }
@@ -202,6 +116,24 @@ func RegisterWalletTopUPServer(s grpc.ServiceRegistrar, srv WalletTopUPServer) {
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&WalletTopUP_ServiceDesc, srv)
+}
+
+func _WalletTopUP_CreateWallet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateWalletRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletTopUPServer).CreateWallet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WalletTopUP_CreateWallet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletTopUPServer).CreateWallet(ctx, req.(*CreateWalletRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _WalletTopUP_Balance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -247,6 +179,10 @@ var WalletTopUP_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "proto_wallet.WalletTopUP",
 	HandlerType: (*WalletTopUPServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CreateWallet",
+			Handler:    _WalletTopUP_CreateWallet_Handler,
+		},
 		{
 			MethodName: "Balance",
 			Handler:    _WalletTopUP_Balance_Handler,

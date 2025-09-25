@@ -8,7 +8,6 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/vsespontanno/eCommerce/sso-service/internal/client"
 	authgrpc "github.com/vsespontanno/eCommerce/sso-service/internal/grpc/auth"
 	validategrpc "github.com/vsespontanno/eCommerce/sso-service/internal/grpc/validator"
 	"google.golang.org/grpc"
@@ -44,8 +43,7 @@ func NewApp(log *slog.Logger, authService authgrpc.Auth, validator validategrpc.
 		recovery.UnaryServerInterceptor(recoveryOpts...),
 		logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...),
 	))
-	WalletClient := client.NewWalletClient(clientPort)
-	authgrpc.NewAuthServer(gRPCServer, authService, WalletClient)
+	authgrpc.NewAuthServer(gRPCServer, authService)
 	validategrpc.NewValidationServer(gRPCServer, validator)
 	return &App{
 		log:        log,
@@ -73,7 +71,7 @@ func (a *App) Run() error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	a.log.Info("grpc server started", slog.String("addr", l.Addr().String()))
+	a.log.Info("user server started", slog.String("addr", l.Addr().String()))
 	if err := a.gRPCServer.Serve(l); err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}

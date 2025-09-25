@@ -8,7 +8,6 @@ import (
 
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/app"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/config"
-	"github.com/vsespontanno/eCommerce/wallet-service/internal/repository"
 	"go.uber.org/zap"
 )
 
@@ -17,10 +16,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	sDb, err := repository.ConnectToPostgres(cfg.User, cfg.Password, cfg.Name, cfg.Host, cfg.PGPort)
-	if err != nil {
-		panic("Failed to connect to db: " + err.Error())
-	}
 	logger, err := zap.NewProduction()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
@@ -28,20 +23,18 @@ func main() {
 	}
 	defer logger.Sync()
 	sugar := logger.Sugar()
-	application := app.New(sugar, cfg.GRPCServer, cfg.GRPCClient, sDb)
+
+	a, err := app.New(sugar, cfg)
 	go func() {
-		application.GRPCServer.MustRun()
+		a.MustRun()
 	}()
 
 	// Graceful shutdown
-
+	a.Log.Info("signal sigint")
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 
-	// Waiting for SIGINT (pkill -2) or SIGTERM
 	<-stop
 
-	// initiate graceful shutdown
-	application.GRPCServer.Stop() // Assuming GRPCServer has Stop() method for graceful shutdown
-	logger.Info("Gracefully stopped")
+	a.Stop() // Assuming GRPCServer has Stop() method for graceful shutdown
 }

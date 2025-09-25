@@ -128,7 +128,7 @@ func (x *ReserveFundsResponse) GetError() string {
 type ReleaseFundsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Amount        float64                `protobuf:"fixed64,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	Amount        int64                  `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -170,7 +170,7 @@ func (x *ReleaseFundsRequest) GetUserId() string {
 	return ""
 }
 
-func (x *ReleaseFundsRequest) GetAmount() float64 {
+func (x *ReleaseFundsRequest) GetAmount() int64 {
 	if x != nil {
 		return x.Amount
 	}
@@ -232,7 +232,7 @@ func (x *ReleaseFundsResponse) GetError() string {
 type CommitFundsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Amount        float64                `protobuf:"fixed64,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	Amount        int64                  `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -274,7 +274,7 @@ func (x *CommitFundsRequest) GetUserId() string {
 	return ""
 }
 
-func (x *CommitFundsRequest) GetAmount() float64 {
+func (x *CommitFundsRequest) GetAmount() int64 {
 	if x != nil {
 		return x.Amount
 	}
@@ -335,7 +335,7 @@ func (x *CommitFundsResponse) GetError() string {
 
 type TopUpRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Amount        float64                `protobuf:"fixed64,2,opt,name=amount,proto3" json:"amount,omitempty"` // Amount to top up
+	Amount        int64                  `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"` // Amount to top up
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -370,7 +370,7 @@ func (*TopUpRequest) Descriptor() ([]byte, []int) {
 	return file_proto_wallet_wallet_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *TopUpRequest) GetAmount() float64 {
+func (x *TopUpRequest) GetAmount() int64 {
 	if x != nil {
 		return x.Amount
 	}
@@ -467,7 +467,8 @@ func (*BalanceRequest) Descriptor() ([]byte, []int) {
 
 type BalanceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Balance       float64                `protobuf:"fixed64,1,opt,name=balance,proto3" json:"balance,omitempty"`
+	Balance       int64                  `protobuf:"varint,1,opt,name=balance,proto3" json:"balance,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -502,16 +503,22 @@ func (*BalanceResponse) Descriptor() ([]byte, []int) {
 	return file_proto_wallet_wallet_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *BalanceResponse) GetBalance() float64 {
+func (x *BalanceResponse) GetBalance() int64 {
 	if x != nil {
 		return x.Balance
 	}
 	return 0
 }
 
+func (x *BalanceResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 type CreateWalletRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"` // UUID of the user
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -544,13 +551,6 @@ func (x *CreateWalletRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateWalletRequest.ProtoReflect.Descriptor instead.
 func (*CreateWalletRequest) Descriptor() ([]byte, []int) {
 	return file_proto_wallet_wallet_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *CreateWalletRequest) GetUserId() int64 {
-	if x != nil {
-		return x.UserId
-	}
-	return 0
 }
 
 type CreateWalletResponse struct {
@@ -618,32 +618,31 @@ const file_proto_wallet_wallet_proto_rawDesc = "" +
 	"\x05error\x18\x02 \x01(\tR\x05error\"F\n" +
 	"\x13ReleaseFundsRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
-	"\x06amount\x18\x02 \x01(\x01R\x06amount\"F\n" +
+	"\x06amount\x18\x02 \x01(\x03R\x06amount\"F\n" +
 	"\x14ReleaseFundsResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\"E\n" +
 	"\x12CommitFundsRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
-	"\x06amount\x18\x02 \x01(\x01R\x06amount\"E\n" +
+	"\x06amount\x18\x02 \x01(\x03R\x06amount\"E\n" +
 	"\x13CommitFundsResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\"&\n" +
 	"\fTopUpRequest\x12\x16\n" +
-	"\x06amount\x18\x02 \x01(\x01R\x06amount\"?\n" +
+	"\x06amount\x18\x02 \x01(\x03R\x06amount\"?\n" +
 	"\rTopUpResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\"\x10\n" +
-	"\x0eBalanceRequest\"+\n" +
+	"\x0eBalanceRequest\"A\n" +
 	"\x0fBalanceResponse\x12\x18\n" +
-	"\abalance\x18\x01 \x01(\x01R\abalance\".\n" +
-	"\x13CreateWalletRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\x03R\x06userId\"J\n" +
+	"\abalance\x18\x01 \x01(\x03R\abalance\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"\x15\n" +
+	"\x13CreateWalletRequest\"J\n" +
 	"\x14CreateWalletResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2`\n" +
-	"\aCreator\x12U\n" +
-	"\fCreateWallet\x12!.proto_wallet.CreateWalletRequest\x1a\".proto_wallet.CreateWalletResponse2\x97\x01\n" +
-	"\vWalletTopUP\x12F\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2\xee\x01\n" +
+	"\vWalletTopUP\x12U\n" +
+	"\fCreateWallet\x12!.proto_wallet.CreateWalletRequest\x1a\".proto_wallet.CreateWalletResponse\x12F\n" +
 	"\aBalance\x12\x1c.proto_wallet.BalanceRequest\x1a\x1d.proto_wallet.BalanceResponse\x12@\n" +
 	"\x05TopUp\x12\x1a.proto_wallet.TopUpRequest\x1a\x1b.proto_wallet.TopUpResponse2\x8a\x02\n" +
 	"\x06Wallet\x12U\n" +
@@ -679,13 +678,13 @@ var file_proto_wallet_wallet_proto_goTypes = []any{
 	(*CreateWalletResponse)(nil), // 11: proto_wallet.CreateWalletResponse
 }
 var file_proto_wallet_wallet_proto_depIdxs = []int32{
-	10, // 0: proto_wallet.Creator.CreateWallet:input_type -> proto_wallet.CreateWalletRequest
+	10, // 0: proto_wallet.WalletTopUP.CreateWallet:input_type -> proto_wallet.CreateWalletRequest
 	8,  // 1: proto_wallet.WalletTopUP.Balance:input_type -> proto_wallet.BalanceRequest
 	6,  // 2: proto_wallet.WalletTopUP.TopUp:input_type -> proto_wallet.TopUpRequest
 	0,  // 3: proto_wallet.Wallet.ReserveFunds:input_type -> proto_wallet.ReserveFundsRequest
 	2,  // 4: proto_wallet.Wallet.ReleaseFunds:input_type -> proto_wallet.ReleaseFundsRequest
 	4,  // 5: proto_wallet.Wallet.CommitFunds:input_type -> proto_wallet.CommitFundsRequest
-	11, // 6: proto_wallet.Creator.CreateWallet:output_type -> proto_wallet.CreateWalletResponse
+	11, // 6: proto_wallet.WalletTopUP.CreateWallet:output_type -> proto_wallet.CreateWalletResponse
 	9,  // 7: proto_wallet.WalletTopUP.Balance:output_type -> proto_wallet.BalanceResponse
 	7,  // 8: proto_wallet.WalletTopUP.TopUp:output_type -> proto_wallet.TopUpResponse
 	1,  // 9: proto_wallet.Wallet.ReserveFunds:output_type -> proto_wallet.ReserveFundsResponse
@@ -711,7 +710,7 @@ func file_proto_wallet_wallet_proto_init() {
 			NumEnums:      0,
 			NumMessages:   12,
 			NumExtensions: 0,
-			NumServices:   3,
+			NumServices:   2,
 		},
 		GoTypes:           file_proto_wallet_wallet_proto_goTypes,
 		DependencyIndexes: file_proto_wallet_wallet_proto_depIdxs,

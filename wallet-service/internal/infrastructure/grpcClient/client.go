@@ -1,10 +1,10 @@
-package client
+package grpcClient
 
 import (
 	"context"
 	"log"
 
-	sso "github.com/vsespontanno/eCommerce/proto/sso"
+	"github.com/vsespontanno/eCommerce/proto/sso"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
