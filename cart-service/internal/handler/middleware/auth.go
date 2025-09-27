@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vsespontanno/eCommerce/cart-service/internal/client"
+	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
 )
 
 var (
@@ -21,8 +21,12 @@ const (
 	UserIDKey contextKey = "user_id"
 )
 
+type ValidatorInterface interface {
+	ValidateToken(ctx context.Context, token string) (*models.TokenResponse, error)
+}
+
 // AuthMiddleware проверяет JWT токен и добавляет информацию о пользователе в контекст
-func AuthMiddleware(next http.HandlerFunc, grpcClient *client.JwtClient) http.Handler {
+func AuthMiddleware(next http.HandlerFunc, grpcClient ValidatorInterface) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Получаем токен из заголовка
 		authHeader := r.Header.Get("Authorization")
@@ -37,13 +41,13 @@ func AuthMiddleware(next http.HandlerFunc, grpcClient *client.JwtClient) http.Ha
 			return
 		}
 		// Проверяем токен
-		valid, err := grpcClient.ValidateToken(context.TODO(), parts[1])
+		valid, err := grpcClient.ValidateToken(r.Context(), parts[1])
 		if err != nil || !valid.Valid {
 			http.Error(w, ErrInvalidToken.Error(), http.StatusUnauthorized)
 			return
 		}
 		// Добавляем информацию о пользователе в контекст
-		ctx := context.WithValue(r.Context(), UserIDKey, valid.UserId)
+		ctx := context.WithValue(r.Context(), UserIDKey, valid.UserID)
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
 	sso "github.com/vsespontanno/eCommerce/proto/sso"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -26,10 +27,11 @@ func NewJwtClient(port string) *JwtClient {
 		port:   port,
 	}
 }
-func (j *JwtClient) ValidateToken(ctx context.Context, token string) (*sso.ValidateTokenResponse, error) {
+func (j *JwtClient) ValidateToken(ctx context.Context, token string) (*models.TokenResponse, error) {
 	resp, err := j.client.ValidateToken(ctx, &sso.ValidateTokenRequest{Token: token})
 	if err != nil {
 		return nil, err
 	}
-	return resp, nil
+
+	return &models.TokenResponse{Valid: resp.Valid, UserID: resp.UserId}, nil
 }

@@ -2,19 +2,30 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-func ConnectToRedis(addr string) *redis.Client {
-	host := "localhost:" + addr
+func ConnectToRedis(addr, password string, db int) *redis.Client {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     host,
-		Password: "",
-		DB:       0, // use default DB
+		Addr:         addr,
+		Password:     password,
+		DB:           db,
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
+		PoolSize:     10,
+		MinIdleConns: 5,
 	})
-	if err := rdb.Ping(context.Background()).Err(); err != nil {
-		panic(err)
+
+	// Проверяем соединение с таймаутом
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := rdb.Ping(ctx).Err(); err != nil {
+		panic(fmt.Sprintf("Failed to connect to Redis: %v", err))
 	}
 	return rdb
 }

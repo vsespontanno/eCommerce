@@ -2,7 +2,9 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
@@ -40,7 +42,10 @@ func (s *OrderStore) AddToCart(ctx context.Context, userID int64, productID int6
 	key := "cart:" + strconv.FormatInt(userID, 10)
 	field := strconv.FormatInt(productID, 10)
 	_, err := s.rdb.HIncrBy(ctx, key, field, 1).Result()
-	return err
+	if err != nil {
+		return err
+	}
+	return s.rdb.Expire(ctx, key, 30*24*time.Hour).Err()
 }
 
 func (s *OrderStore) RemoveOneFromCart(ctx context.Context, userID int64, productID int64) error {
@@ -73,8 +78,14 @@ func (s *OrderStore) GetCart(ctx context.Context, userID int64) (map[int64]int64
 	}
 	result := make(map[int64]int64)
 	for pidStr, qtyStr := range items {
-		pid, _ := strconv.ParseInt(pidStr, 10, 64)
-		qty, _ := strconv.ParseInt(qtyStr, 10, 64)
+		pid, err := strconv.ParseInt(pidStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid product ID: %w", err)
+		}
+		qty, err := strconv.ParseInt(qtyStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid quantity: %w", err)
+		}
 		result[pid] = qty
 	}
 	return result, nil

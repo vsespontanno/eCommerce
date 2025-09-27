@@ -23,10 +23,8 @@ func NewCart(sugarLogger *zap.SugaredLogger, cartStore *postgres.CartStore) *Car
 func (s *CartService) Cart(ctx context.Context, userID int64) (*models.Cart, error) {
 	cart, err := s.cartStore.GetCart(ctx, userID)
 	if err != nil {
-		s.sugarLogger.Errorf("error while getting cart from store: %w", err)
+		s.sugarLogger.Errorf("error while getting cart from store: %v", err)
 		return &models.Cart{}, err
 	}
 	return cart, err
 }
-
-

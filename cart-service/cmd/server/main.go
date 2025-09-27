@@ -13,6 +13,7 @@ import (
 	"github.com/vsespontanno/eCommerce/cart-service/internal/client"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/config"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/handler"
+	"github.com/vsespontanno/eCommerce/cart-service/internal/handler/middleware"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/repository"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/postgres"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/redis"
@@ -48,7 +49,12 @@ func main() {
 	}
 	defer db.Close()
 
-	redisClient := repository.ConnectToRedis("6379")
+	// Initialize Redis with proper configuration
+	redisAddr := cfg.RedisAddr
+	if redisAddr == "" {
+		redisAddr = "localhost:6379" // default
+	}
+	redisClient := repository.ConnectToRedis(redisAddr, cfg.RedisPassword, cfg.RedisDB)
 	defer redisClient.Close()
 
 	// Initialize cart service
@@ -57,12 +63,19 @@ func main() {
 	cartService := service.NewCart(logger.Sugar(), cartStore)
 	orderService := service.NewOrder(logger.Sugar(), redisStore)
 
+	// Initialize rate limiter
+	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimitRPS)
+
 	// Initialize application
 	app := app.New(*logger, cfg.HTTPPort, cartService)
-	grpcClientPort := "50051"
+	grpcClientPort := cfg.GRPCPort
+	if grpcClientPort == "" {
+		grpcClientPort = "50051" // default
+	}
 	jwtClient := client.NewJwtClient(grpcClientPort)
+
 	// Register handlers
-	handler := handler.New(cartService, sugar, jwtClient, orderService)
+	handler := handler.New(cartService, sugar, jwtClient, orderService, rateLimiter)
 	handler.RegisterRoutes(app.HTTPApp.Router())
 
 	// Start server in a goroutine

@@ -9,12 +9,17 @@ import (
 )
 
 type Config struct {
-	PGUser     string
-	PGPassword string
-	PGName     string
-	PGHost     string
-	PGPort     string
-	HTTPPort   int
+	PGUser        string
+	PGPassword    string
+	PGName        string
+	PGHost        string
+	PGPort        string
+	HTTPPort      int
+	RedisAddr     string
+	RedisPassword string
+	RedisDB       int
+	GRPCPort      string
+	RateLimitRPS  int
 	// GRPCPort   int
 }
 
@@ -28,18 +33,28 @@ func MustLoad() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	// GRPCPort, err := strconv.Atoi(os.Getenv("GRPC_PORT"))
-	// if err != nil {
-	// 	return nil, fmt.Errorf("%s: %w", op, err)
-	// }
+
+	RedisDB, err := strconv.Atoi(os.Getenv("REDIS_DB"))
+	if err != nil {
+		RedisDB = 0 // default
+	}
+
+	RateLimitRPS, err := strconv.Atoi(os.Getenv("RATE_LIMIT_RPS"))
+	if err != nil {
+		RateLimitRPS = 60 // default 60 requests per minute
+	}
 
 	return &Config{
-		PGUser:     os.Getenv("PG_USER"),
-		PGPassword: os.Getenv("PG_PASSWORD"),
-		PGName:     os.Getenv("PG_NAME"),
-		PGHost:     os.Getenv("PG_HOST"),
-		PGPort:     os.Getenv("PG_PORT"),
-		HTTPPort:   HTTPPort,
-		// GRPCPort:   GRPCPort,
+		PGUser:        os.Getenv("PG_USER"),
+		PGPassword:    os.Getenv("PG_PASSWORD"),
+		PGName:        os.Getenv("PG_NAME"),
+		PGHost:        os.Getenv("PG_HOST"),
+		PGPort:        os.Getenv("PG_PORT"),
+		HTTPPort:      HTTPPort,
+		RedisAddr:     os.Getenv("REDIS_ADDR"),
+		RedisPassword: os.Getenv("REDIS_PASSWORD"),
+		RedisDB:       RedisDB,
+		GRPCPort:      os.Getenv("GRPC_PORT"),
+		RateLimitRPS:  RateLimitRPS,
 	}, nil
 }
