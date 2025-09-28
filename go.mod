@@ -14,6 +14,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/redis/go-redis/v9 v9.12.1
 	github.com/stretchr/testify v1.10.0
+	github.com/ulule/limiter/v3 v3.11.2
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.41.0
 	google.golang.org/grpc v1.74.2
@@ -28,7 +29,6 @@ require (
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/ulule/limiter/v3 v3.11.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.42.0 // indirect
 	golang.org/x/sys v0.35.0 // indirect

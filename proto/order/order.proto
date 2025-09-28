@@ -5,14 +5,15 @@ package proto_order;
 option go_package = "github.com/vsespontanno/eCommerce/internal/proto/order";
 
 service Order {
-  rpc Checkout (CheckoutRequest) returns (CheckoutResponse);
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
 }
 
-message CheckoutRequest {
+message CreateOrderRequest {
   string user_id = 1;
 }
 
-message CheckoutResponse {
-  bool success = 1;
-  string error = 2;
+message CreateOrderResponse {
+  int64 order_id = 1;
+  string status = 2;
+  string error = 3;
 }
