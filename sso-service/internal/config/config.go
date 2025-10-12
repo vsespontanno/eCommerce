@@ -9,14 +9,13 @@ import (
 )
 
 type Config struct {
-	JWTSecret  string
-	GRPCPort   int
-	ClientPort string
-	User       string
-	Password   string
-	Name       string
-	Host       string
-	PGPort     string
+	JWTSecret string
+	GRPCPort  int
+	User      string
+	Password  string
+	Name      string
+	Host      string
+	PGPort    string
 }
 
 func MustLoad() (*Config, error) {
@@ -30,13 +29,12 @@ func MustLoad() (*Config, error) {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	return &Config{
-		JWTSecret:  os.Getenv("JWT_SECRET"),
-		GRPCPort:   grpcPort,
-		ClientPort: os.Getenv("CLIENT_PORT"),
-		User:       os.Getenv("PG_USER"),
-		Password:   os.Getenv("PG_PASSWORD"),
-		Name:       os.Getenv("PG_NAME"),
-		Host:       os.Getenv("PG_HOST"),
-		PGPort:     os.Getenv("PG_PORT"),
+		JWTSecret: os.Getenv("JWT_SECRET"),
+		GRPCPort:  grpcPort,
+		User:      os.Getenv("PG_USER"),
+		Password:  os.Getenv("PG_PASSWORD"),
+		Name:      os.Getenv("PG_NAME"),
+		Host:      os.Getenv("PG_HOST"),
+		PGPort:    os.Getenv("PG_PORT"),
 	}, nil
 }

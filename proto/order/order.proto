@@ -4,16 +4,34 @@ package proto_order;
 
 option go_package = "github.com/vsespontanno/eCommerce/internal/proto/order";
 
-service Order {
-  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+service OrderService {
+  rpc CreateOrderSaga(CreateOrderSagaRequest) returns (CreateOrderSagaResponse);
+  rpc CancelOrderSaga(CancelOrderRequest) returns (CancelOrderResponse);
 }
 
-message CreateOrderRequest {
+message CreateOrderSagaRequest {
   string user_id = 1;
+  repeated OrderItem items = 2;
+  int64 total_amount = 3;
 }
 
-message CreateOrderResponse {
-  int64 order_id = 1;
+message OrderItem {
+  string product_id = 1;
+  int32 quantity = 2;
+  int64 price = 3;
+}
+
+message CreateOrderSagaResponse {
+  string order_id = 1;
   string status = 2;
   string error = 3;
+}
+
+message CancelOrderRequest {
+  string order_id = 1;
+}
+
+message CancelOrderResponse {
+  bool success = 1;
+  string error = 2;
 }

@@ -21,7 +21,7 @@ type App struct {
 	port       int
 }
 
-func NewApp(log *slog.Logger, authService authgrpc.Auth, validator validategrpc.Validator, port int, clientPort string) *App {
+func NewApp(log *slog.Logger, authService authgrpc.Auth, validator validategrpc.Validator, port int) *App {
 	recoveryOpts := []recovery.Option{
 		recovery.WithRecoveryHandler(func(p interface{}) (err error) {
 			// Логируем информацию о панике с уровнем Error

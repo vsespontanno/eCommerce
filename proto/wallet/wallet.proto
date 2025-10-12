@@ -17,7 +17,7 @@ service Wallet {
 }
 
 message ReserveFundsRequest {
-  string user_id = 1;
+  int64 user_id = 1;
   int64 amount = 2;
 }
 
@@ -27,7 +27,7 @@ message ReserveFundsResponse {
 }
 
 message ReleaseFundsRequest {
-  string user_id = 1;
+  int64 user_id = 1;
   int64 amount = 2;
 }
 
@@ -37,7 +37,7 @@ message ReleaseFundsResponse {
 }
 
 message CommitFundsRequest {
-  string user_id = 1;
+  int64 user_id = 1;
   int64 amount = 2;
 }
 
