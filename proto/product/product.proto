@@ -9,6 +9,46 @@ service Products {
   rpc GetProducts (GetProductsByIDRequest) returns (GetProductsByIDResponse);
 }
 
+service SagaProducts {
+  rpc ReserveProducts (ReserveProductsRequest) returns (ReserveProductsResponse);
+  rpc ReleaseProducts (ReleaseProductsRequest) returns (ReleaseProductsResponse);
+  rpc CommitProducts (CommitProductsRequest) returns (CommitProductsResponse);
+}
+
+message ReserveProductsRequest {
+  int64 user_id = 1;
+  repeated ProductSaga products = 2;
+}
+
+message ProductSaga {
+  int64 id = 1;
+  int64 quantity = 2;
+}
+
+message ReserveProductsResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message ReleaseProductsRequest {
+  int64 user_id = 1;
+  repeated Product products = 2;
+}
+
+message ReleaseProductsResponse {
+  string error = 1;
+}
+
+message CommitProductsRequest {
+  int64 user_id = 1;
+  repeated Product products = 2;
+}
+
+message CommitProductsResponse {
+  string error = 1;
+  
+}
+
 message GetProductByIDRequest {
   int64 id = 1;
 }

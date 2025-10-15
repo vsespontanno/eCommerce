@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS wallets (
   balance INT NOT NULL DEFAULT 0,
   reserved INT NOT NULL DEFAULT 0
 );
+
+CREATE INDEX IF NOT EXISTS idx_user_id ON wallets (user_id);
 -- +goose StatementEnd
 
 -- +goose Down

@@ -3,39 +3,22 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/domain/wallet/entity/apperrors"
 )
 
 type WalletUserStore struct {
-	db      *sql.DB
-	builder sq.StatementBuilderType
+	*baseRepo
 }
 
 func NewWalletUserStore(db *sql.DB) *WalletUserStore {
 	return &WalletUserStore{
-		db:      db,
-		builder: sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
+		baseRepo: &baseRepo{
+			db:      db,
+			builder: sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
+		},
 	}
-}
-
-func (s *WalletUserStore) GetBalance(ctx context.Context, userID int64) (int64, error) {
-	var balance int64
-	fmt.Println("Getting balance for user ID:", userID) // Debugging line
-	err := s.builder.Select("balance").
-		From("wallets").
-		Where("user_id = ?", userID).
-		RunWith(s.db).
-		Scan(&balance)
-	if err == sql.ErrNoRows {
-		return 0, apperrors.ErrNoWallet
-	}
-	if err != nil {
-		return 0, err
-	}
-	return balance, nil
 }
 
 func (s *WalletUserStore) UpdateBalance(ctx context.Context, userID int64, amount int64) error {

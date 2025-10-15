@@ -25,6 +25,9 @@ func main() {
 	sugar := logger.Sugar()
 
 	a, err := app.New(sugar, cfg)
+	if err != nil {
+		sugar.Fatal(err)
+	}
 	go func() {
 		a.MustRun()
 	}()
@@ -36,5 +39,5 @@ func main() {
 
 	<-stop
 
-	a.Stop() // Assuming GRPCServer has Stop() method for graceful shutdown
+	a.Stop()
 }

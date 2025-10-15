@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/vsespontanno/eCommerce/wallet-service/internal/application/saga"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/application/user"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/config"
 	db "github.com/vsespontanno/eCommerce/wallet-service/internal/infrastructure/db/postgres"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/infrastructure/grpcClient"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/infrastructure/repository/postgres"
+	sagaServ "github.com/vsespontanno/eCommerce/wallet-service/internal/presentation/server/saga"
 	userServ "github.com/vsespontanno/eCommerce/wallet-service/internal/presentation/server/user"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/presentation/server/user/interceptor"
 	"go.uber.org/zap"
@@ -18,7 +20,9 @@ import (
 type App struct {
 	Log      *zap.SugaredLogger
 	usrServ  *grpc.Server
+	sagaSrv  *grpc.Server
 	userPort int
+	sagaPort int
 }
 
 func New(logger *zap.SugaredLogger, cfg *config.Config) (*App, error) {
@@ -28,19 +32,26 @@ func New(logger *zap.SugaredLogger, cfg *config.Config) (*App, error) {
 		return nil, err
 	}
 	usrRepo := postgres.NewWalletUserStore(dataBase)
+	sagaRepo := postgres.NewSagaWalletStore(dataBase)
 	gRPCClient := grpcClient.NewJwtClient(cfg.GRPCClient)
 	gRPCServerWallet := grpc.NewServer(grpc.UnaryInterceptor(interceptor.AuthInterceptor()))
+	gRPCServerSaga := grpc.NewServer()
+
 	userSvc := user.NewWalletService(usrRepo, gRPCClient, logger)
+	sagaSvc := saga.NewSagaWalletService(sagaRepo, logger)
 	userServ.NewUserWalletServer(gRPCServerWallet, userSvc)
+	sagaServ.NewWalletSagaServer(gRPCServerSaga, sagaSvc, logger)
 	return &App{
 		Log:      logger,
 		usrServ:  gRPCServerWallet,
-		userPort: cfg.GRPCServer,
+		sagaSrv:  gRPCServerSaga,
+		userPort: cfg.GRPCUserServer,
+		sagaPort: cfg.GRPCSagaServer,
 	}, nil
 }
 
 func (a *App) MustRun() {
-	a.Log.Info("running grpc server")
+	a.Log.Info("running grpc servers")
 	if err := a.Run(); err != nil {
 		panic(err)
 	}
@@ -58,10 +69,21 @@ func (a *App) Run() error {
 	}
 	a.Log.Info("the user grpc server is running on port %v", a.userPort)
 
+	l, err = net.Listen("tcp", fmt.Sprintf(":%d", a.sagaPort))
+	if err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	if err := a.sagaSrv.Serve(l); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+	a.Log.Info("the saga grpc server is running on port %v", a.sagaPort)
+
 	return nil
 }
 
 func (a *App) Stop() {
 	a.Log.Info("shutting down the grpc servers")
 	a.usrServ.GracefulStop()
+	a.sagaSrv.GracefulStop()
 }
