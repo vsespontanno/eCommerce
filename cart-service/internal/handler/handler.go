@@ -70,24 +70,6 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 		),
 	).Methods(http.MethodPost)
 
-	router.Handle("/cart/selected",
-		h.rateLimiter.RateLimitMiddleware(
-			middleware.AuthMiddleware(http.HandlerFunc(h.GetSelected), h.grpcAuthClient),
-		),
-	).Methods(http.MethodGet)
-
-	router.Handle("/cart/selected/{id}",
-		h.rateLimiter.RateLimitMiddleware(
-			middleware.AuthMiddleware(http.HandlerFunc(h.SelectProduct), h.grpcAuthClient),
-		),
-	).Methods(http.MethodPost)
-
-	router.Handle("/cart/selected/{id}",
-		h.rateLimiter.RateLimitMiddleware(
-			middleware.AuthMiddleware(http.HandlerFunc(h.UnselectProduct), h.grpcAuthClient),
-		),
-	).Methods(http.MethodDelete)
-
 	// SAGA endpoints
 	router.Handle("/cart/checkout",
 		h.rateLimiter.RateLimitMiddleware(
@@ -95,17 +77,6 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 		),
 	).Methods(http.MethodPost)
 
-	router.Handle("/cart/confirm",
-		h.rateLimiter.RateLimitMiddleware(
-			middleware.AuthMiddleware(http.HandlerFunc(h.ConfirmOrder), h.grpcAuthClient),
-		),
-	).Methods(http.MethodPost)
-
-	router.Handle("/cart/cancel",
-		h.rateLimiter.RateLimitMiddleware(
-			middleware.AuthMiddleware(http.HandlerFunc(h.CancelOrder), h.grpcAuthClient),
-		),
-	).Methods(http.MethodPost)
 }
 
 func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
@@ -174,115 +145,6 @@ func (h *Handler) AddProduct(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// Новые handler методы для SAGA
-func (h *Handler) GetSelected(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
-	if !ok {
-		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
-		return
-	}
-
-	selected, err := h.orderService.GetSelectedProducts(ctx, userID)
-	if err != nil {
-		h.sugarLogger.Errorf("Failed to get selected products: %v", err)
-		http.Error(w, "Failed to get selected products", http.StatusInternalServerError)
-		return
-	}
-
-	// Преобразуем в формат SelectedCart
-	var items []models.SelectedProduct
-	for productID, quantity := range selected {
-		items = append(items, models.SelectedProduct{
-			ProductID: productID,
-			Quantity:  quantity,
-		})
-	}
-
-	selectedCart := models.SelectedCart{
-		UserID: userID,
-		Items:  items,
-		Status: models.StatusDraft,
-	}
-
-	writeJSON(w, http.StatusOK, selectedCart)
-}
-
-func (h *Handler) SelectProduct(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
-	if !ok {
-		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
-		return
-	}
-
-	vars := mux.Vars(r)
-	stringID := vars["id"]
-	intID, err := strconv.Atoi(stringID)
-	if err != nil || intID <= 0 || intID > 1000000 {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
-		return
-	}
-
-	// Проверяем, что товар есть в wishlist
-	cart, err := h.cartService.Cart(ctx, userID)
-	if err != nil {
-		http.Error(w, "Failed to get wishlist", http.StatusInternalServerError)
-		return
-	}
-
-	// Проверяем, что товар есть в wishlist
-	found := false
-	for _, item := range cart.Items {
-		if item.ProductID == int64(intID) {
-			found = true
-			break
-		}
-	}
-	if !found {
-		http.Error(w, "Product not in wishlist", http.StatusBadRequest)
-		return
-	}
-
-	// Добавляем в selection
-	err = h.orderService.SelectProduct(ctx, userID, int64(intID))
-	if err != nil {
-		if errors.Is(err, models.ErrTooManyProductsOfOneType) {
-			writeJSON(w, http.StatusUnprocessableEntity, "You cannot select more than 100 products of one type")
-			return
-		}
-		http.Error(w, "Error while selecting product", http.StatusBadRequest)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, "Product selected successfully")
-}
-
-func (h *Handler) UnselectProduct(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
-	if !ok {
-		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
-		return
-	}
-
-	vars := mux.Vars(r)
-	stringID := vars["id"]
-	intID, err := strconv.Atoi(stringID)
-	if err != nil || intID <= 0 || intID > 1000000 {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
-		return
-	}
-
-	err = h.orderService.UnselectProduct(ctx, userID, int64(intID))
-	if err != nil {
-		http.Error(w, "Error while unselecting product", http.StatusBadRequest)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, "Product unselected successfully")
-}
-
 func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
@@ -320,47 +182,6 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, response)
-}
-
-func (h *Handler) ConfirmOrder(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
-	if !ok {
-		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
-		return
-	}
-
-	err := h.orderService.ConfirmOrder(ctx, userID)
-	if err != nil {
-		http.Error(w, "Failed to confirm order", http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, "Order confirmed successfully")
-}
-
-func (h *Handler) CancelOrder(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
-	if !ok {
-		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
-		return
-	}
-
-	// Освобождаем резерв
-	err := h.orderService.ReleaseProducts(ctx, userID)
-	if err != nil {
-		h.sugarLogger.Errorf("Failed to release products: %v", err)
-	}
-
-	// Отменяем заказ
-	err = h.orderService.CancelOrder(ctx, userID)
-	if err != nil {
-		http.Error(w, "Failed to cancel order", http.StatusInternalServerError)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, "Order cancelled successfully")
 }
 
 func writeJSON(rw http.ResponseWriter, status int, v any) error {
