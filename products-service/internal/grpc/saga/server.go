@@ -4,12 +4,11 @@ import (
 	"context"
 
 	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/dto"
-	proto "github.com/vsespontanno/eCommerce/proto/product"
+	proto "github.com/vsespontanno/eCommerce/proto/products"
 )
 
 type Reserver interface {
 	Reserve(ctx context.Context, products []*dto.ItemRequest) error
-
 	Release(ctx context.Context, userID int64) error
 }
 

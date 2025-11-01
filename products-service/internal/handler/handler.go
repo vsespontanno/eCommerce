@@ -11,18 +11,28 @@ import (
 	"github.com/vsespontanno/eCommerce/products-service/internal/client"
 	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
 	"github.com/vsespontanno/eCommerce/products-service/internal/handler/middleware"
-	"github.com/vsespontanno/eCommerce/products-service/internal/repository/postgres"
 	"go.uber.org/zap"
 )
 
+type CartStorer interface {
+	UpsertProductToCart(ctx context.Context, userID int64, productID int64) (int, error)
+}
+
+type ProductStorer interface {
+	SaveProduct(ctx context.Context, product *models.Product) error
+	GetProducts(ctx context.Context) ([]*models.Product, error)
+	GetProductByID(ctx context.Context, id int64) (*models.Product, error)
+	GetProductsByID(ctx context.Context, ids []int64) ([]*models.Product, error)
+}
+
 type Handler struct {
-	cartStore    *postgres.CartStore
-	productStore *postgres.ProductStore
+	cartStore    CartStorer
+	productStore ProductStorer
 	sugarLogger  *zap.SugaredLogger
 	grpcClient   *client.JwtClient
 }
 
-func New(cartStore *postgres.CartStore, productStore *postgres.ProductStore, sugarLogger *zap.SugaredLogger, grpcClient *client.JwtClient) *Handler {
+func New(cartStore CartStorer, productStore ProductStorer, sugarLogger *zap.SugaredLogger, grpcClient *client.JwtClient) *Handler {
 	return &Handler{
 		cartStore:    cartStore,
 		productStore: productStore,

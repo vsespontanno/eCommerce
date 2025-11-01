@@ -79,9 +79,7 @@ func (k *KafkaConsumer) processMessage(msg *kafka.Message) (models.SagaCart, err
 		k.logger.Errorw("Error unmarshalling message", "error", err, "stage: ", "processMessage")
 		return models.SagaCart{}, err
 	}
-
 	return cartOrder, nil
-
 }
 
 func doSomethingWithOrder(cartOrder models.SagaCart) {

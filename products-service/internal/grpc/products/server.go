@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
-	proto "github.com/vsespontanno/eCommerce/proto/product"
+	proto "github.com/vsespontanno/eCommerce/proto/products"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -34,6 +34,7 @@ func (s *ProductServer) GetProductByID(ctx context.Context, req *proto.GetProduc
 		if errors.Is(err, models.ErrNoProductFound) {
 			return nil, status.Errorf(codes.NotFound, "product with ID %d not found", req.Id)
 		}
+
 		return nil, status.Errorf(codes.Internal, "failed to get product: %v", err)
 	}
 	return &proto.GetProductByIDResponse{Product: &proto.Product{
