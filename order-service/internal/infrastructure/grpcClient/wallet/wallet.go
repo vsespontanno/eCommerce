@@ -32,7 +32,6 @@ func NewWalletClient(port string) WalletClient {
 }
 
 func (w *WalletClient) ReserveFunds(ctx context.Context, userID int64, amount int64) error {
-
 	_, err := w.client.ReserveFunds(ctx, &wallet.ReserveFundsRequest{
 		UserId: userID,
 		Amount: amount,

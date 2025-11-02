@@ -5,10 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
@@ -21,13 +19,6 @@ type CartServiceInterface interface {
 }
 
 type OrderServiceInterface interface {
-	GetSelectedProducts(ctx context.Context, userID int64) (map[int64]int64, error)
-	SelectProduct(ctx context.Context, userID int64, productID int64) error
-	UnselectProduct(ctx context.Context, userID int64, productID int64) error
-	ReserveProducts(ctx context.Context, userID int64) error
-	ReleaseProducts(ctx context.Context, userID int64) error
-	ConfirmOrder(ctx context.Context, userID int64) error
-	CancelOrder(ctx context.Context, userID int64) error
 	AddProductToCart(ctx context.Context, userID int64, productID int64) error
 }
 
@@ -146,42 +137,7 @@ func (h *Handler) AddProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
-	if !ok {
-		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
-		return
-	}
-
-	// Проверяем, что есть выбранные товары
-	selected, err := h.orderService.GetSelectedProducts(ctx, userID)
-	if err != nil {
-		http.Error(w, "Failed to get selected products", http.StatusInternalServerError)
-		return
-	}
-
-	if len(selected) == 0 {
-		writeJSON(w, http.StatusBadRequest, "No products selected for checkout")
-		return
-	}
-
-	// Резервируем товары
-	err = h.orderService.ReserveProducts(ctx, userID)
-	if err != nil {
-		http.Error(w, "Failed to reserve products", http.StatusInternalServerError)
-		return
-	}
-
-	// Генерируем order ID (в реальном проекте это будет UUID)
-	orderID := fmt.Sprintf("order_%d_%d", userID, time.Now().Unix())
-
-	response := models.CheckoutResponse{
-		OrderID: orderID,
-		Status:  models.StatusReserved,
-		Message: "Products reserved successfully",
-	}
-
-	writeJSON(w, http.StatusOK, response)
+	//TODO: request to saga orch service
 }
 
 func writeJSON(rw http.ResponseWriter, status int, v any) error {

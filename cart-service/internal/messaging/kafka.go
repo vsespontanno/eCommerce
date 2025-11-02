@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
 	"go.uber.org/zap"
 )
 
-type CartChanger interface {
+type CartCleaner interface {
+	CleanCart(ctx context.Context, order models.OrderEvent) error
 }
 
 type KafkaConsumer struct {
@@ -18,13 +20,15 @@ type KafkaConsumer struct {
 	groupID  string
 	consumer *kafka.Consumer
 	logger   *zap.SugaredLogger
+	Cleaner  CartCleaner
 }
 
-func NewKafkaConsumer(broker string, topic string, groupID string, logger *zap.SugaredLogger) (*KafkaConsumer, error) {
+func NewKafkaConsumer(broker string, topic string, groupID string, logger *zap.SugaredLogger, cleaner CartCleaner) (*KafkaConsumer, error) {
 	kafkaConsumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers": broker,
-		"group.id":          groupID,
-		"auto.offset.reset": "earliest",
+		"bootstrap.servers":  broker,
+		"group.id":           groupID,
+		"auto.offset.reset":  "earliest",
+		"enable.auto.commit": false,
 	})
 	if err != nil {
 		logger.Errorw("Error creating kafka consumer", "error", err, "stage: ", "NewKafkaConsumer")
@@ -35,6 +39,7 @@ func NewKafkaConsumer(broker string, topic string, groupID string, logger *zap.S
 		groupID:  groupID,
 		consumer: kafkaConsumer,
 		logger:   logger,
+		Cleaner:  cleaner,
 	}, nil
 }
 
@@ -53,35 +58,59 @@ func (k *KafkaConsumer) Subscribe() error {
 
 func (k *KafkaConsumer) Poll(ctx context.Context) {
 	go func() {
-		select {
-		case <-ctx.Done():
-			k.logger.Info("Kafka consumer stopped", "topic", k.topic)
-			return
-		default:
-			msg, err := k.consumer.ReadMessage(-1)
-			if err == nil {
-				k.logger.Infow("Received message", "topic", *msg.TopicPartition.Topic, "partition", msg.TopicPartition.Partition, "offset", msg.TopicPartition.Offset,
-					"key", string(msg.Key), "value", string(msg.Value),
-				)
-				order, err := k.processMessage(msg)
-				if err == nil {
-					doSomethingWithOrder(order)
+		for {
+			select {
+			case <-ctx.Done():
+				k.logger.Info("Kafka consumer stopped", "topic", k.topic)
+				return
+			default:
+				msg, err := k.consumer.ReadMessage(100 * time.Millisecond)
+				if err != nil {
+					if err.(kafka.Error).Code() == kafka.ErrTimedOut {
+						continue
+					}
+					k.logger.Errorw("Error reading message", "error", err)
+					continue
 				}
+				k.logger.Infow("Received message",
+					"topic", *msg.TopicPartition.Topic,
+					"partition", msg.TopicPartition.Partition,
+					"offset", msg.TopicPartition.Offset,
+					"key", string(msg.Key),
+					"value", string(msg.Value),
+				)
+
+				order, err := k.processMessage(msg)
+
+				if err != nil {
+					continue
+				}
+				if order.Status == "completed" {
+					if err := k.Cleaner.CleanCart(ctx, order); err != nil {
+						k.logger.Errorw("Error cleaning cart", "order_id", order.OrderID, "error", err)
+						continue
+					}
+				}
+
+				if _, err := k.consumer.CommitMessage(msg); err != nil {
+					k.logger.Errorw("Error committing offset", "error", err)
+				}
+
 			}
 		}
 	}()
 }
 
-func (k *KafkaConsumer) processMessage(msg *kafka.Message) (models.SagaCart, error) {
-	var cartOrder models.SagaCart
+func (k *KafkaConsumer) processMessage(msg *kafka.Message) (models.OrderEvent, error) {
+	var cartOrder models.OrderEvent
 	err := json.Unmarshal(msg.Value, &cartOrder)
 	if err != nil {
 		k.logger.Errorw("Error unmarshalling message", "error", err, "stage: ", "processMessage")
-		return models.SagaCart{}, err
+		return models.OrderEvent{}, err
 	}
 	return cartOrder, nil
 }
 
-func doSomethingWithOrder(cartOrder models.SagaCart) {
+func doSomethingWithOrder(cartOrder models.OrderEvent) {
 	fmt.Println("Doing some stuff")
 }
