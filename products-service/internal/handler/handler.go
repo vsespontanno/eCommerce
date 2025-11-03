@@ -15,7 +15,7 @@ import (
 )
 
 type CartStorer interface {
-	UpsertProductToCart(ctx context.Context, userID int64, productID int64) (int, error)
+	UpsertProductToCart(ctx context.Context, userID int64, productID int64, amountForProduct int64) (int, error)
 }
 
 type ProductStorer interface {
@@ -128,7 +128,7 @@ func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.sugarLogger.Infof("Retrieved product: %v", product)
-	_, err = h.cartStore.UpsertProductToCart(ctx, userID, product.ID)
+	_, err = h.cartStore.UpsertProductToCart(ctx, userID, product.ID, product.Price)
 	if err != nil {
 		h.sugarLogger.Errorf("Failed to upsert product to cart: %v", err)
 		http.Error(w, "Failed to upsert product to cart", http.StatusInternalServerError)

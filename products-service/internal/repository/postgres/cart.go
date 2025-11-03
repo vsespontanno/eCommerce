@@ -19,7 +19,7 @@ func NewCartStore(db *sql.DB) *CartStore {
 	}
 }
 
-func (s *CartStore) UpsertProductToCart(ctx context.Context, userID int64, productID int64) (int, error) {
+func (s *CartStore) UpsertProductToCart(ctx context.Context, userID int64, productID int64, amountForProduct int64) (int, error) {
 	// Сначала пытаемся обновить
 	query := `
         UPDATE cart 
@@ -33,11 +33,11 @@ func (s *CartStore) UpsertProductToCart(ctx context.Context, userID int64, produ
 	if err == sql.ErrNoRows {
 		// Если записи нет, вставляем новую
 		query = `
-            INSERT INTO cart (user_id, product_id, quantity)
-            VALUES ($1, $2, 1)
+            INSERT INTO cart (user_id, product_id, quantity, amount_for_product)
+            VALUES ($1, $2, 1, $3)
             RETURNING quantity
         `
-		err = s.db.QueryRowContext(ctx, query, userID, productID).Scan(&quantity)
+		err = s.db.QueryRowContext(ctx, query, userID, productID, amountForProduct).Scan(&quantity)
 	}
 
 	return quantity, err

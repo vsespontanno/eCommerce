@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS cart (
     user_id BIGINT NOT NULL REFERENCES users(id),
     product_id BIGINT NOT NULL REFERENCES products(id),
     quantity INT NOT NULL,
+    amount_for_product INT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
