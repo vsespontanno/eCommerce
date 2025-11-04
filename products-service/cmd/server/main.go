@@ -12,6 +12,7 @@ import (
 	"github.com/vsespontanno/eCommerce/products-service/internal/app"
 	"github.com/vsespontanno/eCommerce/products-service/internal/client"
 	"github.com/vsespontanno/eCommerce/products-service/internal/config"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
 	"github.com/vsespontanno/eCommerce/products-service/internal/handler"
 	"github.com/vsespontanno/eCommerce/products-service/internal/repository"
 	"github.com/vsespontanno/eCommerce/products-service/internal/repository/postgres"
@@ -58,7 +59,7 @@ func main() {
 	// Register handlers
 	handler := handler.New(cartStore, store, sugar, jwtClient)
 	handler.RegisterRoutes(app.HTTPApp.Router())
-	// seedSomeValues(store)
+	seedSomeValues(store)
 
 	// Start server in a goroutine
 	go func() {
@@ -94,21 +95,22 @@ func main() {
 	sugar.Info("Server stopped")
 }
 
-// func seedSomeValues(store *postgres.ProductStore) {
-// 	product1 := &models.Product{
-// 		Name:        "Red Bull",
-// 		Description: "Good energy drink for gym",
-// 		Price:       141.0,
-// 		ID:          1,
-// 	}
+func seedSomeValues(store *postgres.ProductStore) {
+	product1 := &models.Product{
+		Name:        "Red Bull",
+		Description: "Good energy drink for gym",
+		Price:       141.0,
+		ID:          1,
+	}
 
-// 	product2 := &models.Product{
-// 		Name:        "Chapman Red",
-// 		Description: "vERy tasty ciagarettes for your deepression",
-// 		Price:       253.0,
-// 		ID:          2,
-// 	}
+	product2 := &models.Product{
+		Name:        "Chapman Red",
+		Description: "vERy tasty ciagarettes for your deepression",
+		Price:       253.0,
+		ID:          2,
+	}
 
-// 	store.SaveProduct(context.TODO(), product1)
-// 	store.SaveProduct(context.TODO(), product2)
-// }
+	store.SaveProduct(context.TODO(), product1)
+	store.SaveProduct(context.TODO(), product2)
+	fmt.Println("Products seeded")
+}

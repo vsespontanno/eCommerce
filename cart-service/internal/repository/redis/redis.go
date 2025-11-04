@@ -2,142 +2,158 @@ package redis
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
+	"go.uber.org/zap"
 )
 
+type Producter interface {
+	GetProduct(ctx context.Context, productID int64) (*models.Product, error)
+}
+
 type OrderStore struct {
-	rdb *redis.Client
+	rdb           *redis.Client
+	logger        *zap.SugaredLogger
+	productClient Producter
 }
 
-func NewOrderStore(rdb *redis.Client) *OrderStore {
+func NewOrderStore(rdb *redis.Client, logger *zap.SugaredLogger) *OrderStore {
 	return &OrderStore{
-		rdb: rdb,
+		rdb:    rdb,
+		logger: logger,
 	}
-}
-
-func (s *OrderStore) AddAllQuantityOfProductToCart(ctx context.Context, userID int64, productID int64, quantity int64) error {
-	_, err := s.rdb.HSet(ctx, "cart:"+strconv.FormatInt(userID, 10), strconv.FormatInt(productID, 10), strconv.FormatInt(quantity, 10)).Result()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *OrderStore) AddAllProductsToCart(ctx context.Context, userID int64, productIDs []int64) error {
-	for _, productID := range productIDs {
-		err := s.AddAllQuantityOfProductToCart(ctx, userID, productID, 1)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (s *OrderStore) AddToCart(ctx context.Context, userID int64, productID int64) error {
-	key := "cart:" + strconv.FormatInt(userID, 10)
+	key := fmt.Sprintf("cart:%d", userID)
 	field := strconv.FormatInt(productID, 10)
-	_, err := s.rdb.HIncrBy(ctx, key, field, 1).Result()
-	if err != nil {
+	existingJSON, err := s.rdb.HGet(ctx, key, field).Result()
+	if err != nil && err != redis.Nil {
+		s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
 		return err
 	}
+	if existingJSON != "" {
+		var existing models.Product
+		if err := json.Unmarshal([]byte(existingJSON), &existing); err != nil {
+			s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
+			return err
+		}
+		existing.Quantity += 1
+		data, err := json.Marshal(existing)
+		if err != nil {
+			s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
+			return err
+		}
+
+		if _, err := s.rdb.HSet(ctx, key, field, data).Result(); err != nil {
+			s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
+			return err
+		}
+		return s.rdb.Expire(ctx, key, 30*24*time.Hour).Err()
+	}
+
+	newProduct, err := s.productClient.GetProduct(ctx, productID)
+	if err != nil {
+		s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
+		return err
+	}
+	data, err := json.Marshal(newProduct)
+	if err != nil {
+		s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
+		return err
+	}
+
+	if _, err := s.rdb.HSet(ctx, key, field, data).Result(); err != nil {
+		s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
+		return err
+	}
+
 	return s.rdb.Expire(ctx, key, 30*24*time.Hour).Err()
 }
 
-func (s *OrderStore) RemoveOneFromCart(ctx context.Context, userID int64, productID int64) error {
-	key := "cart:" + strconv.FormatInt(userID, 10)
+func (s *OrderStore) RemoveOneFromCart(ctx context.Context, userID, productID int64) error {
+	key := fmt.Sprintf("cart:%d", userID)
 	field := strconv.FormatInt(productID, 10)
-	newQuantity, err := s.rdb.HIncrBy(ctx, key, field, -1).Result()
+
+	jsonStr, err := s.rdb.HGet(ctx, key, field).Result()
+	if err == redis.Nil {
+		return models.ErrProductIsNotInCart
+	}
 	if err != nil {
+		s.logger.Errorw("Failed to get product for removal", "error", err)
 		return err
 	}
-	if newQuantity <= 0 {
-		_, err = s.rdb.HDel(ctx, key, field).Result()
-	}
-	return err
 
+	var p models.Product
+	if err := json.Unmarshal([]byte(jsonStr), &p); err != nil {
+		s.logger.Errorw("Failed to unmarshal product", "error", err)
+		return err
+	}
+
+	p.Quantity--
+	if p.Quantity <= 0 {
+		_, err = s.rdb.HDel(ctx, key, field).Result()
+		return err
+	}
+
+	data, _ := json.Marshal(p)
+	_, err = s.rdb.HSet(ctx, key, field, data).Result()
+	return err
 }
 
 func (s *OrderStore) RemoveProductFromCart(ctx context.Context, userID int64, productID int64) error {
 	_, err := s.rdb.HDel(ctx, "cart:"+strconv.FormatInt(userID, 10), strconv.FormatInt(productID, 10)).Result()
 	if err != nil {
+		s.logger.Errorw("Failed to remove product from cart", "error", err, "stage", "RemoveProductFromCart")
 		return err
 	}
 	return nil
 }
 
-func (s *OrderStore) GetCart(ctx context.Context, userID int64) (map[int64]int64, error) {
-	key := "cart:" + strconv.FormatInt(userID, 10)
+func (s *OrderStore) GetCart(ctx context.Context, userID int64) ([]models.Product, error) {
+	key := fmt.Sprintf("cart:%d", userID)
 	items, err := s.rdb.HGetAll(ctx, key).Result()
 	if err != nil {
+		s.logger.Errorw("Failed to get cart", "error", err, "stage", "GetCart")
 		return nil, err
 	}
-	result := make(map[int64]int64)
-	for pidStr, qtyStr := range items {
-		pid, err := strconv.ParseInt(pidStr, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid product ID: %w", err)
+
+	var products []models.Product
+	for _, jsonStr := range items {
+		var p models.Product
+		if err := json.Unmarshal([]byte(jsonStr), &p); err != nil {
+			s.logger.Errorw("Failed to unmarshal product", "error", err, "stage", "GetCart")
+			return nil, err
 		}
-		qty, err := strconv.ParseInt(qtyStr, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid quantity: %w", err)
-		}
-		result[pid] = qty
+		products = append(products, p)
 	}
-	return result, nil
+
+	return products, nil
 }
 
-func (s *OrderStore) GetProductQuantity(ctx context.Context, userID int64, productID int64) (int64, error) {
-	key := "cart:" + strconv.FormatInt(userID, 10)
+func (s *OrderStore) GetProduct(ctx context.Context, userID, productID int64) (*models.Product, error) {
+	key := fmt.Sprintf("cart:%d", userID)
 	field := strconv.FormatInt(productID, 10)
-	q, err := s.rdb.HGet(ctx, key, field).Int64()
+
+	jsonStr, err := s.rdb.HGet(ctx, key, field).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return 0, models.ErrProductIsNotInCart
+			return nil, models.ErrProductIsNotInCart
 		}
-		return 0, err
+		s.logger.Errorw("Failed to get product from cart", "error", err, "stage", "GetProduct")
+		return nil, err
 	}
-	return q, err
+
+	var p models.Product
+	if err := json.Unmarshal([]byte(jsonStr), &p); err != nil {
+		s.logger.Errorw("Failed to unmarshal product", "error", err, "stage", "GetProduct")
+		return nil, err
+	}
+
+	return &p, nil
 }
-
-// To weird cause user never writes quantity; he only uses the button "+" or "-" so default value would be 1
-// func (s *OrderStore) RemoveFromCart(ctx context.Context, userID int64, productID int64, quantity int64) error {
-// 	if quantity == 0 {
-// 		_, err := s.rdb.HDel(ctx, "cart:"+strconv.FormatInt(userID, 10), strconv.FormatInt(productID, 10)).Result()
-// 		if err != nil {
-// 			return err
-// 		}
-// 		return nil
-// 	}
-
-// 	currentQuantityStr, err := s.rdb.HGet(ctx, "cart:"+strconv.FormatInt(userID, 10), strconv.FormatInt(productID, 10)).Result()
-// 	if err == redis.Nil {
-// 		return nil // Product not in cart, nothing to remove
-// 	} else if err != nil {
-// 		return err
-// 	}
-
-// 	currentQuantity, err := strconv.ParseInt(currentQuantityStr, 10, 64)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	newQuantity := currentQuantity - quantity
-// 	if newQuantity <= 0 {
-// 		_, err := s.rdb.HDel(ctx, "cart:"+strconv.FormatInt(userID, 10), strconv.FormatInt(productID, 10)).Result()
-// 		if err != nil {
-// 			return err
-// 		}
-// 	} else {
-// 		_, err := s.rdb.HSet(ctx, "cart:"+strconv.FormatInt(userID, 10), strconv.FormatInt(productID, 10), newQuantity).Result()
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	return nil
-// }
