@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,7 +9,8 @@ import (
 
 	_ "github.com/lib/pq"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/app"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/client"
+	jwtClient "github.com/vsespontanno/eCommerce/cart-service/internal/client/jwt"
+	"github.com/vsespontanno/eCommerce/cart-service/internal/client/products"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/config"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/handler"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/handler/middleware"
@@ -18,22 +18,16 @@ import (
 	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/postgres"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/redis"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/service"
-	"go.uber.org/zap"
+	"github.com/vsespontanno/eCommerce/pkg/logger"
 )
 
 func main() {
-	// Initialize logger
-	logger, err := zap.NewProduction()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
-		os.Exit(1)
-	}
-	defer logger.Sync()
-	sugar := logger.Sugar()
+	logger.InitLogger()
+	defer logger.Log.Sync()
 
 	cfg, err := config.MustLoad()
 	if err != nil {
-		sugar.Fatalf("Failed to load config: %v", err)
+		logger.Log.Fatalf("Failed to load config: %v", err)
 	}
 
 	// Initialize database (example: PostgreSQL)
@@ -45,7 +39,7 @@ func main() {
 		cfg.PGPort,
 	)
 	if err != nil {
-		sugar.Fatalf("Failed to connect to database: %v", err)
+		logger.Log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
@@ -57,31 +51,33 @@ func main() {
 	redisClient := repository.ConnectToRedis(redisAddr, cfg.RedisPassword, cfg.RedisDB)
 	defer redisClient.Close()
 
+	productsClient := products.NewProductsClient(cfg.GRPCProductsClientPort, logger.Log)
+
 	// Initialize cart service
 	cartStore := postgres.NewCartStore(db)
-	redisStore := redis.NewOrderStore(redisClient)
-	cartService := service.NewCart(logger.Sugar(), cartStore)
-	orderService := service.NewOrder(logger.Sugar(), redisStore)
+	redisStore := redis.NewOrderStore(redisClient, logger.Log)
+	cartService := service.NewCart(logger.Log, cartStore)
+	orderService := service.NewOrder(logger.Log, redisStore, productsClient)
 
 	// Initialize rate limiter
 	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimitRPS)
 
 	// Initialize application
-	app := app.New(*logger, cfg.HTTPPort, cartService)
-	grpcClientPort := cfg.GRPCPort
-	if grpcClientPort == "" {
-		grpcClientPort = "50051" // default
+	app := app.New(logger.Log, cfg.HTTPPort, cartService)
+	grpcJWTClientPort := cfg.GRPCJWTClientPort
+	if grpcJWTClientPort == "" {
+		grpcJWTClientPort = "50051" // default
 	}
-	jwtClient := client.NewJwtClient(grpcClientPort)
+	jwtClient := jwtClient.NewJwtClient(grpcJWTClientPort)
 
 	// Register handlers
-	handler := handler.New(cartService, sugar, jwtClient, orderService, rateLimiter)
+	handler := handler.New(cartService, logger.Log, jwtClient, orderService, rateLimiter)
 	handler.RegisterRoutes(app.HTTPApp.Router())
 
 	// Start server in a goroutine
 	go func() {
 		if err := app.HTTPApp.Run(); err != nil {
-			sugar.Errorf("HTTP server failed: %v", err)
+			logger.Log.Errorf("HTTP server failed: %v", err)
 		}
 	}()
 
@@ -90,15 +86,15 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	<-stop
-	sugar.Info("Shutting down server...")
+	logger.Log.Info("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := app.HTTPApp.Shutdown(ctx); err != nil {
-		sugar.Errorf("HTTP server shutdown failed: %v", err)
+		logger.Log.Errorf("HTTP server shutdown failed: %v", err)
 	} else {
-		sugar.Info("HTTP Server gracefully stopped")
+		logger.Log.Info("HTTP Server gracefully stopped")
 	}
 
 }

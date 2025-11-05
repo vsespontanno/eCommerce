@@ -11,8 +11,8 @@ type App struct {
 	Service *service.CartService
 }
 
-func New(logger zap.Logger, httpPort int, cartService *service.CartService) *App {
-	httpApp := httpapp.New(httpPort, &logger)
+func New(logger *zap.SugaredLogger, httpPort int, cartService *service.CartService) *App {
+	httpApp := httpapp.New(httpPort, logger)
 	return &App{
 		HTTPApp: httpApp,
 		Service: cartService,

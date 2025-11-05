@@ -12,14 +12,9 @@ import (
 	"go.uber.org/zap"
 )
 
-type Producter interface {
-	GetProduct(ctx context.Context, productID int64) (*models.Product, error)
-}
-
 type OrderStore struct {
-	rdb           *redis.Client
-	logger        *zap.SugaredLogger
-	productClient Producter
+	rdb    *redis.Client
+	logger *zap.SugaredLogger
 }
 
 func NewOrderStore(rdb *redis.Client, logger *zap.SugaredLogger) *OrderStore {
@@ -29,7 +24,7 @@ func NewOrderStore(rdb *redis.Client, logger *zap.SugaredLogger) *OrderStore {
 	}
 }
 
-func (s *OrderStore) AddToCart(ctx context.Context, userID int64, productID int64) error {
+func (s *OrderStore) IncrementInCart(ctx context.Context, userID int64, productID int64) error {
 	key := fmt.Sprintf("cart:%d", userID)
 	field := strconv.FormatInt(productID, 10)
 	existingJSON, err := s.rdb.HGet(ctx, key, field).Result()
@@ -56,27 +51,25 @@ func (s *OrderStore) AddToCart(ctx context.Context, userID int64, productID int6
 		}
 		return s.rdb.Expire(ctx, key, 30*24*time.Hour).Err()
 	}
+	return models.ErrProductIsNotInCart
+}
 
-	newProduct, err := s.productClient.GetProduct(ctx, productID)
+func (s *OrderStore) AddNewProductToCart(ctx context.Context, userID int64, product *models.Product) error {
+	key := fmt.Sprintf("cart:%d", userID)
+	field := strconv.FormatInt(product.ID, 10)
+	data, err := json.Marshal(product)
 	if err != nil {
 		s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
 		return err
 	}
-	data, err := json.Marshal(newProduct)
-	if err != nil {
-		s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
-		return err
-	}
-
 	if _, err := s.rdb.HSet(ctx, key, field, data).Result(); err != nil {
 		s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
 		return err
 	}
-
 	return s.rdb.Expire(ctx, key, 30*24*time.Hour).Err()
 }
 
-func (s *OrderStore) RemoveOneFromCart(ctx context.Context, userID, productID int64) error {
+func (s *OrderStore) DecrementInCart(ctx context.Context, userID, productID int64) error {
 	key := fmt.Sprintf("cart:%d", userID)
 	field := strconv.FormatInt(productID, 10)
 

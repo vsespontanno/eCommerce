@@ -9,18 +9,18 @@ import (
 )
 
 type Config struct {
-	PGUser        string
-	PGPassword    string
-	PGName        string
-	PGHost        string
-	PGPort        string
-	HTTPPort      int
-	RedisAddr     string
-	RedisPassword string
-	RedisDB       int
-	GRPCPort      string
-	RateLimitRPS  int
-	// GRPCPort   int
+	PGUser                 string
+	PGPassword             string
+	PGName                 string
+	PGHost                 string
+	PGPort                 string
+	HTTPPort               int
+	RedisAddr              string
+	RedisPassword          string
+	RedisDB                int
+	GRPCJWTClientPort      string
+	RateLimitRPS           int
+	GRPCProductsClientPort string
 }
 
 func MustLoad() (*Config, error) {
@@ -45,16 +45,17 @@ func MustLoad() (*Config, error) {
 	}
 
 	return &Config{
-		PGUser:        os.Getenv("PG_USER"),
-		PGPassword:    os.Getenv("PG_PASSWORD"),
-		PGName:        os.Getenv("PG_NAME"),
-		PGHost:        os.Getenv("PG_HOST"),
-		PGPort:        os.Getenv("PG_PORT"),
-		HTTPPort:      HTTPPort,
-		RedisAddr:     os.Getenv("REDIS_ADDR"),
-		RedisPassword: os.Getenv("REDIS_PASSWORD"),
-		RedisDB:       RedisDB,
-		GRPCPort:      os.Getenv("GRPC_PORT"),
-		RateLimitRPS:  RateLimitRPS,
+		PGUser:                 os.Getenv("PG_USER"),
+		PGPassword:             os.Getenv("PG_PASSWORD"),
+		PGName:                 os.Getenv("PG_NAME"),
+		PGHost:                 os.Getenv("PG_HOST"),
+		PGPort:                 os.Getenv("PG_PORT"),
+		HTTPPort:               HTTPPort,
+		RedisAddr:              os.Getenv("REDIS_ADDR"),
+		RedisPassword:          os.Getenv("REDIS_PASSWORD"),
+		RedisDB:                RedisDB,
+		GRPCJWTClientPort:      os.Getenv("GRPC_JWT_CLIENT_PORT"),
+		RateLimitRPS:           RateLimitRPS,
+		GRPCProductsClientPort: os.Getenv("GRPC_PRODUCTS_CLIENT_PORT"),
 	}, nil
 }
