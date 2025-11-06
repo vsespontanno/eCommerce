@@ -11,6 +11,7 @@ import (
 	"github.com/vsespontanno/eCommerce/cart-service/internal/app"
 	jwtClient "github.com/vsespontanno/eCommerce/cart-service/internal/client/jwt"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/client/products"
+	"github.com/vsespontanno/eCommerce/cart-service/internal/client/saga"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/config"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/handler"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/handler/middleware"
@@ -53,12 +54,13 @@ func main() {
 
 	productsClient := products.NewProductsClient(cfg.GRPCProductsClientPort, logger.Log)
 
+	sagaClient := saga.NewSagaClient(cfg.GRPCOrderClientPort, logger.Log)
 	// Initialize cart service
 	cartStore := postgres.NewCartStore(db)
 	redisStore := redis.NewOrderStore(redisClient, logger.Log)
 	cartService := service.NewCart(logger.Log, cartStore)
 	orderService := service.NewOrder(logger.Log, redisStore, productsClient)
-
+	sagaService := service.NewSagaService(logger.Log, redisStore, sagaClient)
 	// Initialize rate limiter
 	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimitRPS)
 
@@ -71,7 +73,7 @@ func main() {
 	jwtClient := jwtClient.NewJwtClient(grpcJWTClientPort)
 
 	// Register handlers
-	handler := handler.New(cartService, logger.Log, jwtClient, orderService, rateLimiter)
+	handler := handler.New(cartService, logger.Log, jwtClient, orderService, rateLimiter, sagaService)
 	handler.RegisterRoutes(app.HTTPApp.Router())
 
 	// Start server in a goroutine

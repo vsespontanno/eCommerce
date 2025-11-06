@@ -30,21 +30,29 @@ type ValidatorInterface interface {
 	ValidateToken(ctx context.Context, token string) (*models.TokenResponse, error)
 }
 
+type Checkouter interface {
+	Checkout(ctx context.Context, userID int64) (bool, error)
+}
+
 type Handler struct {
 	cartService    CartServiceInterface
 	orderService   OrderServiceInterface
 	sugarLogger    *zap.SugaredLogger
 	grpcAuthClient ValidatorInterface
 	rateLimiter    RateLimiterInterface
+	checkouter     Checkouter
 }
 
-func New(cartService CartServiceInterface, sugarLogger *zap.SugaredLogger, grpcAuthClient ValidatorInterface, orderService OrderServiceInterface, rateLimiter RateLimiterInterface) *Handler {
+func New(cartService CartServiceInterface, sugarLogger *zap.SugaredLogger,
+	grpcAuthClient ValidatorInterface, orderService OrderServiceInterface,
+	rateLimiter RateLimiterInterface, checkouter Checkouter) *Handler {
 	return &Handler{
 		cartService:    cartService,
 		sugarLogger:    sugarLogger,
 		grpcAuthClient: grpcAuthClient,
 		orderService:   orderService,
 		rateLimiter:    rateLimiter,
+		checkouter:     checkouter,
 	}
 }
 
@@ -105,7 +113,7 @@ func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AddProduct(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context() // Используем контекст из запроса
+	ctx := r.Context()
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
@@ -137,7 +145,23 @@ func (h *Handler) AddProduct(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
-	//TODO: request to saga orch service
+	ctx := r.Context()
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
+	if !ok {
+		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
+		return
+	}
+	_, err := h.checkouter.Checkout(ctx, userID)
+	if err != nil {
+		http.Error(w, "Error while checking out", http.StatusBadRequest)
+		return
+	}
+	err = writeJSON(w, http.StatusOK, "")
+	if err != nil {
+		h.sugarLogger.Errorf("Failed to checkout: %v", err)
+		http.Error(w, "Failed to checkout", http.StatusInternalServerError)
+		return
+	}
 }
 
 func writeJSON(rw http.ResponseWriter, status int, v any) error {

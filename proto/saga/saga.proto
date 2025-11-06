@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package proto_saga;
+
+option go_package = "github.com/vsespontanno/eCommerce/internal/proto/saga";
+
+service Saga {
+    rpc StartCheckout(StartCheckoutRequest) returns (StartCheckoutResponse);
+}
+
+message StartCheckoutRequest {
+    int64 userID = 1;
+    repeated Cart cart = 2;
+}
+
+message StartCheckoutResponse {
+    bool success = 1;
+    string error = 2;
+}
+
+message Cart {
+    int64 productID = 1;
+    string name = 2;
+    string description = 3;
+    int64 price = 4;
+    int64 quantity = 5;
+}

@@ -21,6 +21,7 @@ type Config struct {
 	GRPCJWTClientPort      string
 	RateLimitRPS           int
 	GRPCProductsClientPort string
+	GRPCOrderClientPort    string
 }
 
 func MustLoad() (*Config, error) {
@@ -57,5 +58,6 @@ func MustLoad() (*Config, error) {
 		GRPCJWTClientPort:      os.Getenv("GRPC_JWT_CLIENT_PORT"),
 		RateLimitRPS:           RateLimitRPS,
 		GRPCProductsClientPort: os.Getenv("GRPC_PRODUCTS_CLIENT_PORT"),
+		GRPCOrderClientPort:    os.Getenv("GRPC_ORDER_CLIENT_PORT"),
 	}, nil
 }

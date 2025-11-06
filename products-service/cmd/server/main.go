@@ -50,11 +50,8 @@ func main() {
 	store := postgres.NewProductStore(db)
 	cartStore := postgres.NewCartStore(db)
 	// Initialize application
-	httpPort := 8080
-	grpcServerPort := 12312
-	app := app.New(*logger, httpPort, grpcServerPort, store)
-	grpcClientPort := "50051"
-	jwtClient := client.NewJwtClient(grpcClientPort)
+	app := app.New(*logger, cfg.HTTPPort, cfg.GRPCServerPort, store)
+	jwtClient := client.NewJwtClient(cfg.GRPCJwtPort)
 
 	// Register handlers
 	handler := handler.New(cartStore, store, sugar, jwtClient)

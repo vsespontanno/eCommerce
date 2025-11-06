@@ -4,21 +4,29 @@ import (
 	"context"
 
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/redis"
 	"go.uber.org/zap"
 )
 
 type Producter interface {
-	GetProduct(ctx context.Context, productID int64) (*models.Product, error)
+	Product(ctx context.Context, productID int64) (*models.Product, error)
+}
+
+type CartRepo interface {
+	AddNewProductToCart(ctx context.Context, userID int64, product *models.Product) error
+	DecrementInCart(ctx context.Context, userID int64, productID int64) error
+	GetCart(ctx context.Context, userID int64) ([]models.Product, error)
+	GetProduct(ctx context.Context, userID int64, productID int64) (*models.Product, error)
+	IncrementInCart(ctx context.Context, userID int64, productID int64) error
+	RemoveProductFromCart(ctx context.Context, userID int64, productID int64) error
 }
 
 type OrderService struct {
 	sugarLogger   *zap.SugaredLogger
-	redisStore    *redis.OrderStore
+	redisStore    CartRepo
 	productClient Producter
 }
 
-func NewOrder(logger *zap.SugaredLogger, redisStore *redis.OrderStore, productClient Producter) *OrderService {
+func NewOrder(logger *zap.SugaredLogger, redisStore CartRepo, productClient Producter) *OrderService {
 	return &OrderService{
 		sugarLogger:   logger,
 		redisStore:    redisStore,
@@ -33,7 +41,7 @@ func (s *OrderService) AddProductToCart(ctx context.Context, userID int64, produ
 			s.sugarLogger.Errorf("error while getting and adding 1 product to cart: %w", err)
 			return err
 		}
-		product, err := s.productClient.GetProduct(ctx, productID)
+		product, err := s.productClient.Product(ctx, productID)
 		if err != nil {
 			s.sugarLogger.Errorf("error while getting product from grpc-client and adding 1 product to cart: %w", err)
 			return err

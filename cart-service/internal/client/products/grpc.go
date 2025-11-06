@@ -32,7 +32,7 @@ func NewProductsClient(port string, logger *zap.SugaredLogger) *ProductsClient {
 	}
 }
 
-func (c *ProductsClient) GetProduct(ctx context.Context, id int64) (*models.Product, error) {
+func (c *ProductsClient) Product(ctx context.Context, id int64) (*models.Product, error) {
 	res, err := c.client.GetProductByID(context.Background(), &products.GetProductByIDRequest{Id: id})
 	if err != nil {
 		c.logger.Errorf("error while getting product: %w", err.Error())
