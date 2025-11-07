@@ -26,7 +26,7 @@ func MustLoad() (*Config, error) {
 	}
 	cfg.GRPCServerPort = getEnvAsInt("GRPC_SERVER_PORT", 50051)
 	cfg.GRPCWalletClientPort = os.Getenv("GRPC_WALLET_CLIENT_PORT")
-	cfg.HTTPProductsClientPort = os.Getenv("HTTP_PRODUCTS_CLIENT_PORT")
+	cfg.HTTPProductsClientPort = os.Getenv("GRPC_PRODUCTS_CLIENT_PORT")
 	cfg.KafkaHost = os.Getenv("KAFKA_HOST")
 	cfg.PGUser = os.Getenv("PG_USER")
 	cfg.PGPassword = os.Getenv("PG_PASSWORD")

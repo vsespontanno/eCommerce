@@ -7,61 +7,38 @@ import (
 	"go.uber.org/zap"
 )
 
-type Producter interface {
-	Product(ctx context.Context, productID int64) (*models.Product, error)
+type PGCartCleaner interface {
+	CleanCart(ctx context.Context, order *models.OrderEvent) error
 }
 
-type CartRepo interface {
-	AddNewProductToCart(ctx context.Context, userID int64, product *models.Product) error
-	DecrementInCart(ctx context.Context, userID int64, productID int64) error
-	GetCart(ctx context.Context, userID int64) ([]models.Product, error)
-	GetProduct(ctx context.Context, userID int64, productID int64) (*models.Product, error)
-	IncrementInCart(ctx context.Context, userID int64, productID int64) error
-	RemoveProductFromCart(ctx context.Context, userID int64, productID int64) error
+type RedisCartCleaner interface {
+	CleanCart(ctx context.Context, order *models.OrderEvent) error
 }
 
-type OrderService struct {
-	sugarLogger   *zap.SugaredLogger
-	redisStore    CartRepo
-	productClient Producter
+type OrderCompleteService struct {
+	logger       *zap.SugaredLogger
+	pgCleaner    PGCartCleaner
+	redisCleaner RedisCartCleaner
 }
 
-func NewOrder(logger *zap.SugaredLogger, redisStore CartRepo, productClient Producter) *OrderService {
-	return &OrderService{
-		sugarLogger:   logger,
-		redisStore:    redisStore,
-		productClient: productClient,
+func NewOrderCompleteService(logger *zap.SugaredLogger, pgCleaner PGCartCleaner, redisCleaner RedisCartCleaner) *OrderCompleteService {
+	return &OrderCompleteService{
+		logger:       logger,
+		pgCleaner:    pgCleaner,
+		redisCleaner: redisCleaner,
 	}
 }
 
-func (s *OrderService) AddProductToCart(ctx context.Context, userID int64, productID int64) error {
-	q, err := s.redisStore.GetProduct(ctx, userID, productID)
+func (o *OrderCompleteService) CompleteOrder(ctx context.Context, order *models.OrderEvent) error {
+	err := o.pgCleaner.CleanCart(ctx, order)
 	if err != nil {
-		if err != models.ErrProductIsNotInCart {
-			s.sugarLogger.Errorf("error while getting and adding 1 product to cart: %w", err)
-			return err
-		}
-		product, err := s.productClient.Product(ctx, productID)
-		if err != nil {
-			s.sugarLogger.Errorf("error while getting product from grpc-client and adding 1 product to cart: %w", err)
-			return err
-		}
-		return s.redisStore.AddNewProductToCart(ctx, userID, product)
+		o.logger.Errorw("Failed to clean cart", "error", err)
+		return err
 	}
-	if q.Quantity == 100 {
-		return models.ErrTooManyProductsOfOneType
-	}
-	err = s.redisStore.IncrementInCart(ctx, userID, productID)
+	err = o.redisCleaner.CleanCart(ctx, order)
 	if err != nil {
-		s.sugarLogger.Errorf("error while incrementing 1 product to cart: %w", err)
+		o.logger.Errorw("Failed to clean redis cart", "error", err)
+		return err
 	}
-	return err
-}
-
-func (s *OrderService) DeleteProductFromCart(ctx context.Context, userID int64, productID int64) error {
-	err := s.redisStore.DecrementInCart(ctx, userID, productID)
-	if err != nil {
-		s.sugarLogger.Errorf("error while deleting 1 product to cart: %w", err)
-	}
-	return err
+	return nil
 }

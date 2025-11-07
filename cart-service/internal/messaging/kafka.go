@@ -11,18 +11,18 @@ import (
 	"go.uber.org/zap"
 )
 
-type CartCleaner interface {
-	CleanCart(ctx context.Context, userID string, prods []models.ProductForOrder) error
+type OrderCompleter interface {
+	CompleteOrder(ctx context.Context, order *models.OrderEvent) error
 }
 
 type KafkaConsumer struct {
-	consumer *kafka.Consumer
-	topic    string
-	logger   *zap.SugaredLogger
-	cleaner  CartCleaner
+	consumer       *kafka.Consumer
+	topic          string
+	logger         *zap.SugaredLogger
+	orderCompleter OrderCompleter
 }
 
-func NewKafkaConsumer(brokers, groupID, topic string, logger *zap.SugaredLogger, cleaner CartCleaner) (*KafkaConsumer, error) {
+func NewKafkaConsumer(brokers, groupID, topic string, logger *zap.SugaredLogger, orderCompleter OrderCompleter) (*KafkaConsumer, error) {
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers": brokers,
 		"group.id":          groupID,
@@ -37,10 +37,10 @@ func NewKafkaConsumer(brokers, groupID, topic string, logger *zap.SugaredLogger,
 	}
 
 	return &KafkaConsumer{
-		consumer: c,
-		topic:    topic,
-		logger:   logger,
-		cleaner:  cleaner,
+		consumer:       c,
+		topic:          topic,
+		logger:         logger,
+		orderCompleter: orderCompleter,
 	}, nil
 }
 
@@ -54,15 +54,17 @@ func (k *KafkaConsumer) Subscribe() error {
 		k.logger.Errorw("Error subscribing to kafka topic", "error", err, "stage: ", "Subscribe")
 		return err
 	}
+	k.logger.Infow("Subscribed to kafka topic", "topic", k.topic)
 	return nil
 }
 
 func (k *KafkaConsumer) Poll(ctx context.Context) {
 	go func() {
+		k.logger.Info("Kafka consumer started", "topic", k.topic)
 		for {
 			select {
 			case <-ctx.Done():
-				k.logger.Info("Kafka consumer stopped", "topic", k.topic)
+				k.logger.Info("Kafka consumer stopped", " topic ", k.topic)
 				return
 			default:
 				msg, err := k.consumer.ReadMessage(100 * time.Millisecond)
@@ -87,7 +89,7 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 					continue
 				}
 				if order.Status == "completed" {
-					if err := k.cleaner.CleanCart(ctx, order.UserID, order.Products); err != nil {
+					if err := k.orderCompleter.CompleteOrder(ctx, order); err != nil {
 						k.logger.Errorw("Error cleaning cart", "order_id", order.OrderID, "error", err)
 						continue
 					}
@@ -102,14 +104,14 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 	}()
 }
 
-func (k *KafkaConsumer) processMessage(msg *kafka.Message) (models.OrderEvent, error) {
+func (k *KafkaConsumer) processMessage(msg *kafka.Message) (*models.OrderEvent, error) {
 	var cartOrder models.OrderEvent
 	err := json.Unmarshal(msg.Value, &cartOrder)
 	fmt.Println("Processing message:", cartOrder)
 	if err != nil {
 		k.logger.Errorw("Error unmarshalling message", "error", err, "stage: ", "processMessage")
-		return models.OrderEvent{}, err
+		return &models.OrderEvent{}, err
 	}
 	cartOrder.Status = "completed"
-	return cartOrder, nil
+	return &cartOrder, nil
 }

@@ -1,21 +1,21 @@
 package repository
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
-func ConnectToPostgres(user, password, dbname, host, port string) (*sql.DB, error) {
+func ConnectToPostgres(user, password, dbname, host, port string) (*sqlx.DB, error) {
 	// Формируем строку подключения
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
 		user, password, dbname, host, port)
 
 	// Открываем соединение с базой данных
-	db, err := sql.Open("postgres", connStr)
+	db, err := sqlx.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}

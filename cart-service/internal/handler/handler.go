@@ -16,9 +16,6 @@ import (
 
 type CartServiceInterface interface {
 	Cart(ctx context.Context, userID int64) (*models.Cart, error)
-}
-
-type OrderServiceInterface interface {
 	AddProductToCart(ctx context.Context, userID int64, productID int64) error
 }
 
@@ -36,7 +33,6 @@ type Checkouter interface {
 
 type Handler struct {
 	cartService    CartServiceInterface
-	orderService   OrderServiceInterface
 	sugarLogger    *zap.SugaredLogger
 	grpcAuthClient ValidatorInterface
 	rateLimiter    RateLimiterInterface
@@ -44,13 +40,12 @@ type Handler struct {
 }
 
 func New(cartService CartServiceInterface, sugarLogger *zap.SugaredLogger,
-	grpcAuthClient ValidatorInterface, orderService OrderServiceInterface,
+	grpcAuthClient ValidatorInterface,
 	rateLimiter RateLimiterInterface, checkouter Checkouter) *Handler {
 	return &Handler{
 		cartService:    cartService,
 		sugarLogger:    sugarLogger,
 		grpcAuthClient: grpcAuthClient,
-		orderService:   orderService,
 		rateLimiter:    rateLimiter,
 		checkouter:     checkouter,
 	}
@@ -126,7 +121,7 @@ func (h *Handler) AddProduct(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid product ID", http.StatusBadRequest)
 		return
 	}
-	err = h.orderService.AddProductToCart(ctx, userID, int64(intID))
+	err = h.cartService.AddProductToCart(ctx, userID, int64(intID))
 	if err != nil {
 		if errors.Is(err, models.ErrTooManyProductsOfOneType) {
 			writeJSON(w, http.StatusUnprocessableEntity, "You cannot add more than 100 products of one")

@@ -22,6 +22,9 @@ type Config struct {
 	RateLimitRPS           int
 	GRPCProductsClientPort string
 	GRPCOrderClientPort    string
+	KafkaBroker            string
+	KafkaGroup             string
+	KafkaTopic             string
 }
 
 func MustLoad() (*Config, error) {
@@ -59,5 +62,8 @@ func MustLoad() (*Config, error) {
 		RateLimitRPS:           RateLimitRPS,
 		GRPCProductsClientPort: os.Getenv("GRPC_PRODUCTS_CLIENT_PORT"),
 		GRPCOrderClientPort:    os.Getenv("GRPC_ORDER_CLIENT_PORT"),
+		KafkaBroker:            os.Getenv("KAFKA_BROKER"),
+		KafkaGroup:             os.Getenv("KAFKA_GROUP_ID"),
+		KafkaTopic:             os.Getenv("KAFKA_TOPIC"),
 	}, nil
 }

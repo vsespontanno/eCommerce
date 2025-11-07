@@ -47,7 +47,6 @@ func (k *KafkaProducer) monitorDelivery() {
 					"key", string(ev.Key),
 					"topic", *ev.TopicPartition.Topic,
 				)
-				// TODO: retry или dead-letter topic
 			} else {
 				k.logger.Debugw("Message delivered",
 					"key", string(ev.Key),
