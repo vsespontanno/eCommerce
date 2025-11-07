@@ -12,34 +12,35 @@ import (
 )
 
 type CartCleaner interface {
-	CleanCart(ctx context.Context, order models.OrderEvent) error
+	CleanCart(ctx context.Context, userID string, prods []models.ProductForOrder) error
 }
 
 type KafkaConsumer struct {
-	topic    string
-	groupID  string
 	consumer *kafka.Consumer
+	topic    string
 	logger   *zap.SugaredLogger
-	Cleaner  CartCleaner
+	cleaner  CartCleaner
 }
 
-func NewKafkaConsumer(broker string, topic string, groupID string, logger *zap.SugaredLogger, cleaner CartCleaner) (*KafkaConsumer, error) {
-	kafkaConsumer, err := kafka.NewConsumer(&kafka.ConfigMap{
-		"bootstrap.servers":  broker,
-		"group.id":           groupID,
-		"auto.offset.reset":  "earliest",
-		"enable.auto.commit": false,
+func NewKafkaConsumer(brokers, groupID, topic string, logger *zap.SugaredLogger, cleaner CartCleaner) (*KafkaConsumer, error) {
+	c, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers": brokers,
+		"group.id":          groupID,
+		"auto.offset.reset": "earliest",
 	})
 	if err != nil {
-		logger.Errorw("Error creating kafka consumer", "error", err, "stage: ", "NewKafkaConsumer")
 		return nil, err
 	}
+
+	if err := c.SubscribeTopics([]string{topic}, nil); err != nil {
+		return nil, err
+	}
+
 	return &KafkaConsumer{
+		consumer: c,
 		topic:    topic,
-		groupID:  groupID,
-		consumer: kafkaConsumer,
 		logger:   logger,
-		Cleaner:  cleaner,
+		cleaner:  cleaner,
 	}, nil
 }
 
@@ -86,7 +87,7 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 					continue
 				}
 				if order.Status == "completed" {
-					if err := k.Cleaner.CleanCart(ctx, order); err != nil {
+					if err := k.cleaner.CleanCart(ctx, order.UserID, order.Products); err != nil {
 						k.logger.Errorw("Error cleaning cart", "order_id", order.OrderID, "error", err)
 						continue
 					}
@@ -104,13 +105,11 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 func (k *KafkaConsumer) processMessage(msg *kafka.Message) (models.OrderEvent, error) {
 	var cartOrder models.OrderEvent
 	err := json.Unmarshal(msg.Value, &cartOrder)
+	fmt.Println("Processing message:", cartOrder)
 	if err != nil {
 		k.logger.Errorw("Error unmarshalling message", "error", err, "stage: ", "processMessage")
 		return models.OrderEvent{}, err
 	}
+	cartOrder.Status = "completed"
 	return cartOrder, nil
-}
-
-func doSomethingWithOrder(cartOrder models.OrderEvent) {
-	fmt.Println("Doing some stuff")
 }

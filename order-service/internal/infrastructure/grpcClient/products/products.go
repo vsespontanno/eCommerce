@@ -2,7 +2,6 @@ package products
 
 import (
 	"context"
-	"log"
 
 	"github.com/vsespontanno/eCommerce/order-service/internal/domain/product/entity"
 	"github.com/vsespontanno/eCommerce/proto/products"
@@ -17,18 +16,19 @@ type ProductsClient struct {
 	port   string
 }
 
-func NewProductsClient(port string) ProductsClient {
+func NewProductsClient(port string, logger *zap.SugaredLogger) ProductsClient {
 	address := "localhost:" + port
 
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Failed to dial gRPC server %s: %v", address, err)
+		logger.Fatalf("Failed to dial gRPC server %s: %v", address, err)
 	}
 
 	client := products.NewSagaProductsClient(conn)
 	return ProductsClient{
 		client: client,
 		port:   port,
+		logger: logger,
 	}
 }
 
@@ -42,7 +42,7 @@ func (p *ProductsClient) ReserveProducts(ctx context.Context, productIDs []entit
 	}
 	res, err := p.client.ReserveProducts(ctx, req)
 	if err != nil {
-		p.logger.Errorf("error while reserving products: %w", err.Error())
+		p.logger.Errorw("Error while reserving ", err, "stage ", "ProductsClient.ReserveProducts")
 		return false, err
 	}
 	return res.Success, nil
@@ -58,7 +58,7 @@ func (p *ProductsClient) CommitProducts(ctx context.Context, productIDs []entity
 	}
 	res, err := p.client.CommitProducts(ctx, req)
 	if err != nil {
-		p.logger.Errorf("error while committing products: %w", err.Error())
+		p.logger.Errorw("Error while commitin", err, "stage ", "ProductsClient.CommitProducts")
 		return false, err
 	}
 	return res.Success, nil
@@ -74,7 +74,7 @@ func (p *ProductsClient) ReleaseProducts(ctx context.Context, productIDs []entit
 	}
 	res, err := p.client.ReleaseProducts(ctx, req)
 	if err != nil {
-		p.logger.Errorf("error while releasing products: %w", err.Error())
+		p.logger.Errorw("Error while releasing", err, "stage ", "ProductsClient.ReleaseProducts")
 		return false, err
 	}
 	return res.Success, nil

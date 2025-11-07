@@ -37,7 +37,7 @@ func (w *WalletClient) ReserveFunds(ctx context.Context, userID int64, amount in
 		Amount: amount,
 	})
 	if err != nil {
-		w.logger.Errorw("Error reserving funds", "error", err)
+		w.logger.Errorw("Error reserving funds", "error", err, "stage", "WalletClient.ReserveFunds")
 		return err
 	}
 	return err
@@ -49,7 +49,7 @@ func (w *WalletClient) CommitFunds(ctx context.Context, userID int64, amount int
 		Amount: amount,
 	})
 	if err != nil {
-		w.logger.Errorw("Error committing funds", "error", err)
+		w.logger.Errorw("Error committing funds", "error", err, "stage", "WalletClient.CommitFunds")
 		return err
 	}
 	return err
@@ -61,7 +61,7 @@ func (w *WalletClient) ReleaseFunds(ctx context.Context, userID int64, amount in
 		Amount: amount,
 	})
 	if err != nil {
-		w.logger.Errorw("Error releasing funds", "error", err)
+		w.logger.Errorw("Error releasing funds", "error", err, "stage", "WalletClient.ReleaseFunds")
 		return err
 	}
 	return err

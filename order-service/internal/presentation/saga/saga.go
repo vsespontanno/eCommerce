@@ -38,7 +38,7 @@ func (s *SagaServer) CreateOrderSaga(ctx context.Context, req *proto.StartChecko
 	Order.Status = "Pending"
 	err := s.saga.SagaTransaction(ctx, Order)
 	if err != nil {
-		s.logger.Errorf("error while creating order: %w", err.Error())
+		s.logger.Errorw("Failed to publish Kafka message", "orderID", Order.OrderID, "error", err)
 		return nil, err
 	}
 	return &proto.StartCheckoutResponse{Success: true, Error: "no error"}, nil
