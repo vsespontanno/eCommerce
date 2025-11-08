@@ -11,6 +11,7 @@ import (
 	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/dto"
 )
 
+// TODO: убрать дублирование кода и сделать сет более правильным, чтобы вдруг не было отрицательных значений
 type SagaStore struct {
 	db      *sql.DB
 	builder sq.StatementBuilderType
@@ -23,7 +24,7 @@ func NewSagaStore(db *sql.DB) *SagaStore {
 	}
 }
 
-func (s *SagaStore) ReserveTxn(ctx context.Context, items []dto.ItemRequest) error {
+func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) error {
 	// Начинаем транзакцию на уровне по-умолчанию (Read Committed в Postgres), FOR UPDATE даст нам нужную блокировку.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -71,4 +72,56 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []dto.ItemRequest) err
 		return err
 	}
 	return nil
+}
+
+func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for _, it := range items {
+		ub := sq.
+			Update("products").
+			Set("reserved", sq.Expr("reserved - ?", it.Qty)).
+			Where(sq.Eq{"id": it.ProductID})
+
+		updateSQL, updateArgs, _ := ub.ToSql()
+		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for _, it := range items {
+		ub := sq.
+			Update("products").
+			Set("reserved", sq.Expr("reserved - ?", it.Qty)).
+			Set("quantity", sq.Expr("quantity - ?", it.Qty)).
+			Where(sq.Eq{"id": it.ProductID})
+
+		updateSQL, updateArgs, _ := ub.ToSql()
+		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
+
 }

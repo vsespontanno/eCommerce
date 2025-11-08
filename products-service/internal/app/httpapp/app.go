@@ -15,16 +15,15 @@ type App struct {
 	router *mux.Router
 }
 
-func New(port int, logger *zap.Logger) *App {
+func New(port int, logger *zap.SugaredLogger) *App {
 	router := mux.NewRouter()
-	sugarLogger := logger.Sugar()
 	httpServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: router,
 	}
 
 	return &App{
-		log:    sugarLogger,
+		log:    logger,
 		server: httpServer,
 		router: router,
 	}

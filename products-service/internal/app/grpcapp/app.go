@@ -3,12 +3,13 @@ package grpcapp
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/products"
+	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/saga"
+	proto "github.com/vsespontanno/eCommerce/proto/products"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
@@ -17,34 +18,44 @@ import (
 )
 
 type App struct {
-	log        *zap.SugaredLogger
-	gRPCServer *grpc.Server
-	port       int
+	log            *zap.SugaredLogger
+	productsServer *grpc.Server
+	sagaServer     *grpc.Server
+	productsPort   int
+	sagaPort       int
 }
 
-func NewApp(log *zap.SugaredLogger, productsInterface products.Products, port int) *App {
+func NewApp(log *zap.SugaredLogger, productsInterface products.Products, sagaReserver saga.Reserver, productsPort, sagaPort int) *App {
 	recoveryOpts := []recovery.Option{
 		recovery.WithRecoveryHandler(func(p interface{}) (err error) {
-			log.Error("Recovered from panic", slog.Any("panic", p))
-
+			log.Error("Recovered from panic", zap.Any("panic", p))
 			return status.Errorf(codes.Internal, "internal error")
 		}),
 	}
-
 	loggingOpts := []logging.Option{
-		logging.WithLogOnEvents(
-			logging.PayloadReceived, logging.PayloadSent,
-		),
+		logging.WithLogOnEvents(logging.PayloadReceived, logging.PayloadSent),
 	}
-	gRPCServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
+	interceptorLogger := InterceptorLogger(log)
+
+	productsServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		recovery.UnaryServerInterceptor(recoveryOpts...),
-		logging.UnaryServerInterceptor(InterceptorLogger(log), loggingOpts...),
+		logging.UnaryServerInterceptor(interceptorLogger, loggingOpts...),
 	))
-	products.NewProductServer(gRPCServer, productsInterface)
+	sagaServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
+		recovery.UnaryServerInterceptor(recoveryOpts...),
+		logging.UnaryServerInterceptor(interceptorLogger, loggingOpts...),
+	))
+
+	// Register servers
+	products.NewProductServer(productsServer, productsInterface)
+	proto.RegisterSagaProductsServer(sagaServer, saga.NewSagaServer(sagaReserver))
+
 	return &App{
-		log:        log,
-		gRPCServer: gRPCServer,
-		port:       port,
+		log:            log,
+		productsServer: productsServer,
+		sagaServer:     sagaServer,
+		productsPort:   productsPort,
+		sagaPort:       sagaPort,
 	}
 }
 
@@ -55,31 +66,38 @@ func InterceptorLogger(l *zap.SugaredLogger) logging.Logger {
 	})
 }
 
-func (a *App) MustRun() {
-	if err := a.Run(); err != nil {
-		panic(err)
-	}
-}
 func (a *App) Run() error {
 	const op = "grpcapp.Run"
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
+
+	productsListener, err := net.Listen("tcp", fmt.Sprintf(":%d", a.productsPort))
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	a.log.Info("user server started", zap.Int("port", a.port))
-	if err := a.gRPCServer.Serve(l); err != nil {
+	sagaListener, err := net.Listen("tcp", fmt.Sprintf(":%d", a.sagaPort))
+	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	go func() {
+		a.log.Infow("products gRPC server started", "port", a.productsPort)
+		if err := a.productsServer.Serve(productsListener); err != nil {
+			a.log.Errorw("products server failed", "error", err)
+		}
+	}()
+
+	a.log.Infow("saga gRPC server started", "port", a.sagaPort)
+	if err := a.sagaServer.Serve(sagaListener); err != nil {
+		return fmt.Errorf("%s: saga server failed: %w", op, err)
 	}
 
 	return nil
 }
 
 func (a *App) Stop() {
-	const op = "grpcapp.Stop"
+	a.log.Infow("stopping products gRPC server", "port", a.productsPort)
+	a.productsServer.GracefulStop()
 
-	a.log.With(zap.String("op", op)).
-		Info("stopping gRPC server", zap.Int("port", a.port))
-
-	a.gRPCServer.GracefulStop()
+	a.log.Infow("stopping saga gRPC server", "port", a.sagaPort)
+	a.sagaServer.GracefulStop()
 }

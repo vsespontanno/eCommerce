@@ -46,19 +46,9 @@ func (k *KafkaConsumer) Close() {
 	k.consumer.Close()
 }
 
-func (k *KafkaConsumer) Subscribe() error {
-	err := k.consumer.Subscribe(k.topic, nil)
-	if err != nil {
-		k.logger.Errorw("Error subscribing to kafka topic", "error", err, "stage: ", "Subscribe")
-		return err
-	}
-	k.logger.Infow("Subscribed to kafka topic", "topic", k.topic)
-	return nil
-}
-
 func (k *KafkaConsumer) Poll(ctx context.Context) {
 	go func() {
-		k.logger.Info("Kafka consumer started", "topic", k.topic)
+		k.logger.Info("Kafka consumer started", "topic ", k.topic)
 		for {
 			select {
 			case <-ctx.Done():

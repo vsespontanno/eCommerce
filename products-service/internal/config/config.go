@@ -9,14 +9,15 @@ import (
 )
 
 type Config struct {
-	PGUser         string
-	PGPassword     string
-	PGName         string
-	PGHost         string
-	PGPort         string
-	HTTPPort       int
-	GRPCServerPort int
-	GRPCJwtPort    string
+	PGUser                 string
+	PGPassword             string
+	PGName                 string
+	PGHost                 string
+	PGPort                 string
+	HTTPPort               int
+	GRPCProductsServerPort int
+	GRPCSagaServerPort     int
+	GRPCJwtPort            string
 }
 
 func MustLoad() (*Config, error) {
@@ -29,19 +30,23 @@ func MustLoad() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	GRPCPort, err := strconv.Atoi(os.Getenv("GRPC_SERVER_PORT"))
+	GRPCProductsServerPort, err := strconv.Atoi(os.Getenv("GRPC_PRODUCTS_SERVER_PORT"))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-
+	GRPCSagaServerPort, err := strconv.Atoi(os.Getenv("GRPC_SAGA_SERVER_PORT"))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
 	return &Config{
-		PGUser:         os.Getenv("PG_USER"),
-		PGPassword:     os.Getenv("PG_PASSWORD"),
-		PGName:         os.Getenv("PG_NAME"),
-		PGHost:         os.Getenv("PG_HOST"),
-		PGPort:         os.Getenv("PG_PORT"),
-		HTTPPort:       HTTPPort,
-		GRPCServerPort: GRPCPort,
-		GRPCJwtPort:    os.Getenv("GRPC_JWT_CLIENT_PORT"),
+		PGUser:                 os.Getenv("PG_USER"),
+		PGPassword:             os.Getenv("PG_PASSWORD"),
+		PGName:                 os.Getenv("PG_NAME"),
+		PGHost:                 os.Getenv("PG_HOST"),
+		PGPort:                 os.Getenv("PG_PORT"),
+		HTTPPort:               HTTPPort,
+		GRPCProductsServerPort: GRPCProductsServerPort,
+		GRPCSagaServerPort:     GRPCSagaServerPort,
+		GRPCJwtPort:            os.Getenv("GRPC_JWT_CLIENT_PORT"),
 	}, nil
 }

@@ -19,8 +19,8 @@ type KafkaProducer struct {
 func NewKafkaProducer(broker string, topic string, logger *zap.SugaredLogger) (*KafkaProducer, error) {
 	kafkaProducer, err := kafka.NewProducer(&kafka.ConfigMap{
 		"bootstrap.servers": broker,
-		// "acks":              "all",
-		"retries": 10,
+		"acks":              "all",
+		"retries":           10,
 	})
 	if err != nil {
 		logger.Errorw("Error creating kafka producer", "error", err, "stage: ", "NewKafkaProducer")

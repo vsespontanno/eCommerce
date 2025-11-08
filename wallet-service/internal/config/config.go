@@ -23,8 +23,8 @@ func MustLoad() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, err
 	}
-	cfg.GRPCUserServer = getEnvAsInt("GRPC_USER_SERVER_PORT", 50051)
-	cfg.GRPCSagaServer = getEnvAsInt("GRPC_SAGA_SERVER_PORT", 50052)
+	cfg.GRPCUserServer = getEnvAsInt("GRPC_USER_SERVER_PORT", 50050)
+	cfg.GRPCSagaServer = getEnvAsInt("GRPC_SAGA_SERVER_PORT", 50054)
 	cfg.GRPCClient = os.Getenv("GRPC_CLIENT_PORT")
 	cfg.PGPort = os.Getenv("PG_PORT")
 	cfg.Host = os.Getenv("PG_HOST")

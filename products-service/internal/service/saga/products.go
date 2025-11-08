@@ -7,57 +7,71 @@ import (
 	"time"
 
 	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/dto"
+	"go.uber.org/zap"
 )
 
 type ProductStorage interface {
 	ReserveTxn(ctx context.Context, products []*dto.ItemRequest) error
-	ReleaseProducts(ctx context.Context, products []*dto.ItemRequest) error
-	CommitProducts(ctx context.Context, products []*dto.ItemRequest) error
+	ReleaseTxn(ctx context.Context, products []*dto.ItemRequest) error
+	CommitTxn(ctx context.Context, products []*dto.ItemRequest) error
 }
 
 type SagaService struct {
 	storage ProductStorage
+	logger  *zap.SugaredLogger
 }
 
-func NewSagaService(storage ProductStorage) *SagaService {
-	return &SagaService{
-		storage: storage,
-	}
+func NewSagaService(storage ProductStorage, logger *zap.SugaredLogger) *SagaService {
+	return &SagaService{storage: storage, logger: logger}
 }
 
-// ReserveProducts пытается зарезервировать набор товаров в одной транзакции.
-// items: список (productID, qty)
-// Возвращает nil если всё ок, или ErrNotEnoughStock + детали, или другую ошибку.
-func (s *SagaService) ReserveProducts(ctx context.Context, products []*dto.ItemRequest) error {
+func (s *SagaService) Reserve(ctx context.Context, products []*dto.ItemRequest) error {
+	s.logger.Infow("Reserving products in saga", "products ", products)
+	return s.execWithRetry(ctx, "reserve", func() error {
+		return s.storage.ReserveTxn(ctx, products)
+	})
+}
+
+func (s *SagaService) Release(ctx context.Context, products []*dto.ItemRequest) error {
+	s.logger.Infow("Releasing products in saga", "products ", products)
+	return s.execWithRetry(ctx, "release", func() error {
+		return s.storage.ReleaseTxn(ctx, products)
+	})
+}
+
+func (s *SagaService) Commit(ctx context.Context, products []*dto.ItemRequest) error {
+	s.logger.Infow("Committing products in saga", "products ", products)
+	return s.execWithRetry(ctx, "commit", func() error {
+		return s.storage.CommitTxn(ctx, products)
+	})
+}
+
+// execWithRetry — обёртка для любых транзакций, защищает от transient ошибок (deadlock, serialization failure).
+func (s *SagaService) execWithRetry(ctx context.Context, op string, fn func() error) error {
 	const maxAttempts = 5
-	var attempt int
-	for attempt = 1; attempt <= maxAttempts; attempt++ {
-		err := s.storage.ReserveTxn(ctx, products)
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		err := fn()
 		if err == nil {
 			return nil
 		}
-		// Если transient (deadlock/serialization), ретраим с backoff
 		if IsTransientErr(err) {
-			// экспоненциальный бэк-офф
 			backoff := time.Duration(attempt*attempt) * 50 * time.Millisecond
 			time.Sleep(backoff)
 			continue
 		}
-		return err
+		return fmt.Errorf("%s failed: %w", op, err)
 	}
-	return fmt.Errorf("reserve failed after %d attempts", maxAttempts)
+	return fmt.Errorf("%s failed after %d attempts", op, maxAttempts)
 }
 
-// isTransientErr пытается распознать transient ошибки БД, на которые стоит делать retry.
-// Здесь простая реализация: проверяем текст ошибки на известные фразы. потенциальный туду, можно улучшать
+// IsTransientErr — распознаёт временные ошибки БД, на которые стоит делать retry.
 func IsTransientErr(err error) bool {
 	if err == nil {
 		return false
 	}
 	msg := strings.ToLower(err.Error())
-	if strings.Contains(msg, "deadlock detected") || strings.Contains(msg, "could not serialize access") ||
-		strings.Contains(msg, "serialization failure") || strings.Contains(msg, "retry transaction") {
-		return true
-	}
-	return false
+	return strings.Contains(msg, "deadlock detected") ||
+		strings.Contains(msg, "could not serialize access") ||
+		strings.Contains(msg, "serialization failure") ||
+		strings.Contains(msg, "retry transaction")
 }
