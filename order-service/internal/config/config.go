@@ -11,7 +11,9 @@ type Config struct {
 	GRPCServerPort         int
 	GRPCWalletClientPort   string
 	HTTPProductsClientPort string
-	KafkaHost              string
+	KafkaBroker            string
+	KafkaGroup             string
+	KafkaTopic             string
 	PGUser                 string
 	PGPassword             string
 	PGName                 string
@@ -27,7 +29,9 @@ func MustLoad() (*Config, error) {
 	cfg.GRPCServerPort = getEnvAsInt("GRPC_SERVER_PORT", 50051)
 	cfg.GRPCWalletClientPort = os.Getenv("GRPC_WALLET_CLIENT_PORT")
 	cfg.HTTPProductsClientPort = os.Getenv("GRPC_PRODUCTS_CLIENT_PORT")
-	cfg.KafkaHost = os.Getenv("KAFKA_HOST")
+	cfg.KafkaBroker = os.Getenv("KAFKA_BROKER")
+	cfg.KafkaGroup = os.Getenv("KAFKA_GROUP_ID")
+	cfg.KafkaTopic = os.Getenv("KAFKA_TOPIC")
 	cfg.PGUser = os.Getenv("PG_USER")
 	cfg.PGPassword = os.Getenv("PG_PASSWORD")
 	cfg.PGName = os.Getenv("PG_NAME")

@@ -30,7 +30,7 @@ func (s *SagaServer) CreateOrderSaga(ctx context.Context, req *proto.StartChecko
 	Order.OrderID = uuid.NewString()
 	for _, item := range req.Cart {
 		Order.Products = append(Order.Products, entity.Product{
-			ID:       int(item.ProductID),
+			ID:       item.ProductID,
 			Quantity: int(item.Quantity),
 		})
 		Order.Total += item.Price * item.Quantity

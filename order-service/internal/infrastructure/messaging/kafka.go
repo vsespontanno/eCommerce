@@ -19,8 +19,8 @@ type KafkaProducer struct {
 func NewKafkaProducer(broker string, topic string, logger *zap.SugaredLogger) (*KafkaProducer, error) {
 	kafkaProducer, err := kafka.NewProducer(&kafka.ConfigMap{
 		"bootstrap.servers": broker,
-		"acks":              "all",
-		"retries":           10,
+		// "acks":              "all",
+		"retries": 10,
 	})
 	if err != nil {
 		logger.Errorw("Error creating kafka producer", "error", err, "stage: ", "NewKafkaProducer")
@@ -81,6 +81,8 @@ func (k *KafkaProducer) ProccessEvent(ctx context.Context, event entity.OrderEve
 		k.logger.Errorw("Error producing message", "error", err, "stage: ", "ProccessEvent")
 		return err
 	}
+	k.logger.Infow("Message produced", "orderID", event.OrderID, "topic", k.topic)
+	k.producer.Flush(5000) // ждём до 5 секунд доставки
 	return nil
 }
 
@@ -90,5 +92,6 @@ func (k *KafkaProducer) produce(msg *kafka.Message) error {
 		k.logger.Errorw("Error producing message", "error", err, "stage: ", "Produce")
 		return err
 	}
+	k.logger.Infow("Message produced", "orderID", msg.Key, "topic", k.topic)
 	return nil
 }

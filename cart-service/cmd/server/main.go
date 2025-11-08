@@ -73,7 +73,6 @@ func main() {
 	if err != nil {
 		logger.Log.Fatalf("Failed to connect to kafka: %v", err)
 	}
-	kafkaConsumer.Subscribe()
 	kafkaConsumer.Poll(ctx)
 
 	handler := handler.New(cartService, logger.Log, jwtClient, rateLimiter, sagaService)

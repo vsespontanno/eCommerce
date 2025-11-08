@@ -3,8 +3,6 @@ package messaging
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
@@ -67,7 +65,7 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 				k.logger.Info("Kafka consumer stopped", " topic ", k.topic)
 				return
 			default:
-				msg, err := k.consumer.ReadMessage(100 * time.Millisecond)
+				msg, err := k.consumer.ReadMessage( /*100 * time.Millisecond*/ -1)
 				if err != nil {
 					if err.(kafka.Error).Code() == kafka.ErrTimedOut {
 						continue
@@ -88,7 +86,7 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 				if err != nil {
 					continue
 				}
-				if order.Status == "completed" {
+				if order.Status == "pending" {
 					if err := k.orderCompleter.CompleteOrder(ctx, order); err != nil {
 						k.logger.Errorw("Error cleaning cart", "order_id", order.OrderID, "error", err)
 						continue
@@ -107,11 +105,10 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 func (k *KafkaConsumer) processMessage(msg *kafka.Message) (*models.OrderEvent, error) {
 	var cartOrder models.OrderEvent
 	err := json.Unmarshal(msg.Value, &cartOrder)
-	fmt.Println("Processing message:", cartOrder)
+	k.logger.Infow("got msg ", cartOrder)
 	if err != nil {
 		k.logger.Errorw("Error unmarshalling message", "error", err, "stage: ", "processMessage")
 		return &models.OrderEvent{}, err
 	}
-	cartOrder.Status = "completed"
 	return &cartOrder, nil
 }

@@ -1,6 +1,6 @@
 package entity
 
 type Product struct {
-	ID       int
-	Quantity int
+	ID       int64 `json:"product_id"`
+	Quantity int   `json:"quantity"`
 }

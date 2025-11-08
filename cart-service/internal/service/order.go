@@ -30,6 +30,7 @@ func NewOrderCompleteService(logger *zap.SugaredLogger, pgCleaner PGCartCleaner,
 }
 
 func (o *OrderCompleteService) CompleteOrder(ctx context.Context, order *models.OrderEvent) error {
+	order.Status = "Completed"
 	err := o.pgCleaner.CleanCart(ctx, order)
 	if err != nil {
 		o.logger.Errorw("Failed to clean cart", "error", err)
