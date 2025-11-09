@@ -25,22 +25,24 @@ func NewSagaStore(db *sql.DB) *SagaStore {
 }
 
 func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) error {
-	// Начинаем транзакцию на уровне по-умолчанию (Read Committed в Postgres), FOR UPDATE даст нам нужную блокировку.
+	// Начинаем транзакцию на уровне по-умолчанию (Read Committed в Postgres), FOR UPDATE  даст нам нужную блокировку.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// Для каждого товара: SELECT quantity, reserved FOR UPDATE, проверка, UPDATE reserved
+	// Для каждого товара: SELECT quantity, reserved FOR UPDATE , проверка, UPDATE reserved
 	for _, it := range items {
 		// Получаем актуальные значения с блокировкой
-		qb := sq.
-			Select("quantity", "reserved").
+		qb := s.builder.
+			Select("productquantity", "reserved").
 			From("products").
 			Where(sq.Eq{"id": it.ProductID}).
 			Suffix("FOR UPDATE")
+
 		sqlStr, args, _ := qb.ToSql()
+		fmt.Println("SQL:", sqlStr)
 
 		var quantity, reserved int
 		row := tx.QueryRowContext(ctx, sqlStr, args...)
@@ -58,11 +60,13 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 		}
 
 		// Обновляем reserved
-		ub := sq.
+		ub := s.builder.
 			Update("products").
 			Set("reserved", sq.Expr("reserved + ?", it.Qty)).
 			Where(sq.Eq{"id": it.ProductID})
+
 		updateSQL, updateArgs, _ := ub.ToSql()
+		fmt.Println("UPDATE SQL:", updateSQL)
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
 			return err
 		}
@@ -82,21 +86,31 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 	defer tx.Rollback()
 
 	for _, it := range items {
-		ub := sq.
-			Update("products").
-			Set("reserved", sq.Expr("reserved - ?", it.Qty)).
-			Where(sq.Eq{"id": it.ProductID})
+		qb := s.builder.
+			Select("reserved").
+			From("products").
+			Where(sq.Eq{"id": it.ProductID}).
+			Suffix("FOR UPDATE")
 
+		sqlStr, args, _ := qb.ToSql()
+		var reserved int
+		fmt.Println("SQL:", sqlStr)
+		if err := tx.QueryRowContext(ctx, sqlStr, args...).Scan(&reserved); err != nil {
+			return err
+		}
+
+		ub := s.builder.
+			Update("products").
+			Set("reserved", sq.Expr("GREATEST(reserved - ?, 0)", it.Qty)).
+			Where(sq.Eq{"id": it.ProductID})
 		updateSQL, updateArgs, _ := ub.ToSql()
+		fmt.Println("UPDATE SQL:", updateSQL)
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
 			return err
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) error {
@@ -107,21 +121,32 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 	defer tx.Rollback()
 
 	for _, it := range items {
-		ub := sq.
-			Update("products").
-			Set("reserved", sq.Expr("reserved - ?", it.Qty)).
-			Set("quantity", sq.Expr("quantity - ?", it.Qty)).
-			Where(sq.Eq{"id": it.ProductID})
+		var quantity, reserved int
+		qb := s.builder.
+			Select("productquantity", "reserved").
+			From("products").
+			Where(sq.Eq{"id": it.ProductID}).
+			Suffix("FOR UPDATE")
+		sqlStr, args, _ := qb.ToSql()
 
+		if err := tx.QueryRowContext(ctx, sqlStr, args...).Scan(&quantity, &reserved); err != nil {
+			return err
+		}
+
+		if quantity < it.Qty {
+			return fmt.Errorf("%w: product_id=%d requested=%d available=%d", models.ErrNotEnoughStock, it.ProductID, it.Qty, quantity)
+		}
+
+		ub := s.builder.
+			Update("products").
+			Set("productquantity", sq.Expr("productquantity - ?", it.Qty)).
+			Set("reserved", sq.Expr("GREATEST(reserved - ?, 0)", it.Qty)).
+			Where(sq.Eq{"id": it.ProductID})
 		updateSQL, updateArgs, _ := ub.ToSql()
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
 			return err
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return err
-	}
-	return nil
-
+	return tx.Commit()
 }

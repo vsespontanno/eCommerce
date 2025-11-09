@@ -24,8 +24,8 @@ func NewProductStore(db *sql.DB) *ProductStore {
 
 func (s *ProductStore) SaveProduct(ctx context.Context, product *models.Product) error {
 	query := s.builder.Insert("products").
-		Columns("productID", "productName", "productDescription", "productPrice", "created_at").
-		Values(product.ID, product.Name, product.Description, product.Price, time.Now().Format(time.RFC1123Z)).
+		Columns("productID", "productName", "productDescription", "productPrice", "productQuantity", "created_at").
+		Values(product.ID, product.Name, product.Description, product.Price, product.CountInStock, time.Now().Format(time.RFC1123Z)).
 		RunWith(s.db)
 
 	return query.QueryRowContext(ctx).Scan(&product.ID)

@@ -59,27 +59,37 @@ func (a *App) MustRun() {
 
 func (a *App) Run() error {
 	const op = "grpcapp.Run"
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", a.userPort))
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
 
-	if err := a.usrServ.Serve(l); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-	a.Log.Info("the user grpc server is running on port %v", a.userPort)
+	errCh := make(chan error, 2)
 
-	l, err = net.Listen("tcp", fmt.Sprintf(":%d", a.sagaPort))
-	if err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
+	// user server
+	go func() {
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.userPort))
+		if err != nil {
+			errCh <- fmt.Errorf("%s (user): %w", op, err)
+			return
+		}
+		a.Log.Infof("User gRPC server running on port %d", a.userPort)
+		if err := a.usrServ.Serve(lis); err != nil {
+			errCh <- fmt.Errorf("%s (user serve): %w", op, err)
+		}
+	}()
 
-	if err := a.sagaSrv.Serve(l); err != nil {
-		return fmt.Errorf("%s: %w", op, err)
-	}
-	a.Log.Info("the saga grpc server is running on port %v", a.sagaPort)
+	// saga server
+	go func() {
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.sagaPort))
+		if err != nil {
+			errCh <- fmt.Errorf("%s (saga): %w", op, err)
+			return
+		}
+		a.Log.Infof("Saga gRPC server running on port %d", a.sagaPort)
+		if err := a.sagaSrv.Serve(lis); err != nil {
+			errCh <- fmt.Errorf("%s (saga serve): %w", op, err)
+		}
+	}()
 
-	return nil
+	// если один из серверов вернёт ошибку — завершаем всё приложение
+	return <-errCh
 }
 
 func (a *App) Stop() {

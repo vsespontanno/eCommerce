@@ -10,7 +10,7 @@ import (
 type Config struct {
 	GRPCServerPort         int
 	GRPCWalletClientPort   string
-	HTTPProductsClientPort string
+	GRPCProductsClientPort string
 	KafkaBroker            string
 	KafkaGroup             string
 	KafkaTopic             string
@@ -28,7 +28,7 @@ func MustLoad() (*Config, error) {
 	}
 	cfg.GRPCServerPort = getEnvAsInt("GRPC_SERVER_PORT", 50051)
 	cfg.GRPCWalletClientPort = os.Getenv("GRPC_WALLET_CLIENT_PORT")
-	cfg.HTTPProductsClientPort = os.Getenv("GRPC_PRODUCTS_CLIENT_PORT")
+	cfg.GRPCProductsClientPort = os.Getenv("GRPC_PRODUCTS_CLIENT_PORT")
 	cfg.KafkaBroker = os.Getenv("KAFKA_BROKER")
 	cfg.KafkaGroup = os.Getenv("KAFKA_GROUP_ID")
 	cfg.KafkaTopic = os.Getenv("KAFKA_TOPIC")

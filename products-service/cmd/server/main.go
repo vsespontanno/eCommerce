@@ -49,6 +49,7 @@ func main() {
 	app := app.New(logger.Log, cfg.HTTPPort, cfg.GRPCProductsServerPort, cfg.GRPCSagaServerPort, store, sagaService)
 	jwtClient := client.NewJwtClient(cfg.GRPCJwtPort)
 
+	seedSomeValues(store)
 	// Register handlers
 	handler := handler.New(cartStore, store, logger.Log, jwtClient)
 	handler.RegisterRoutes(app.HTTPApp.Router())
@@ -89,17 +90,19 @@ func main() {
 
 func seedSomeValues(store *postgres.ProductStore) {
 	product1 := &models.Product{
-		Name:        "Red Bull",
-		Description: "Good energy drink for gym",
-		Price:       141.0,
-		ID:          1,
+		Name:         "Red Bull",
+		Description:  "Good energy drink for gym",
+		Price:        141.0,
+		ID:           1,
+		CountInStock: 100,
 	}
 
 	product2 := &models.Product{
-		Name:        "Chapman Red",
-		Description: "vERy tasty ciagarettes for your deepression",
-		Price:       253.0,
-		ID:          2,
+		Name:         "Chapman Red",
+		Description:  "vERy tasty ciagarettes for your deepression",
+		Price:        253.0,
+		ID:           2,
+		CountInStock: 100,
 	}
 
 	store.SaveProduct(context.TODO(), product1)

@@ -7,15 +7,10 @@ CREATE TABLE IF NOT EXISTS orders (
     status TEXT
 ); 
 
-CREATE TABLE order_items (
-    order_id UUID, 
-    product_id UUID, 
-    quantity INT NOT NULL DEFAULT 15, 
-    price INT NOT NULL DEFAULT 12
-);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
-SELECT 'down SQL query';
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
 -- +goose StatementEnd

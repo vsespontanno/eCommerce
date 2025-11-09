@@ -12,6 +12,8 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	applicationSaga "github.com/vsespontanno/eCommerce/order-service/internal/application/saga"
 	"github.com/vsespontanno/eCommerce/order-service/internal/config"
+	"github.com/vsespontanno/eCommerce/order-service/internal/infrastructure/grpcClient/products"
+	"github.com/vsespontanno/eCommerce/order-service/internal/infrastructure/grpcClient/wallet"
 	"github.com/vsespontanno/eCommerce/order-service/internal/infrastructure/messaging"
 	"github.com/vsespontanno/eCommerce/order-service/internal/presentation/saga"
 	"github.com/vsespontanno/eCommerce/pkg/logger"
@@ -36,9 +38,10 @@ func main() {
 		logger.Log.Fatalw("failed to create kafka producer", "error", err)
 	}
 	defer kafkaProducer.Close()
-
+	walletClient := wallet.NewWalletClient(cfg.GRPCWalletClientPort, logger.Log)
+	productsClient := products.NewProductsClient(cfg.GRPCProductsClientPort, logger.Log)
 	// TODO: inject real clients later (wallet, products)
-	sagaService := applicationSaga.New(cfg, nil, nil, kafkaProducer, logger.Log)
+	sagaService := applicationSaga.New(cfg, &walletClient, &productsClient, kafkaProducer, logger.Log)
 	sagaServer := saga.NewSagaServer(logger.Log, sagaService)
 
 	grpcServer := initializeGRPC(logger.Log)

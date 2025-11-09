@@ -2,6 +2,7 @@ package saga
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	orderEntity "github.com/vsespontanno/eCommerce/order-service/internal/domain/event/entity"
@@ -24,7 +25,7 @@ func NewSagaServer(logger *zap.SugaredLogger, saga Orchestrator) *SagaServer {
 	return &SagaServer{logger: logger, saga: saga}
 }
 
-func (s *SagaServer) CreateOrderSaga(ctx context.Context, req *proto.StartCheckoutRequest) (*proto.StartCheckoutResponse, error) {
+func (s *SagaServer) StartCheckout(ctx context.Context, req *proto.StartCheckoutRequest) (*proto.StartCheckoutResponse, error) {
 	var Order orderEntity.OrderEvent
 	Order.UserID = req.UserID
 	Order.OrderID = uuid.NewString()
@@ -36,10 +37,11 @@ func (s *SagaServer) CreateOrderSaga(ctx context.Context, req *proto.StartChecko
 		Order.Total += item.Price * item.Quantity
 	}
 	Order.Status = "Pending"
-	err := s.saga.SagaTransaction(ctx, Order)
+	err := s.saga.SagaTransaction(ctx, Order) //problems
 	if err != nil {
 		s.logger.Errorw("Failed to publish Kafka message", "orderID", Order.OrderID, "error", err)
 		return nil, err
 	}
+	fmt.Println("stage 4")
 	return &proto.StartCheckoutResponse{Success: true, Error: "no error"}, nil
 }
