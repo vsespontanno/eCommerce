@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -147,7 +146,6 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("hellop")
 	_, err := h.checkouter.Checkout(ctx, userID)
 	if err != nil {
 		http.Error(w, "Error while checking out", http.StatusBadRequest)

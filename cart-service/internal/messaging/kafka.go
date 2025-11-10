@@ -76,7 +76,7 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 				if err != nil {
 					continue
 				}
-				if order.Status == "pending" {
+				if order.Status == "Pending" {
 					if err := k.orderCompleter.CompleteOrder(ctx, order); err != nil {
 						k.logger.Errorw("Error cleaning cart", "order_id", order.OrderID, "error", err)
 						continue
@@ -95,7 +95,7 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 func (k *KafkaConsumer) processMessage(msg *kafka.Message) (*models.OrderEvent, error) {
 	var cartOrder models.OrderEvent
 	err := json.Unmarshal(msg.Value, &cartOrder)
-	k.logger.Infow("got msg ", cartOrder)
+	k.logger.Infof("got msg: %+v", cartOrder)
 	if err != nil {
 		k.logger.Errorw("Error unmarshalling message", "error", err, "stage: ", "processMessage")
 		return &models.OrderEvent{}, err

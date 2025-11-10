@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
 	"go.uber.org/zap"
@@ -35,7 +36,7 @@ func (s *SagaService) Checkout(ctx context.Context, userID int64) (bool, error) 
 		s.sugarLogger.Errorf("error while getting cart from store: %v", err)
 		return false, err
 	}
-
+	fmt.Println(cart)
 	ok, err := s.sagaClient.StartCheckout(ctx, userID, cart)
 	if err != nil {
 		s.sugarLogger.Errorf("error while starting checkout: %v", err)
