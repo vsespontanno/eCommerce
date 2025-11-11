@@ -64,7 +64,7 @@ func (c *CartStore) CleanCart(ctx context.Context, order *models.OrderEvent) err
 
 	for _, p := range order.Products {
 		_, err = tx.ExecContext(ctx,
-			`DELETE FROM cart_items WHERE user_id = $1 AND product_id = $2`,
+			`DELETE FROM cart WHERE user_id = $1 AND product_id = $2`,
 			order.UserID, p.ID,
 		)
 		if err != nil {

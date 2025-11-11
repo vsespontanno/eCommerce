@@ -11,6 +11,13 @@ import (
 	"go.uber.org/zap"
 )
 
+type SagaStep int
+
+const (
+	StepWallet SagaStep = iota + 1
+	StepProducts
+)
+
 type Eventer interface {
 	ProccessEvent(ctx context.Context, event orderEntity.OrderEvent) error
 }
@@ -41,48 +48,46 @@ func New(config *config.Config, wallet MoneyReserver, products ProductsReserver,
 
 // TODO: product reserve; release; generic func to release if something's wrong;
 func (o *Orchestrator) SagaTransaction(ctx context.Context, Order orderEntity.OrderEvent) error {
-	response, err := o.wallet.ReserveFunds(ctx, Order.UserID, Order.Total)
+	_, err := o.wallet.ReserveFunds(ctx, Order.UserID, Order.Total)
 	if err != nil {
-		if response != "" {
-			o.rollbackTransaction(ctx, Order, 1)
-			return fmt.Errorf("not enough money to make an order")
-		}
-		return err
+		o.rollbackTransaction(ctx, Order, StepWallet)
+		return fmt.Errorf("wallet reserve failed: %w", err)
 	}
+
 	sort.Slice(Order.Products, func(i, j int) bool {
 		return Order.Products[i].ID < Order.Products[j].ID
 	})
 
 	_, err = o.products.ReserveProducts(ctx, Order.Products)
 	if err != nil {
-		o.rollbackTransaction(ctx, Order, 1)
-		o.wallet.ReleaseFunds(ctx, Order.UserID, Order.Total)
+		o.logger.Errorw("Error reserving products", "error", err, "stage", "Orchestrator.SagaTransaction", "step", 1)
+		o.rollbackTransaction(ctx, Order, StepProducts)
 		return err
 	}
 
 	err = o.eventer.ProccessEvent(ctx, Order)
 	if err != nil {
 		o.logger.Errorw("Failed to publish Kafka message", "orderID", Order.OrderID, "error", err)
-		o.rollbackTransaction(ctx, Order, 2)
+		o.rollbackTransaction(ctx, Order, StepProducts)
 		return err
 	}
 
 	_, err = o.wallet.CommitFunds(ctx, Order.UserID, Order.Total)
 	if err != nil {
 		o.logger.Errorw("Error committing funds", "error", err, "stage", "Orchestrator.SagaTransaction", "step", 2)
-		o.rollbackTransaction(ctx, Order, 2)
+		o.rollbackTransaction(ctx, Order, StepProducts)
 		return err
 	}
 	_, err = o.products.CommitProducts(ctx, Order.Products)
 	if err != nil {
 		o.logger.Errorw("Error committing products", "error", err, "stage", "Orchestrator.SagaTransaction", "step", 3)
-		o.rollbackTransaction(ctx, Order, 2)
+		o.rollbackTransaction(ctx, Order, StepProducts)
 		return err
 	}
 	return nil
 }
 
-func (o *Orchestrator) rollbackTransaction(ctx context.Context, Order orderEntity.OrderEvent, step int) {
+func (o *Orchestrator) rollbackTransaction(ctx context.Context, Order orderEntity.OrderEvent, step SagaStep) {
 	switch step {
 	case 1:
 		// Отменяем только резерв бабок

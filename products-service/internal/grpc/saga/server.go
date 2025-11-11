@@ -33,7 +33,7 @@ func (s *SagaServer) ReserveProducts(ctx context.Context, req *proto.ReserveProd
 		return nil, status.Errorf(codes.Internal, "failed to reserve products: %v", err)
 
 	}
-	return &proto.ReserveProductsResponse{}, nil
+	return &proto.ReserveProductsResponse{Success: true}, nil
 }
 
 func (s *SagaServer) ReleaseProducts(ctx context.Context, req *proto.ReleaseProductsRequest) (*proto.ReleaseProductsResponse, error) {
@@ -43,7 +43,7 @@ func (s *SagaServer) ReleaseProducts(ctx context.Context, req *proto.ReleaseProd
 		return nil, status.Errorf(codes.Internal, "failed to release products: %v", err)
 
 	}
-	return &proto.ReleaseProductsResponse{}, nil
+	return &proto.ReleaseProductsResponse{Success: true}, nil
 }
 
 func (s *SagaServer) CommitProducts(ctx context.Context, req *proto.CommitProductsRequest) (*proto.CommitProductsResponse, error) {
@@ -53,7 +53,7 @@ func (s *SagaServer) CommitProducts(ctx context.Context, req *proto.CommitProduc
 		return nil, status.Errorf(codes.Internal, "failed to commit products: %v", err)
 
 	}
-	return &proto.CommitProductsResponse{}, nil
+	return &proto.CommitProductsResponse{Success: true}, nil
 }
 
 func mapProtoToDTO(products []*proto.ProductSaga) []*dto.ItemRequest {

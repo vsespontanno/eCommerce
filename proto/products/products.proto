@@ -30,7 +30,7 @@ message ReserveProductsResponse {
 }
 
 message ReleaseProductsRequest {
-  repeated ProductSaga products = 2;
+  repeated ProductSaga products = 1;
 }
 
 message ReleaseProductsResponse {

@@ -41,8 +41,8 @@ func (p *ProductsClient) ReserveProducts(ctx context.Context, productIDs []entit
 		})
 	}
 	res, err := p.client.ReserveProducts(ctx, req)
-	if err != nil {
-		p.logger.Errorw("Error while reserving ", err, "stage ", "ProductsClient.ReserveProducts")
+	if err != nil || res == nil {
+		p.logger.Errorw("Error while reserving", "error", err, "stage", "ProductsClient.ReserveProducts")
 		return false, err
 	}
 	return res.Success, nil
@@ -57,8 +57,8 @@ func (p *ProductsClient) CommitProducts(ctx context.Context, productIDs []entity
 		})
 	}
 	res, err := p.client.CommitProducts(ctx, req)
-	if err != nil {
-		p.logger.Errorw("Error while commitin", err, "stage ", "ProductsClient.CommitProducts")
+	if err != nil || res == nil {
+		p.logger.Errorw("Error while committing", "error", err, "stage", "ProductsClient.CommitProducts")
 		return false, err
 	}
 	return res.Success, nil
@@ -73,8 +73,8 @@ func (p *ProductsClient) ReleaseProducts(ctx context.Context, productIDs []entit
 		})
 	}
 	res, err := p.client.ReleaseProducts(ctx, req)
-	if err != nil {
-		p.logger.Errorw("Error while releasing", err, "stage ", "ProductsClient.ReleaseProducts")
+	if err != nil || res == nil {
+		p.logger.Errorw("Error while releasing", "error", err, "stage", "ProductsClient.ReleaseProducts")
 		return false, err
 	}
 	return res.Success, nil

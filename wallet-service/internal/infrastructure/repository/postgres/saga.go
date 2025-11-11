@@ -22,37 +22,37 @@ func NewSagaWalletStore(db *sql.DB) *SagaWalletStore {
 }
 
 func (s *SagaWalletStore) ReserveMoney(ctx context.Context, userID int64, amount int64) error {
-	_, err := s.builder.Update("wallets").
+	res, err := s.builder.Update("wallets").
 		Set("reserved", sq.Expr("reserved + ?", amount)).
-		Where("user_id = ?", userID).
+		Where(sq.Eq{"user_id": userID}).
 		RunWith(s.db).
 		Exec()
-	if err == sql.ErrNoRows {
+	if rowsAffected, _ := res.RowsAffected(); rowsAffected == 0 {
 		return apperrors.ErrNoWallet
 	}
 	return err
 }
 
 func (s *SagaWalletStore) CommitMoney(ctx context.Context, userID int64, amount int64) error {
-	_, err := s.builder.Update("wallets").
+	res, err := s.builder.Update("wallets").
 		Set("balance", sq.Expr("balance - ?", amount)).
-		Set("reserved", sq.Expr("reserved - ?", amount)).
-		Where("user_id = ?", userID).
+		Set("reserved", sq.Expr("GREATEST(reserved - ?, 0)", amount)).
+		Where(sq.Eq{"user_id": userID}).
 		RunWith(s.db).
 		Exec()
-	if err == sql.ErrNoRows {
+	if rowsAffected, _ := res.RowsAffected(); rowsAffected == 0 {
 		return apperrors.ErrNoWallet
 	}
 	return err
 }
 
 func (s *SagaWalletStore) ReleaseMoney(ctx context.Context, userID int64, amount int64) error {
-	_, err := s.builder.Update("wallets").
+	res, err := s.builder.Update("wallets").
 		Set("reserved", sq.Expr("reserved - ?", amount)).
 		Where("user_id = ?", userID).
 		RunWith(s.db).
 		Exec()
-	if err == sql.ErrNoRows {
+	if rowsAffected, _ := res.RowsAffected(); rowsAffected == 0 {
 		return apperrors.ErrNoWallet
 	}
 	return err

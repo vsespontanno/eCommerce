@@ -38,7 +38,7 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 		qb := s.builder.
 			Select("productquantity", "reserved").
 			From("products").
-			Where(sq.Eq{"id": it.ProductID}).
+			Where(sq.Eq{"productID": it.ProductID}).
 			Suffix("FOR UPDATE")
 
 		sqlStr, args, _ := qb.ToSql()
@@ -56,14 +56,14 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 		available := quantity - reserved
 		if available < it.Qty {
 			// явная бизнес-ошибка -> вернуть, транзакция откатится
-			return fmt.Errorf("%w: product_id=%d requested=%d available=%d", models.ErrNotEnoughStock, it.ProductID, it.Qty, available)
+			return fmt.Errorf("%w: productID=%d requested=%d available=%d", models.ErrNotEnoughStock, it.ProductID, it.Qty, available)
 		}
 
 		// Обновляем reserved
 		ub := s.builder.
 			Update("products").
 			Set("reserved", sq.Expr("reserved + ?", it.Qty)).
-			Where(sq.Eq{"id": it.ProductID})
+			Where(sq.Eq{"productID": it.ProductID})
 
 		updateSQL, updateArgs, _ := ub.ToSql()
 		fmt.Println("UPDATE SQL:", updateSQL)
@@ -89,7 +89,7 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 		qb := s.builder.
 			Select("reserved").
 			From("products").
-			Where(sq.Eq{"id": it.ProductID}).
+			Where(sq.Eq{"productID": it.ProductID}).
 			Suffix("FOR UPDATE")
 
 		sqlStr, args, _ := qb.ToSql()
@@ -102,7 +102,7 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 		ub := s.builder.
 			Update("products").
 			Set("reserved", sq.Expr("GREATEST(reserved - ?, 0)", it.Qty)).
-			Where(sq.Eq{"id": it.ProductID})
+			Where(sq.Eq{"productID": it.ProductID})
 		updateSQL, updateArgs, _ := ub.ToSql()
 		fmt.Println("UPDATE SQL:", updateSQL)
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
@@ -125,7 +125,7 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 		qb := s.builder.
 			Select("productquantity", "reserved").
 			From("products").
-			Where(sq.Eq{"id": it.ProductID}).
+			Where(sq.Eq{"productID": it.ProductID}).
 			Suffix("FOR UPDATE")
 		sqlStr, args, _ := qb.ToSql()
 
@@ -134,14 +134,14 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 		}
 
 		if quantity < it.Qty {
-			return fmt.Errorf("%w: product_id=%d requested=%d available=%d", models.ErrNotEnoughStock, it.ProductID, it.Qty, quantity)
+			return fmt.Errorf("%w: productID=%d requested=%d available=%d", models.ErrNotEnoughStock, it.ProductID, it.Qty, quantity)
 		}
 
 		ub := s.builder.
 			Update("products").
 			Set("productquantity", sq.Expr("productquantity - ?", it.Qty)).
 			Set("reserved", sq.Expr("GREATEST(reserved - ?, 0)", it.Qty)).
-			Where(sq.Eq{"id": it.ProductID})
+			Where(sq.Eq{"productID": it.ProductID})
 		updateSQL, updateArgs, _ := ub.ToSql()
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
 			return err

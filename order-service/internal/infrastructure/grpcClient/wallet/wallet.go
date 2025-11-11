@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/vsespontanno/eCommerce/proto/wallet"
@@ -39,9 +40,9 @@ func (w *WalletClient) ReserveFunds(ctx context.Context, userID int64, amount in
 	})
 	if err != nil {
 		w.logger.Errorw("Error reserving funds", "error", err, "stage", "WalletClient.ReserveFunds")
-		return response.String(), err
+		return fmt.Sprintf("success=%v, error=%s", response.Success, response.Error), err
 	}
-	return response.String(), err
+	return fmt.Sprintf("success=%v, error=%s", response.Success, response.Error), err
 }
 
 func (w *WalletClient) CommitFunds(ctx context.Context, userID int64, amount int64) (string, error) {
@@ -51,9 +52,9 @@ func (w *WalletClient) CommitFunds(ctx context.Context, userID int64, amount int
 	})
 	if err != nil {
 		w.logger.Errorw("Error committing funds", "error", err, "stage", "WalletClient.CommitFunds")
-		return resp.String(), err
+		return fmt.Sprintf("success=%v, error=%s", resp.Success, resp.Error), err
 	}
-	return resp.String(), err
+	return fmt.Sprintf("success=%v, error=%s", resp.Success, resp.Error), err
 }
 
 func (w *WalletClient) ReleaseFunds(ctx context.Context, userID int64, amount int64) (string, error) {
@@ -63,7 +64,7 @@ func (w *WalletClient) ReleaseFunds(ctx context.Context, userID int64, amount in
 	})
 	if err != nil {
 		w.logger.Errorw("Error releasing funds", "error", err, "stage", "WalletClient.ReleaseFunds")
-		return resp.String(), err
+		return fmt.Sprintf("success=%v, error=%s", resp.Success, resp.Error), err
 	}
-	return resp.String(), err
+	return fmt.Sprintf("success=%v, error=%s", resp.Success, resp.Error), err
 }
