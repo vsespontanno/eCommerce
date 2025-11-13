@@ -3,15 +3,13 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jmoiron/sqlx"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
 	"go.uber.org/zap"
 )
-
-var ErrNoCartFound = errors.New("no cart found")
 
 type CartStore struct {
 	db      *sqlx.DB
@@ -52,6 +50,46 @@ func (s *CartStore) GetCart(ctx context.Context, userID int64) (*models.Cart, er
 		cart.Items = append(cart.Items, item)
 	}
 	return &cart, nil
+}
+
+func (c *CartStore) UpsertCart(ctx context.Context, userID int64, cart *[]models.CartItem) error {
+	tx, err := c.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	for _, item := range *cart {
+		qb := c.builder.
+			Insert("cart").
+			Columns("user_id", "product_id", "quantity").
+			Values(userID, item.ProductID, item.Quantity).
+			Suffix(`
+				ON CONFLICT (user_id, product_id)
+				DO UPDATE SET quantity = EXCLUDED.quantity
+			`)
+
+		sqlStr, args, err := qb.ToSql()
+		if err != nil {
+			return fmt.Errorf("failed to build SQL: %w", err)
+		}
+
+		if _, err := tx.ExecContext(ctx, sqlStr, args...); err != nil {
+			c.logger.Errorw("failed to upsert cart item",
+				"user_id", userID,
+				"product_id", item.ProductID,
+				"error", err,
+			)
+			return fmt.Errorf("failed to exec upsert: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit upsert: %w", err)
+	}
+
+	c.logger.Infow("cart upserted successfully", "user_id", userID, "items", len(*cart))
+	return nil
 }
 
 func (c *CartStore) CleanCart(ctx context.Context, order *models.OrderEvent) error {

@@ -2,6 +2,8 @@ package jobs
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
@@ -13,7 +15,6 @@ type PgRepo interface {
 }
 
 type RedisRepo interface {
-	ParseUserIDFromKey(ctx context.Context, key string) (int64, error)
 	ScanKeys(ctx context.Context, pattern string) ([]string, error)
 	GetCartItems(ctx context.Context, key string) ([]models.CartItem, error)
 }
@@ -60,7 +61,7 @@ func (j *CartSyncJob) sync(ctx context.Context) error {
 	}
 
 	for _, key := range keys {
-		userID, err := j.redisRepo.ParseUserIDFromKey(ctx, key)
+		userID, err := parseUserIDFromKey(key)
 		if err != nil {
 			j.logger.Warnw("invalid cart key", "key", key)
 			continue
@@ -79,4 +80,9 @@ func (j *CartSyncJob) sync(ctx context.Context) error {
 
 	j.logger.Infow("CartSyncJob completed", "carts_synced", len(keys))
 	return nil
+}
+
+func parseUserIDFromKey(key string) (int64, error) {
+	userID := key[strings.Index(key, ":")+1:]
+	return strconv.ParseInt(userID, 10, 64)
 }

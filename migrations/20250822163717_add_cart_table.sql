@@ -9,8 +9,7 @@ CREATE TABLE IF NOT EXISTS cart (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_id ON cart (id);
-CREATE INDEX IF NOT EXISTS idx_user_id ON cart (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cart_user_product ON cart (user_id, product_id);
 -- +goose StatementEnd
 
 -- +goose Down

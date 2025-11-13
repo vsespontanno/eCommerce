@@ -49,7 +49,7 @@ func (s *OrderStore) IncrementInCart(ctx context.Context, userID int64, productI
 			s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
 			return err
 		}
-		return s.rdb.Expire(ctx, key, 30*24*time.Hour).Err()
+		return s.rdb.Expire(ctx, key, 24*time.Hour).Err()
 	}
 	return models.ErrProductIsNotInCart
 }
@@ -67,6 +67,22 @@ func (s *OrderStore) AddNewProductToCart(ctx context.Context, userID int64, prod
 		return err
 	}
 	return s.rdb.Expire(ctx, key, 30*24*time.Hour).Err()
+}
+
+func (s *OrderStore) SaveCart(ctx context.Context, userID int64, cart *models.Cart) error {
+	key := fmt.Sprintf("cart:%d", userID)
+	for _, item := range cart.Items {
+		data, err := json.Marshal(item)
+		if err != nil {
+			s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
+			return err
+		}
+		if _, err := s.rdb.HSet(ctx, key, item.ProductID, data).Result(); err != nil {
+			s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
+			return err
+		}
+	}
+	return s.rdb.Expire(ctx, key, 24*time.Hour).Err()
 }
 
 func (s *OrderStore) DecrementInCart(ctx context.Context, userID, productID int64) error {
@@ -108,7 +124,7 @@ func (s *OrderStore) RemoveProductFromCart(ctx context.Context, userID int64, pr
 	return nil
 }
 
-func (s *OrderStore) GetCart(ctx context.Context, userID int64) ([]models.Product, error) {
+func (s *OrderStore) GetCartProducts(ctx context.Context, userID int64) ([]models.Product, error) {
 	key := fmt.Sprintf("cart:%d", userID)
 	items, err := s.rdb.HGetAll(ctx, key).Result()
 	if err != nil {
@@ -116,17 +132,46 @@ func (s *OrderStore) GetCart(ctx context.Context, userID int64) ([]models.Produc
 		return nil, err
 	}
 
-	var products []models.Product
+	var cart []models.Product
 	for _, jsonStr := range items {
-		var p models.Product
-		if err := json.Unmarshal([]byte(jsonStr), &p); err != nil {
+		var item models.Product
+		if err := json.Unmarshal([]byte(jsonStr), &item); err != nil {
 			s.logger.Errorw("Failed to unmarshal product", "error", err, "stage", "GetCart")
 			return nil, err
 		}
-		products = append(products, p)
+		cart = append(cart, item)
+	}
+	return cart, nil
+}
+
+func (s *OrderStore) ClearCart(ctx context.Context, userID int64) error {
+	_, err := s.rdb.Del(ctx, "cart:"+strconv.FormatInt(userID, 10)).Result()
+	if err != nil {
+		s.logger.Errorw("Failed to clear cart", "error", err, "stage", "ClearCart")
+		return err
+	}
+	return nil
+}
+
+func (s *OrderStore) GetCart(ctx context.Context, userID int64) (*models.Cart, error) {
+	key := fmt.Sprintf("cart:%d", userID)
+	items, err := s.rdb.HGetAll(ctx, key).Result()
+	if err != nil {
+		s.logger.Errorw("Failed to get cart", "error", err, "stage", "GetCart")
+		return nil, err
 	}
 
-	return products, nil
+	var cart models.Cart
+	for _, jsonStr := range items {
+		var item models.CartItem
+		if err := json.Unmarshal([]byte(jsonStr), &item); err != nil {
+			s.logger.Errorw("Failed to unmarshal product", "error", err, "stage", "GetCart")
+			return nil, err
+		}
+		cart.Items = append(cart.Items, item)
+	}
+
+	return &cart, nil
 }
 
 func (s *OrderStore) GetProduct(ctx context.Context, userID, productID int64) (*models.Product, error) {
@@ -149,4 +194,13 @@ func (s *OrderStore) GetProduct(ctx context.Context, userID, productID int64) (*
 	}
 
 	return &p, nil
+}
+
+func (s *OrderStore) DeleteProduct(ctx context.Context, userID, productID int64) error {
+	_, err := s.rdb.HDel(ctx, "cart:"+strconv.FormatInt(userID, 10), strconv.FormatInt(productID, 10)).Result()
+	if err != nil {
+		s.logger.Errorw("Failed to remove product from cart", "error", err, "stage", "RemoveProductFromCart")
+		return err
+	}
+	return nil
 }

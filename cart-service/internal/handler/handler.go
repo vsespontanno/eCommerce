@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -17,6 +16,10 @@ import (
 type CartServiceInterface interface {
 	Cart(ctx context.Context, userID int64) (*models.Cart, error)
 	AddProductToCart(ctx context.Context, userID int64, productID int64) error
+	Increment(ctx context.Context, userID int64, productID int64) error
+	Decrement(ctx context.Context, userID int64, productID int64) error
+	ClearCart(ctx context.Context, userID int64) error
+	DeleteProductFromCart(ctx context.Context, userID int64, productID int64) error
 }
 
 type RateLimiterInterface interface {
@@ -58,11 +61,29 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 		),
 	).Methods(http.MethodGet)
 
+	router.Handle("/cart/{id}/increment",
+		h.rateLimiter.RateLimitMiddleware(
+			middleware.AuthMiddleware(http.HandlerFunc(h.IncrementProduct), h.grpcAuthClient),
+		),
+	).Methods(http.MethodPatch)
+
+	router.Handle("/cart/{id}/decrement",
+		h.rateLimiter.RateLimitMiddleware(
+			middleware.AuthMiddleware(http.HandlerFunc(h.DecrementProduct), h.grpcAuthClient),
+		),
+	).Methods(http.MethodPatch)
+
 	router.Handle("/cart/{id}",
 		h.rateLimiter.RateLimitMiddleware(
-			middleware.AuthMiddleware(http.HandlerFunc(h.AddProduct), h.grpcAuthClient),
+			middleware.AuthMiddleware(http.HandlerFunc(h.RemoveProduct), h.grpcAuthClient),
 		),
-	).Methods(http.MethodPost)
+	).Methods(http.MethodDelete)
+
+	router.Handle("/cart",
+		h.rateLimiter.RateLimitMiddleware(
+			middleware.AuthMiddleware(http.HandlerFunc(h.ClearCart), h.grpcAuthClient),
+		),
+	).Methods(http.MethodDelete)
 
 	// SAGA endpoints
 	router.Handle("/cart/order/checkout",
@@ -74,40 +95,88 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 }
 
 func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context() // Используем контекст из запроса
+	ctx := r.Context()
+
+	userID, ok := ctx.Value(middleware.UserIDKey).(int64)
+	if !ok {
+		http.Error(w, "failed to get user ID from context", http.StatusInternalServerError)
+		return
+	}
+
+	cart, err := h.cartService.Cart(ctx, userID)
+	if err != nil {
+		// если это пустая корзина
+		if errors.Is(err, models.ErrNoCartFound) {
+			writeJSON(w, http.StatusOK, map[string]interface{}{
+				"message": "Your cart is empty",
+				"items":   []models.CartItem{},
+			})
+			return
+		}
+
+		h.sugarLogger.Errorf("failed to get cart: %v", err)
+		http.Error(w, "failed to get cart", http.StatusInternalServerError)
+		return
+	}
+
+	if len(cart.Items) == 0 {
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"message": "Your cart is empty",
+			"items":   []models.CartItem{},
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, cart)
+}
+
+func (h *Handler) ClearCart(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
 		return
 	}
-
-	// Получаем только wishlist (PostgreSQL) - НЕ добавляем в Redis!
-	cart, err := h.cartService.Cart(ctx, userID)
+	err := h.cartService.ClearCart(ctx, userID)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			writeJSON(w, http.StatusOK, "Your wishlist is empty")
-			return
-		}
-		h.sugarLogger.Errorf("Failed to get cart: %v", err)
-		http.Error(w, "Failed to get cart", http.StatusInternalServerError)
+		http.Error(w, "Error while clearing cart", http.StatusBadRequest)
 		return
 	}
-
-	serialized, err := json.Marshal(cart)
-	if err != nil {
-		h.sugarLogger.Errorf("Failed to serialize cart: %v", err)
-		http.Error(w, "Failed to serialize cart", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(serialized)
+	err = writeJSON(w, http.StatusOK, "")
 	if err != nil {
 		h.sugarLogger.Errorf("Failed to write response: %v", err)
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		return
+	}
+}
+func (h *Handler) RemoveProduct(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
+	if !ok {
+		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
+		return
+	}
+	vars := mux.Vars(r)
+	stringID := vars["id"]
+	intID, err := strconv.Atoi(stringID)
+	if err != nil || intID <= 0 || intID > 1000000 {
+		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		return
+	}
+	err = h.cartService.DeleteProductFromCart(ctx, userID, int64(intID))
+	if err != nil {
+		http.Error(w, "Error while removing product", http.StatusBadRequest)
+		return
+	}
+	err = writeJSON(w, http.StatusOK, "")
+	if err != nil {
+		h.sugarLogger.Errorf("Failed to write response: %v", err)
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
 		return
 	}
 }
 
-func (h *Handler) AddProduct(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) IncrementProduct(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
 	if !ok {
@@ -137,6 +206,33 @@ func (h *Handler) AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+}
+
+func (h *Handler) DecrementProduct(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
+	if !ok {
+		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
+		return
+	}
+	vars := mux.Vars(r)
+	stringID := vars["id"]
+	intID, err := strconv.Atoi(stringID)
+	if err != nil || intID <= 0 || intID > 1000000 {
+		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		return
+	}
+	err = h.cartService.Decrement(ctx, userID, int64(intID))
+	if err != nil {
+		http.Error(w, "Error while removing product", http.StatusBadRequest)
+		return
+	}
+	err = writeJSON(w, http.StatusOK, "")
+	if err != nil {
+		h.sugarLogger.Errorf("Failed to remove product: %v", err)
+		http.Error(w, "Failed to remove product", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {

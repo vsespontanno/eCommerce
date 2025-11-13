@@ -13,7 +13,7 @@ type Saga interface {
 }
 
 type Carter interface {
-	GetCart(ctx context.Context, userID int64) ([]models.Product, error)
+	GetCartProducts(ctx context.Context, userID int64) ([]models.Product, error)
 }
 
 type SagaService struct {
@@ -31,7 +31,7 @@ func NewSagaService(sugarLogger *zap.SugaredLogger, redisStore Carter, sagaClien
 }
 
 func (s *SagaService) Checkout(ctx context.Context, userID int64) (bool, error) {
-	cart, err := s.redisStore.GetCart(ctx, userID)
+	cart, err := s.redisStore.GetCartProducts(ctx, userID)
 	if err != nil {
 		s.sugarLogger.Errorf("error while getting cart from store: %v", err)
 		return false, err
