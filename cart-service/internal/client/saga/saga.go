@@ -32,16 +32,14 @@ func NewSagaClient(port string, logger *zap.SugaredLogger) *SagaClient {
 	}
 }
 
-func (s *SagaClient) StartCheckout(ctx context.Context, userID int64, cart []models.Product) (bool, error) {
+func (s *SagaClient) StartCheckout(ctx context.Context, userID int64, cart *models.Cart) (string, error) {
 	// конвертируем []models.Product → []*saga.Cart
-	items := make([]*saga.Cart, 0, len(cart))
-	for _, p := range cart {
+	items := make([]*saga.Cart, 0, len(cart.Items))
+	for _, p := range cart.Items {
 		items = append(items, &saga.Cart{
-			ProductID:   p.ID,
-			Name:        p.Name,
-			Description: p.Description,
-			Price:       p.Price,
-			Quantity:    p.Quantity,
+			ProductID: p.ProductID,
+			Price:     p.Price,
+			Quantity:  p.Quantity,
 		})
 	}
 
@@ -51,8 +49,8 @@ func (s *SagaClient) StartCheckout(ctx context.Context, userID int64, cart []mod
 	})
 	if err != nil {
 		s.logger.Errorw("Error while starting checkout", "error", err, "stage", "StartCheckout")
-		return false, err
+		return "", err
 	}
 
-	return resp.Success, nil
+	return resp.OrderID, nil
 }

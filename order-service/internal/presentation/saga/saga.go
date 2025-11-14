@@ -2,7 +2,6 @@ package saga
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 	orderEntity "github.com/vsespontanno/eCommerce/order-service/internal/domain/event/entity"
@@ -42,6 +41,5 @@ func (s *SagaServer) StartCheckout(ctx context.Context, req *proto.StartCheckout
 		s.logger.Errorw("Failed to publish Kafka message", "orderID", Order.OrderID, "error", err)
 		return nil, err
 	}
-	fmt.Println("stage 4")
-	return &proto.StartCheckoutResponse{Success: true, Error: "no error"}, nil
+	return &proto.StartCheckoutResponse{OrderID: Order.OrderID, Error: "no error"}, nil
 }

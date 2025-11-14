@@ -31,7 +31,7 @@ type ValidatorInterface interface {
 }
 
 type Checkouter interface {
-	Checkout(ctx context.Context, userID int64) (bool, error)
+	Checkout(ctx context.Context, userID int64) (string, error)
 }
 
 type Handler struct {
@@ -96,13 +96,11 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 
 func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-
 	userID, ok := ctx.Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "failed to get user ID from context", http.StatusInternalServerError)
 		return
 	}
-
 	cart, err := h.cartService.Cart(ctx, userID)
 	if err != nil {
 		// если это пустая корзина
@@ -242,12 +240,15 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
 		return
 	}
-	_, err := h.checkouter.Checkout(ctx, userID)
+	orderID, err := h.checkouter.Checkout(ctx, userID)
 	if err != nil {
 		http.Error(w, "Error while checking out", http.StatusBadRequest)
 		return
 	}
-	err = writeJSON(w, http.StatusOK, "")
+	err = writeJSON(w, http.StatusAccepted, map[string]interface{}{
+		"message": "Order accepted and is being processed",
+		"orderId": orderID,
+	})
 	if err != nil {
 		h.sugarLogger.Errorf("Failed to checkout: %v", err)
 		http.Error(w, "Failed to checkout", http.StatusInternalServerError)
@@ -256,7 +257,7 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeJSON(rw http.ResponseWriter, status int, v any) error {
+	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(status)
-	rw.Header().Add("Content-Type", "application/json")
 	return json.NewEncoder(rw).Encode(v)
 }

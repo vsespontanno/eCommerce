@@ -75,7 +75,7 @@ func (x *StartCheckoutRequest) GetCart() []*Cart {
 
 type StartCheckoutResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	OrderID       string                 `protobuf:"bytes,1,opt,name=orderID,proto3" json:"orderID,omitempty"`
 	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -111,11 +111,11 @@ func (*StartCheckoutResponse) Descriptor() ([]byte, []int) {
 	return file_proto_saga_saga_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *StartCheckoutResponse) GetSuccess() bool {
+func (x *StartCheckoutResponse) GetOrderID() string {
 	if x != nil {
-		return x.Success
+		return x.OrderID
 	}
-	return false
+	return ""
 }
 
 func (x *StartCheckoutResponse) GetError() string {
@@ -211,7 +211,7 @@ const file_proto_saga_saga_proto_rawDesc = "" +
 	"\x06userID\x18\x01 \x01(\x03R\x06userID\x12$\n" +
 	"\x04cart\x18\x02 \x03(\v2\x10.proto_saga.CartR\x04cart\"G\n" +
 	"\x15StartCheckoutResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
+	"\aorderID\x18\x01 \x01(\tR\aorderID\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\"\x8c\x01\n" +
 	"\x04Cart\x12\x1c\n" +
 	"\tproductID\x18\x01 \x01(\x03R\tproductID\x12\x12\n" +

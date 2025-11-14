@@ -38,10 +38,8 @@ func TestCartStore_GetCart(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Len(t, cart.Items, 2)
-		assert.Equal(t, "item1", cart.Items[0].ID)
 		assert.Equal(t, int64(101), cart.Items[0].ProductID)
 		assert.Equal(t, 2, cart.Items[0].Quantity)
-		assert.Equal(t, "item2", cart.Items[1].ID)
 		assert.Equal(t, int64(102), cart.Items[1].ProductID)
 		assert.Equal(t, 1, cart.Items[1].Quantity)
 	})

@@ -14,14 +14,12 @@ message StartCheckoutRequest {
 }
 
 message StartCheckoutResponse {
-    bool success = 1;
+    string orderID = 1;
     string error = 2;
 }
 
 message Cart {
     int64 productID = 1;
-    string name = 2;
-    string description = 3;
-    int64 price = 4;
-    int64 quantity = 5;
+    int64 price = 2;
+    int64 quantity = 3;
 }

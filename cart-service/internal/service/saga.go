@@ -2,18 +2,17 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
 	"go.uber.org/zap"
 )
 
 type Saga interface {
-	StartCheckout(ctx context.Context, userID int64, cart []models.Product) (bool, error)
+	StartCheckout(ctx context.Context, userID int64, cart *models.Cart) (string, error)
 }
 
 type Carter interface {
-	GetCartProducts(ctx context.Context, userID int64) ([]models.Product, error)
+	GetCartProducts(ctx context.Context, userID int64) (*models.Cart, error)
 }
 
 type SagaService struct {
@@ -30,19 +29,18 @@ func NewSagaService(sugarLogger *zap.SugaredLogger, redisStore Carter, sagaClien
 	}
 }
 
-func (s *SagaService) Checkout(ctx context.Context, userID int64) (bool, error) {
+func (s *SagaService) Checkout(ctx context.Context, userID int64) (string, error) {
 	cart, err := s.redisStore.GetCartProducts(ctx, userID)
 	if err != nil {
 		s.sugarLogger.Errorf("error while getting cart from store: %v", err)
-		return false, err
+		return "", err
 	}
-	fmt.Println(cart)
-	ok, err := s.sagaClient.StartCheckout(ctx, userID, cart)
+	resp, err := s.sagaClient.StartCheckout(ctx, userID, cart)
 	if err != nil {
 		s.sugarLogger.Errorf("error while starting checkout: %v", err)
-		return false, err
+		return resp, err
 	}
 
-	return ok, nil
+	return resp, nil
 
 }

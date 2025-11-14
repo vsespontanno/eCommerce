@@ -2,22 +2,22 @@ package service
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/models"
 	"go.uber.org/zap"
 )
 
 type Producter interface {
-	Product(ctx context.Context, productID int64) (*models.Product, error)
+	Product(ctx context.Context, productID int64) (*models.CartItem, error)
 }
 
 type RedisCartRepo interface {
-	AddNewProductToCart(ctx context.Context, userID int64, product *models.Product) error
+	AddNewProductToCart(ctx context.Context, userID int64, product *models.CartItem) error
 	SaveCart(ctx context.Context, userID int64, cart *models.Cart) error
 	DecrementInCart(ctx context.Context, userID int64, productID int64) error
 	GetCart(ctx context.Context, userID int64) (*models.Cart, error)
-	GetProduct(ctx context.Context, userID int64, productID int64) (*models.Product, error)
+	GetProduct(ctx context.Context, userID int64, productID int64) (*models.CartItem, error)
 	IncrementInCart(ctx context.Context, userID int64, productID int64) error
 	RemoveProductFromCart(ctx context.Context, userID int64, productID int64) error
 	DeleteProduct(ctx context.Context, userID int64, productID int64) error
@@ -45,9 +45,11 @@ func NewCart(logger *zap.SugaredLogger, redisStore RedisCartRepo, productClient 
 }
 
 func (s *CartService) Cart(ctx context.Context, userID int64) (*models.Cart, error) {
+	fmt.Println("stage 3")
 	cart, err := s.redisStore.GetCart(ctx, userID)
 	if err != nil {
-		if err == redis.Nil {
+		fmt.Println("stage 4 - need")
+		if err == models.ErrNoCartFound {
 			dbCart, err := s.cartStore.GetCart(ctx, userID)
 			if err != nil {
 				if err == models.ErrNoCartFound {
@@ -63,7 +65,7 @@ func (s *CartService) Cart(ctx context.Context, userID int64) (*models.Cart, err
 			}
 			return dbCart, nil
 		}
-		s.sugarLogger.Errorf("error while getting cart from store: %w", err)
+		s.sugarLogger.Errorw("error while getting cart from store: %w", err)
 		return nil, err
 	}
 	return cart, nil

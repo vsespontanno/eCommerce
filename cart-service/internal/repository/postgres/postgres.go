@@ -28,7 +28,7 @@ func NewCartStore(db *sqlx.DB, logger *zap.SugaredLogger) *CartStore {
 func (s *CartStore) GetCart(ctx context.Context, userID int64) (*models.Cart, error) {
 	var cart models.Cart
 	query := s.builder.
-		Select("id, user_id, product_id, quantity").
+		Select("user_id, product_id, quantity, amount_for_product").
 		From("cart").
 		Where(sq.Eq{"user_id": userID}).
 		RunWith(s.db)
@@ -36,7 +36,7 @@ func (s *CartStore) GetCart(ctx context.Context, userID int64) (*models.Cart, er
 	rows, err := query.QueryContext(ctx)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return &models.Cart{}, ErrNoCartFound
+			return &models.Cart{}, models.ErrNoCartFound
 		}
 		return &models.Cart{}, err
 	}
@@ -44,7 +44,7 @@ func (s *CartStore) GetCart(ctx context.Context, userID int64) (*models.Cart, er
 
 	for rows.Next() {
 		var item models.CartItem
-		if err := rows.Scan(&item.ID, &item.UserID, &item.ProductID, &item.Quantity); err != nil {
+		if err := rows.Scan(&item.UserID, &item.ProductID, &item.Quantity, &item.Price); err != nil {
 			return &models.Cart{}, err
 		}
 		cart.Items = append(cart.Items, item)
@@ -62,8 +62,8 @@ func (c *CartStore) UpsertCart(ctx context.Context, userID int64, cart *[]models
 	for _, item := range *cart {
 		qb := c.builder.
 			Insert("cart").
-			Columns("user_id", "product_id", "quantity").
-			Values(userID, item.ProductID, item.Quantity).
+			Columns("user_id", "product_id", "quantity", "amount_for_product").
+			Values(userID, item.ProductID, item.Quantity, item.Price).
 			Suffix(`
 				ON CONFLICT (user_id, product_id)
 				DO UPDATE SET quantity = EXCLUDED.quantity

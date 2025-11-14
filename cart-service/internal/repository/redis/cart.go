@@ -33,7 +33,7 @@ func (s *OrderStore) IncrementInCart(ctx context.Context, userID int64, productI
 		return err
 	}
 	if existingJSON != "" {
-		var existing models.Product
+		var existing models.CartItem
 		if err := json.Unmarshal([]byte(existingJSON), &existing); err != nil {
 			s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
 			return err
@@ -54,9 +54,9 @@ func (s *OrderStore) IncrementInCart(ctx context.Context, userID int64, productI
 	return models.ErrProductIsNotInCart
 }
 
-func (s *OrderStore) AddNewProductToCart(ctx context.Context, userID int64, product *models.Product) error {
+func (s *OrderStore) AddNewProductToCart(ctx context.Context, userID int64, product *models.CartItem) error {
 	key := fmt.Sprintf("cart:%d", userID)
-	field := strconv.FormatInt(product.ID, 10)
+	field := strconv.FormatInt(product.ProductID, 10)
 	data, err := json.Marshal(product)
 	if err != nil {
 		s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
@@ -98,7 +98,7 @@ func (s *OrderStore) DecrementInCart(ctx context.Context, userID, productID int6
 		return err
 	}
 
-	var p models.Product
+	var p models.CartItem
 	if err := json.Unmarshal([]byte(jsonStr), &p); err != nil {
 		s.logger.Errorw("Failed to unmarshal product", "error", err)
 		return err
@@ -124,36 +124,7 @@ func (s *OrderStore) RemoveProductFromCart(ctx context.Context, userID int64, pr
 	return nil
 }
 
-func (s *OrderStore) GetCartProducts(ctx context.Context, userID int64) ([]models.Product, error) {
-	key := fmt.Sprintf("cart:%d", userID)
-	items, err := s.rdb.HGetAll(ctx, key).Result()
-	if err != nil {
-		s.logger.Errorw("Failed to get cart", "error", err, "stage", "GetCart")
-		return nil, err
-	}
-
-	var cart []models.Product
-	for _, jsonStr := range items {
-		var item models.Product
-		if err := json.Unmarshal([]byte(jsonStr), &item); err != nil {
-			s.logger.Errorw("Failed to unmarshal product", "error", err, "stage", "GetCart")
-			return nil, err
-		}
-		cart = append(cart, item)
-	}
-	return cart, nil
-}
-
-func (s *OrderStore) ClearCart(ctx context.Context, userID int64) error {
-	_, err := s.rdb.Del(ctx, "cart:"+strconv.FormatInt(userID, 10)).Result()
-	if err != nil {
-		s.logger.Errorw("Failed to clear cart", "error", err, "stage", "ClearCart")
-		return err
-	}
-	return nil
-}
-
-func (s *OrderStore) GetCart(ctx context.Context, userID int64) (*models.Cart, error) {
+func (s *OrderStore) GetCartProducts(ctx context.Context, userID int64) (*models.Cart, error) {
 	key := fmt.Sprintf("cart:%d", userID)
 	items, err := s.rdb.HGetAll(ctx, key).Result()
 	if err != nil {
@@ -170,11 +141,44 @@ func (s *OrderStore) GetCart(ctx context.Context, userID int64) (*models.Cart, e
 		}
 		cart.Items = append(cart.Items, item)
 	}
+	return &cart, nil
+}
+
+func (s *OrderStore) ClearCart(ctx context.Context, userID int64) error {
+	_, err := s.rdb.Del(ctx, "cart:"+strconv.FormatInt(userID, 10)).Result()
+	if err != nil {
+		s.logger.Errorw("Failed to clear cart", "error", err, "stage", "ClearCart")
+		return err
+	}
+	return nil
+}
+
+func (s *OrderStore) GetCart(ctx context.Context, userID int64) (*models.Cart, error) {
+	key := fmt.Sprintf("cart:%d", userID)
+	items, err := s.rdb.HGetAll(ctx, key).Result()
+	if err != nil {
+		s.logger.Errorw("Failed to get cart", "error", err, "stage", "GetCart")
+		return &models.Cart{}, err
+	}
+	if len(items) == 0 {
+		return &models.Cart{}, models.ErrNoCartFound
+
+	}
+
+	var cart models.Cart
+	for _, jsonStr := range items {
+		var item models.CartItem
+		if err := json.Unmarshal([]byte(jsonStr), &item); err != nil {
+			s.logger.Errorw("Failed to unmarshal product", "error", err, "stage", "GetCart")
+			return nil, err
+		}
+		cart.Items = append(cart.Items, item)
+	}
 
 	return &cart, nil
 }
 
-func (s *OrderStore) GetProduct(ctx context.Context, userID, productID int64) (*models.Product, error) {
+func (s *OrderStore) GetProduct(ctx context.Context, userID, productID int64) (*models.CartItem, error) {
 	key := fmt.Sprintf("cart:%d", userID)
 	field := strconv.FormatInt(productID, 10)
 
@@ -187,7 +191,7 @@ func (s *OrderStore) GetProduct(ctx context.Context, userID, productID int64) (*
 		return nil, err
 	}
 
-	var p models.Product
+	var p models.CartItem
 	if err := json.Unmarshal([]byte(jsonStr), &p); err != nil {
 		s.logger.Errorw("Failed to unmarshal product", "error", err, "stage", "GetProduct")
 		return nil, err

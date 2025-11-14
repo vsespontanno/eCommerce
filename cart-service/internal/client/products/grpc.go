@@ -32,21 +32,18 @@ func NewProductsClient(port string, logger *zap.SugaredLogger) *ProductsClient {
 	}
 }
 
-func (c *ProductsClient) Product(ctx context.Context, id int64) (*models.Product, error) {
+func (c *ProductsClient) Product(ctx context.Context, id int64) (*models.CartItem, error) {
 	res, err := c.client.GetProductByID(context.Background(), &products.GetProductByIDRequest{Id: id})
 	if err != nil {
 		c.logger.Errorf("error while getting product: %w", err.Error())
-		return nil, err
+		return &models.CartItem{}, err
 	}
-	var product models.Product
+	var product models.CartItem
 	if res.Product == nil {
-		return &product, nil
+		return &models.CartItem{}, models.ErrProductIsNotInStock
 	}
-	product.Description = res.Product.Description
-	product.ID = res.Product.Id
-	product.Name = res.Product.Name
+	product.ProductID = res.Product.Id
 	product.Price = res.Product.Price
-	product.Quantity = 1
 
 	return &product, nil
 }

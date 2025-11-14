@@ -171,7 +171,7 @@ func (x *ReserveProductsResponse) GetError() string {
 
 type ReleaseProductsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Products      []*ProductSaga         `protobuf:"bytes,2,rep,name=products,proto3" json:"products,omitempty"`
+	Products      []*ProductSaga         `protobuf:"bytes,1,rep,name=products,proto3" json:"products,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -635,7 +635,7 @@ const file_proto_products_products_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\"Q\n" +
 	"\x16ReleaseProductsRequest\x127\n" +
-	"\bproducts\x18\x02 \x03(\v2\x1b.proto_products.ProductSagaR\bproducts\"I\n" +
+	"\bproducts\x18\x01 \x03(\v2\x1b.proto_products.ProductSagaR\bproducts\"I\n" +
 	"\x17ReleaseProductsResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\"P\n" +
