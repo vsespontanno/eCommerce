@@ -53,7 +53,7 @@ func (s *CartService) Cart(ctx context.Context, userID int64) (*models.Cart, err
 			dbCart, err := s.cartStore.GetCart(ctx, userID)
 			if err != nil {
 				if err == models.ErrNoCartFound {
-					return &models.Cart{}, nil
+					return &models.Cart{}, err
 				}
 				s.sugarLogger.Errorf("error while getting cart from postgres: %w", err)
 				return nil, err
@@ -90,6 +90,7 @@ func (s *CartService) AddProductToCart(ctx context.Context, userID int64, produc
 			s.sugarLogger.Errorf("error while getting product from grpc-client and adding 1 product to cart: %w", err)
 			return err
 		}
+		product.UserID = userID
 		return s.redisStore.AddNewProductToCart(ctx, userID, product)
 	}
 	if q.Quantity == 100 {

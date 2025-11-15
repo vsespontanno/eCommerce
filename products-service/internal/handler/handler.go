@@ -42,7 +42,6 @@ func New(cartStore CartStorer, productStore ProductStorer, sugarLogger *zap.Suga
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
-	//it would be in potential , but know for beginning we create simple thing
 	router.HandleFunc("/products/{id}", h.GetProduct).Methods(http.MethodGet)
 	router.HandleFunc("/products", h.GetProducts).Methods(http.MethodGet)
 	router.Handle("/products/{id}/add-to-cart", middleware.AuthMiddleware(http.HandlerFunc(h.AddProductToCart), h.grpcClient)).Methods(http.MethodPost)

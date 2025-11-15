@@ -61,20 +61,39 @@ func (j *CartSyncJob) sync(ctx context.Context) error {
 	}
 
 	for _, key := range keys {
+
+		// ---- 1. userID из ключа ----
 		userID, err := parseUserIDFromKey(key)
 		if err != nil {
 			j.logger.Warnw("invalid cart key", "key", key)
 			continue
 		}
 
+		// ---- 2. читаем корзину ----
 		items, err := j.redisRepo.GetCartItems(ctx, key)
 		if err != nil {
 			j.logger.Warnw("failed to get cart from redis", "key", key, "error", err)
 			continue
 		}
 
-		if err := j.pgRepo.UpsertCart(ctx, userID, &items); err != nil {
-			j.logger.Errorw("failed to upsert cart into Postgres", "userID", userID, "error", err)
+		// ---- 3. фильтруем битые items (главное — productID = 0) ----
+		valid := make([]models.CartItem, 0, len(items))
+		for _, it := range items {
+			if it.ProductID == 0 {
+				continue
+			}
+			valid = append(valid, it)
+		}
+
+		// пустая корзина → ничего не пишем
+		if len(valid) == 0 {
+			continue
+		}
+
+		// ---- 4. пишем только валидные товары ----
+		if err := j.pgRepo.UpsertCart(ctx, userID, &valid); err != nil {
+			j.logger.Errorw("failed to upsert cart into Postgres",
+				"userID", userID, "error", err)
 		}
 	}
 

@@ -15,6 +15,7 @@ import (
 	"github.com/vsespontanno/eCommerce/cart-service/internal/config"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/handler"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/handler/middleware"
+	"github.com/vsespontanno/eCommerce/cart-service/internal/jobs"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/messaging"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/repository"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/postgres"
@@ -56,6 +57,7 @@ func main() {
 
 	productsClient := products.NewProductsClient(cfg.GRPCProductsClientPort, logger.Log)
 	redisCleaner := redis.NewCleaner(redisClient, logger.Log)
+	redisUpdater := redis.NewRedisUpdater(redisClient, logger.Log)
 	sagaClient := saga.NewSagaClient(cfg.GRPCOrderClientPort, logger.Log)
 	// Initialize cart service
 	pgStore := postgres.NewCartStore(db, logger.Log)
@@ -64,6 +66,7 @@ func main() {
 	sagaService := service.NewSagaService(logger.Log, redisStore, sagaClient)
 	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimitRPS)
 	orderService := service.NewOrderCompleteService(logger.Log, pgStore, redisCleaner)
+	jobUpdater := jobs.NewCartSyncJob(pgStore, redisUpdater, logger.Log, time.Second*15)
 
 	app := app.New(logger.Log, cfg.HTTPPort, cartService)
 	grpcJWTClientPort := cfg.GRPCJWTClientPort
@@ -83,6 +86,8 @@ func main() {
 			logger.Log.Errorf("HTTP server failed: %v", err)
 		}
 	}()
+
+	go jobUpdater.Start(ctx)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
