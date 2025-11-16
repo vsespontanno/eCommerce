@@ -23,8 +23,6 @@ func NewValidationServer(gRPCServer *grpc.Server, validator Validator) {
 }
 
 func (s *ValidationServer) ValidateToken(ctx context.Context, in *proto.ValidateTokenRequest) (*proto.ValidateTokenResponse, error) {
-	log.Printf("Validating token: %s", in.Token)
-
 	valid, userID, err := s.validator.ValidateJWTToken(in.Token)
 
 	if err != nil {

@@ -23,12 +23,10 @@ type Products interface {
 }
 
 func NewProductServer(gRPCServer *grpc.Server, products Products) {
-	log.Println("Registering ProductServer")
 	proto.RegisterProductsServer(gRPCServer, &ProductServer{products: products})
 }
 
 func (s *ProductServer) GetProductByID(ctx context.Context, req *proto.GetProductByIDRequest) (*proto.GetProductByIDResponse, error) {
-	log.Printf("GetProduct request received: %v", req)
 	product, err := s.products.GetProductByID(ctx, req.Id)
 	if err != nil {
 		if errors.Is(err, models.ErrNoProductFound) {

@@ -4,34 +4,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"time"
 
 	"github.com/vsespontanno/eCommerce/sso-service/internal/domain/models"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/lib/jwt"
-	"github.com/vsespontanno/eCommerce/sso-service/internal/lib/logger/sl"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/lib/validator"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/repository"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
-)
+var ErrInvalidCredentials = errors.New("invalid credentials")
 
 type UserStorage interface {
-	SaveUser(ctx context.Context, email, FirstName, LastName string, passHash []byte) (uid int64, err error)
+	SaveUser(ctx context.Context, email, firstName, lastName string, passHash []byte) (int64, error)
 	User(ctx context.Context, email string) (models.User, error)
 }
 
 type Auth struct {
-	log         *slog.Logger
+	log         *zap.SugaredLogger
 	userStorage UserStorage
 	tokenTTL    time.Duration
 	jwtSecret   string
 }
 
-func NewAuth(log *slog.Logger, userStorage UserStorage, tokenTTL time.Duration, jwtSecret string) *Auth {
+func NewAuth(log *zap.SugaredLogger, userStorage UserStorage, tokenTTL time.Duration, jwtSecret string) *Auth {
 	return &Auth{
 		log:         log,
 		userStorage: userStorage,
@@ -40,67 +37,63 @@ func NewAuth(log *slog.Logger, userStorage UserStorage, tokenTTL time.Duration, 
 	}
 }
 
-func (a *Auth) RegisterNewUser(ctx context.Context, email, password, FirstName, LastName string) (userID int64, err error) {
-	// op (operation) - имя текущей функции и пакета. Такую метку удобно
-	// добавлять в логи и в текст ошибок, чтобы легче было искать хвосты
-	// в случае поломок.
-	const op = "Auth.RegisterNewUser"
-	log := a.log.With(slog.String("op", op), slog.String("email", email))
-	log.Info("registering user")
+func (a *Auth) RegisterNewUser(ctx context.Context, email, password, firstName, lastName string) (int64, error) {
+	const op = "auth.RegisterNewUser"
 
-	// Validate user input
-	if !validator.ValidateUser(email, password, FirstName, LastName) {
-		log.Info("invalid user input")
+	a.log.Infow("registering new user", "op", op, "email", email)
+
+	// Validate input
+	if !validator.ValidateUser(email, password, firstName, lastName) {
+		a.log.Warnw("invalid user input", "op", op, "email", email)
 		return 0, ErrInvalidCredentials
 	}
 
+	// Hash password
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		log.Error("failed to generate password hash", sl.Err(err))
-		return 0, fmt.Errorf("%s: %w", op, err)
-	}
-	id, err := a.userStorage.SaveUser(ctx, email, FirstName, LastName, hash)
-	if err != nil {
-		log.Error("failed to save user", sl.Err(err))
+		a.log.Errorw("failed to hash password", "op", op, "error", err)
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
+	// Save user in DB
+	id, err := a.userStorage.SaveUser(ctx, email, firstName, lastName, hash)
+	if err != nil {
+		a.log.Errorw("failed to save user", "op", op, "email", email, "error", err)
+		return 0, fmt.Errorf("%s: %w", op, err)
+	}
+
+	a.log.Infow("user registered successfully", "op", op, "user_id", id, "email", email)
 	return id, nil
 }
 
-func (a *Auth) Login(ctx context.Context, email, password string) (token string, err error) {
-	const op = "Auth.Login"
+func (a *Auth) Login(ctx context.Context, email, password string) (string, error) {
+	const op = "auth.Login"
 
-	log := a.log.With(
-		slog.String("op", op),
-		slog.String("username", email),
-		// password либо не логируем, либо логируем в замаскированном виде
-	)
-
-	log.Info("attempting to login user")
+	a.log.Infow("attempting login", "op", op, "email", email)
 
 	user, err := a.userStorage.User(ctx, email)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
-			log.Info("user not found")
+			a.log.Warnw("user not found", "op", op, "email", email)
 			return "", ErrInvalidCredentials
 		}
-		log.Error("failed to get user", sl.Err(err))
+		a.log.Errorw("failed to fetch user from storage", "op", op, "email", email, "error", err)
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
+	// Compare password
 	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
-		a.log.Info("invalid creds", sl.Err(err))
+		a.log.Warnw("invalid password", "op", op, "email", email)
 		return "", ErrInvalidCredentials
 	}
 
-	log.Info("user logged in successfully")
-
-	token, err = jwt.NewToken(user, a.jwtSecret, a.tokenTTL)
+	// Generate JWT
+	token, err := jwt.NewToken(user, a.jwtSecret, a.tokenTTL)
 	if err != nil {
-		log.Error("failed to generate token", sl.Err(err))
+		a.log.Errorw("failed to generate JWT token", "op", op, "email", email, "error", err)
 		return "", fmt.Errorf("%s: %w", op, err)
 	}
 
+	a.log.Infow("user logged in successfully", "op", op, "user_id", user.ID, "email", email)
 	return token, nil
 }

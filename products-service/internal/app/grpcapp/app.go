@@ -28,14 +28,14 @@ type App struct {
 func NewApp(log *zap.SugaredLogger, productsInterface products.Products, sagaReserver saga.Reserver, productsPort, sagaPort int) *App {
 	recoveryOpts := []recovery.Option{
 		recovery.WithRecoveryHandler(func(p interface{}) (err error) {
-			log.Error("Recovered from panic", zap.Any("panic", p))
+			log.Errorw("Recovered from panic", "panic", p)
 			return status.Errorf(codes.Internal, "internal error")
 		}),
 	}
 	loggingOpts := []logging.Option{
 		logging.WithLogOnEvents(logging.PayloadReceived, logging.PayloadSent),
 	}
-	interceptorLogger := InterceptorLogger(log)
+	interceptorLogger := interceptorLogger(log)
 
 	productsServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		recovery.UnaryServerInterceptor(recoveryOpts...),
@@ -59,7 +59,7 @@ func NewApp(log *zap.SugaredLogger, productsInterface products.Products, sagaRes
 	}
 }
 
-func InterceptorLogger(l *zap.SugaredLogger) logging.Logger {
+func interceptorLogger(l *zap.SugaredLogger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
 		level := zapcore.Level(lvl)
 		l.Log(level, msg)

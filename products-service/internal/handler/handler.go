@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -44,101 +44,105 @@ func New(cartStore CartStorer, productStore ProductStorer, sugarLogger *zap.Suga
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/products/{id}", h.GetProduct).Methods(http.MethodGet)
 	router.HandleFunc("/products", h.GetProducts).Methods(http.MethodGet)
-	router.Handle("/products/{id}/add-to-cart", middleware.AuthMiddleware(http.HandlerFunc(h.AddProductToCart), h.grpcClient)).Methods(http.MethodPost)
+	router.Handle("/products/{id}/add-to-cart",
+		middleware.AuthMiddleware(http.HandlerFunc(h.AddProductToCart), h.grpcClient),
+	).Methods(http.MethodPost)
 }
 
-// TODO: pagination
+// ---------- Helpers ----------
+func writeJSON(w http.ResponseWriter, status int, payload any) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	return json.NewEncoder(w).Encode(payload)
+}
+
+// ---------- Handlers ----------
+
 func (h *Handler) GetProducts(w http.ResponseWriter, r *http.Request) {
-	ctx := context.TODO()
+	ctx := r.Context()
+
 	products, err := h.productStore.GetProducts(ctx)
 	if err != nil {
-		h.sugarLogger.Errorf("Failed to get products: %v", err)
+		h.sugarLogger.Errorw("failed to get products", "error", err)
 		http.Error(w, "Failed to get products", http.StatusInternalServerError)
 		return
 	}
 
-	h.sugarLogger.Infof("Retrieved products: %v", products)
-	serialized, err := json.Marshal(products)
-	if err != nil {
-		h.sugarLogger.Errorf("Failed to serialize products: %v", err)
-		http.Error(w, "Failed to serialize products", http.StatusInternalServerError)
-		return
+	h.sugarLogger.Infow("products retrieved", "count", len(products))
+
+	if err := writeJSON(w, http.StatusOK, products); err != nil {
+		h.sugarLogger.Errorw("failed to write products response", "error", err)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(serialized)
 }
 
 func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("GetProduct called")
-	ctx := context.TODO()
+	ctx := r.Context()
 	vars := mux.Vars(r)
-	string_id := vars["id"]
-	int_id, err := strconv.Atoi(string_id)
+
+	id, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid id"})
 		return
 	}
-	product, err := h.productStore.GetProductByID(ctx, int64(int_id))
+
+	product, err := h.productStore.GetProductByID(ctx, id)
 	if err != nil {
-		if err == models.ErrNoProductFound {
-			http.Error(w, "Product not found", http.StatusNotFound)
+		if errors.Is(err, models.ErrNoProductFound) {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"})
 		} else {
-			h.sugarLogger.Errorf("Failed to get product: %v", err)
-			http.Error(w, "Failed to get product", http.StatusInternalServerError)
+			h.sugarLogger.Errorw("failed to get product", "error", err, "id", id)
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load product"})
 		}
 		return
 	}
 
-	h.sugarLogger.Infof("Retrieved product: %v", product)
+	h.sugarLogger.Infow("product retrieved", "id", id)
 
-	serialized, err := json.Marshal(product)
-	if err != nil {
-		h.sugarLogger.Errorf("Failed to serialize product: %v", err)
-		http.Error(w, "Failed to serialize product", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(serialized)
+	writeJSON(w, http.StatusOK, product)
 }
 
 func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
-	ctx := context.TODO()
-	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
-	if !ok {
-		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
-		return
-	}
+	ctx := r.Context()
+
+	userID := r.Context().Value(middleware.UserIDKey).(int64)
+
 	vars := mux.Vars(r)
-	string_id := vars["id"]
-	int_id, err := strconv.Atoi(string_id)
+	productID, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid product id"})
 		return
 	}
-	product, err := h.productStore.GetProductByID(ctx, int64(int_id))
+
+	product, err := h.productStore.GetProductByID(ctx, productID)
 	if err != nil {
-		if err == models.ErrNoProductFound {
-			http.Error(w, "Product not found", http.StatusNotFound)
+		if errors.Is(err, models.ErrNoProductFound) {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"})
 		} else {
-			h.sugarLogger.Errorf("Failed to get product: %v", err)
-			http.Error(w, "Failed to get product", http.StatusInternalServerError)
+			h.sugarLogger.Errorw("failed to load product for cart",
+				"error", err, "product_id", productID, "user_id", userID)
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load product"})
 		}
 		return
 	}
 
-	h.sugarLogger.Infof("Retrieved product: %v", product)
 	_, err = h.cartStore.UpsertProductToCart(ctx, userID, product.ID, product.Price)
 	if err != nil {
-		h.sugarLogger.Errorf("Failed to upsert product to cart: %v", err)
-		http.Error(w, "Failed to upsert product to cart", http.StatusInternalServerError)
+		h.sugarLogger.Errorw("failed to add product to cart",
+			"error", err,
+			"user_id", userID,
+			"product_id", product.ID,
+		)
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to add to cart"})
 		return
 	}
-	serialized, err := json.Marshal(product)
-	if err != nil {
-		h.sugarLogger.Errorf("Failed to serialize product: %v", err)
-		http.Error(w, "Failed to serialize product", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(serialized)
+
+	h.sugarLogger.Infow("product added to cart",
+		"user_id", userID,
+		"product_id", product.ID,
+	)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"message": "product added to cart",
+		"product": product,
+	})
 }

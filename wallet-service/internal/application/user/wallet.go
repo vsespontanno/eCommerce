@@ -50,6 +50,14 @@ func (s *UserWalletService) UpdateBalance(ctx context.Context, amount int64) err
 		s.logger.Errorw("Error validating token", "error", err)
 		return apperrors.ErrNotAuthorized
 	}
+	_, err = s.walletRepo.GetBalance(ctx, userID)
+	if err != nil {
+		s.logger.Errorw("Error getting balance", "error", err)
+		if err == apperrors.ErrNoWallet {
+			return apperrors.ErrNoWallet
+		}
+		return err
+	}
 	err = s.walletRepo.UpdateBalance(ctx, userID, amount)
 	if err != nil {
 		s.logger.Errorw("Error updating balance", "error", err)
