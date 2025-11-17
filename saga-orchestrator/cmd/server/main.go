@@ -10,13 +10,14 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/vsespontanno/eCommerce/order-service/internal/application/order"
-	"github.com/vsespontanno/eCommerce/order-service/internal/config"
-	"github.com/vsespontanno/eCommerce/order-service/internal/infrastructure/db"
-	"github.com/vsespontanno/eCommerce/order-service/internal/infrastructure/repository"
-	orderServ "github.com/vsespontanno/eCommerce/order-service/internal/presentation/order"
 	"github.com/vsespontanno/eCommerce/pkg/logger"
-	proto "github.com/vsespontanno/eCommerce/proto/orders"
+	proto "github.com/vsespontanno/eCommerce/proto/saga"
+	applicationSaga "github.com/vsespontanno/eCommerce/saga-orchestrator/internal/application/saga"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/config"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/infrastructure/grpcClient/products"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/infrastructure/grpcClient/wallet"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/infrastructure/messaging"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/presentation/saga"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
@@ -30,23 +31,28 @@ func main() {
 		panic(err)
 	}
 	logger.InitLogger()
-	db, err := db.ConnectToPostgres(cfg.PGUser, cfg.PGPassword, cfg.PGName, cfg.PGHost, cfg.PGPort)
-	if err != nil {
-		logger.Log.Fatalf("Failed to connect to database: %v", err)
-	}
-	orderRepo := repository.NewOrderStore(db, logger.Log)
-	orderSvc := order.NewOrderService(orderRepo, logger.Log)
-	orderServer := orderServ.NewGRPCServer(orderSvc, logger.Log)
-	grpcServer := initializeGRPC(logger.Log)
 
-	proto.RegisterOrderServer(grpcServer, orderServer)
+	// Kafka init
+	kafkaProducer, err := messaging.NewKafkaProducer(cfg.KafkaBroker, cfg.KafkaTopic, logger.Log)
+	if err != nil {
+		logger.Log.Fatalw("failed to create kafka producer", "error", err)
+	}
+	defer kafkaProducer.Close()
+	walletClient := wallet.NewWalletClient(cfg.GRPCWalletClientPort, logger.Log)
+	productsClient := products.NewProductsClient(cfg.GRPCProductsClientPort, logger.Log)
+	// TODO: inject real clients later (wallet, products)
+	sagaService := applicationSaga.New(cfg, &walletClient, &productsClient, kafkaProducer, logger.Log)
+	sagaServer := saga.NewSagaServer(logger.Log, sagaService)
+
+	grpcServer := initializeGRPC(logger.Log)
+	proto.RegisterSagaServer(grpcServer, sagaServer)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GRPCServerPort))
 	if err != nil {
 		logger.Log.Fatalf("failed to listen: %v", err)
 	}
 
-	logger.Log.Infof("Order gRPC-Server started on port %d", cfg.GRPCServerPort)
+	logger.Log.Infof("Saga orchestrator gRPC server started on port %d", cfg.GRPCServerPort)
 
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {

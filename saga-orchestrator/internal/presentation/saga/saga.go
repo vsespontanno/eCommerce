@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	orderEntity "github.com/vsespontanno/eCommerce/order-service/internal/domain/event/entity"
-	"github.com/vsespontanno/eCommerce/order-service/internal/domain/product/entity"
 	proto "github.com/vsespontanno/eCommerce/proto/saga"
+	orderEntity "github.com/vsespontanno/eCommerce/saga-orchestrator/internal/domain/event/entity"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/domain/product/entity"
 	"go.uber.org/zap"
 )
 

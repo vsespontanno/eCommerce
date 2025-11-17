@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 
@@ -8,46 +9,29 @@ import (
 )
 
 type Config struct {
-	GRPCServerPort         int
-	GRPCWalletClientPort   string
-	GRPCProductsClientPort string
-	KafkaBroker            string
-	KafkaGroup             string
-	KafkaTopic             string
-	PGUser                 string
-	PGPassword             string
-	PGName                 string
-	PGHost                 string
-	PGPort                 string
+	PGUser         string
+	PGPassword     string
+	PGName         string
+	PGHost         string
+	PGPort         string
+	GRPCServerPort int
 }
 
 func MustLoad() (*Config, error) {
-	var cfg Config
+	const op = "config.MustLoad"
 	if err := godotenv.Load(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	cfg.GRPCServerPort = getEnvAsInt("GRPC_SERVER_PORT", 50051)
-	cfg.GRPCWalletClientPort = os.Getenv("GRPC_WALLET_CLIENT_PORT")
-	cfg.GRPCProductsClientPort = os.Getenv("GRPC_PRODUCTS_CLIENT_PORT")
-	cfg.KafkaBroker = os.Getenv("KAFKA_BROKER")
-	cfg.KafkaGroup = os.Getenv("KAFKA_GROUP_ID")
-	cfg.KafkaTopic = os.Getenv("KAFKA_TOPIC")
-	cfg.PGUser = os.Getenv("PG_USER")
-	cfg.PGPassword = os.Getenv("PG_PASSWORD")
-	cfg.PGName = os.Getenv("PG_NAME")
-	cfg.PGHost = os.Getenv("PG_HOST")
-	cfg.PGPort = os.Getenv("PG_PORT")
-	return &cfg, nil
-}
-
-func getEnvAsInt(name string, defaultVal int) int {
-	val := os.Getenv(name)
-	if val == "" {
-		return defaultVal
-	}
-	intVal, err := strconv.Atoi(val)
+	GRPCServerPort, err := strconv.Atoi(os.Getenv("GRPC_SERVER_PORT"))
 	if err != nil {
-		return defaultVal
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	return intVal
+	return &Config{
+		PGUser:         os.Getenv("PG_USER"),
+		PGPassword:     os.Getenv("PG_PASSWORD"),
+		PGName:         os.Getenv("PG_NAME"),
+		PGHost:         os.Getenv("PG_HOST"),
+		PGPort:         os.Getenv("PG_PORT"),
+		GRPCServerPort: GRPCServerPort,
+	}, nil
 }

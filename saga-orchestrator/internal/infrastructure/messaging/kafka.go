@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/vsespontanno/eCommerce/order-service/internal/domain/event/entity"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/domain/event/entity"
 	"go.uber.org/zap"
 )
 

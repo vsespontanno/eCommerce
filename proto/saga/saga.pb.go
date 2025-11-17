@@ -128,10 +128,8 @@ func (x *StartCheckoutResponse) GetError() string {
 type Cart struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProductID     int64                  `protobuf:"varint,1,opt,name=productID,proto3" json:"productID,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Price         int64                  `protobuf:"varint,4,opt,name=price,proto3" json:"price,omitempty"`
-	Quantity      int64                  `protobuf:"varint,5,opt,name=quantity,proto3" json:"quantity,omitempty"`
+	Price         int64                  `protobuf:"varint,2,opt,name=price,proto3" json:"price,omitempty"`
+	Quantity      int64                  `protobuf:"varint,3,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -173,20 +171,6 @@ func (x *Cart) GetProductID() int64 {
 	return 0
 }
 
-func (x *Cart) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *Cart) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
 func (x *Cart) GetPrice() int64 {
 	if x != nil {
 		return x.Price
@@ -212,13 +196,11 @@ const file_proto_saga_saga_proto_rawDesc = "" +
 	"\x04cart\x18\x02 \x03(\v2\x10.proto_saga.CartR\x04cart\"G\n" +
 	"\x15StartCheckoutResponse\x12\x18\n" +
 	"\aorderID\x18\x01 \x01(\tR\aorderID\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"\x8c\x01\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"V\n" +
 	"\x04Cart\x12\x1c\n" +
-	"\tproductID\x18\x01 \x01(\x03R\tproductID\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x14\n" +
-	"\x05price\x18\x04 \x01(\x03R\x05price\x12\x1a\n" +
-	"\bquantity\x18\x05 \x01(\x03R\bquantity2\\\n" +
+	"\tproductID\x18\x01 \x01(\x03R\tproductID\x12\x14\n" +
+	"\x05price\x18\x02 \x01(\x03R\x05price\x12\x1a\n" +
+	"\bquantity\x18\x03 \x01(\x03R\bquantity2\\\n" +
 	"\x04Saga\x12T\n" +
 	"\rStartCheckout\x12 .proto_saga.StartCheckoutRequest\x1a!.proto_saga.StartCheckoutResponseB7Z5github.com/vsespontanno/eCommerce/internal/proto/sagab\x06proto3"
 

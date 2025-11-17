@@ -3,8 +3,8 @@ package products
 import (
 	"context"
 
-	"github.com/vsespontanno/eCommerce/order-service/internal/domain/product/entity"
 	"github.com/vsespontanno/eCommerce/proto/products"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/domain/product/entity"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

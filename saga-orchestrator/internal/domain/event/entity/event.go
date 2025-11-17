@@ -1,6 +1,6 @@
 package entity
 
-import "github.com/vsespontanno/eCommerce/order-service/internal/domain/product/entity"
+import "github.com/vsespontanno/eCommerce/saga-orchestrator/internal/domain/product/entity"
 
 type OrderEvent struct {
 	OrderID  string           `json:"order_id"`

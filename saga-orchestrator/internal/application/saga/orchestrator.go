@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/vsespontanno/eCommerce/order-service/internal/config"
-	orderEntity "github.com/vsespontanno/eCommerce/order-service/internal/domain/event/entity"
-	"github.com/vsespontanno/eCommerce/order-service/internal/domain/product/entity"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/config"
+	orderEntity "github.com/vsespontanno/eCommerce/saga-orchestrator/internal/domain/event/entity"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/domain/product/entity"
 	"go.uber.org/zap"
 )
 
