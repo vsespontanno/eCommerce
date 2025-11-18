@@ -18,21 +18,14 @@ func NewOrderService(repo interfaces.OrderRepo, logger *zap.SugaredLogger) *Orde
 }
 
 // Called by Saga when order is confirmed/reserved
-func (s *OrderService) CreateOrder(ctx context.Context, userID int64, items []entity.OrderItem, total int64) (string, error) {
-	order := &entity.Order{
-		UserID: userID,
-		Total:  total,
-		Status: "pending",
-		Items:  items,
-	}
-	id, err := s.repo.CreateOrder(ctx, order)
+func (s *OrderService) CreateOrder(ctx context.Context, order *entity.Order) (string, error) {
+	err := s.repo.CreateOrder(ctx, order)
 	if err != nil {
 		s.logger.Errorw("repo create order failed", "err", err)
 		return "", err
 	}
-	order.ID = id
 
-	return id, nil
+	return order.OrderID, nil
 }
 
 func (s *OrderService) GetOrder(ctx context.Context, orderID string) (*entity.Order, error) {

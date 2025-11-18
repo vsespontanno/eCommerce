@@ -25,97 +25,125 @@ func NewOrderStore(db *sqlx.DB, logger *zap.SugaredLogger) *OrderStore {
 	}
 }
 
-func (s *OrderStore) CreateOrder(ctx context.Context, order *entity.Order) (string, error) {
+// ============= CREATE ORDER =================
+
+func (s *OrderStore) CreateOrder(ctx context.Context, order *entity.Order) error {
 	tx, err := s.db.BeginTxx(ctx, nil)
 	if err != nil {
-		return "", fmt.Errorf("begin tx: %w", err)
+		return fmt.Errorf("tx begin: %w", err)
 	}
 	defer tx.Rollback()
 
-	// insert order
-	var id string
-	err = tx.QueryRowContext(ctx,
-		`INSERT INTO orders (user_id, total, status) VALUES ($1, $2, $3) RETURNING id`,
-		order.UserID, order.Total, order.Status,
-	).Scan(&id)
+	// insert into orders (UUID as string)
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO orders (id, user_id, total, status)
+         VALUES ($1, $2, $3, $4)`,
+		order.OrderID, order.UserID, order.Total, order.Status,
+	)
 	if err != nil {
-		return "", fmt.Errorf("insert order: %w", err)
+		return fmt.Errorf("insert order: %w", err)
 	}
 
-	for _, it := range order.Items {
+	for _, it := range order.Products {
 		_, err := tx.ExecContext(ctx,
-			`INSERT INTO order_items (order_id, product_id, price, quantity) VALUES ($1, $2, $3, $4)`,
-			id, it.ProductID, it.Price, it.Quantity,
+			`INSERT INTO order_items (order_id, product_id, quantity)
+             VALUES ($1, $2, $3)`,
+			order.OrderID, it.ProductID, it.Quantity,
 		)
 		if err != nil {
-			return "", fmt.Errorf("insert order_item: %w", err)
+			return fmt.Errorf("insert item: %w", err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return "", fmt.Errorf("commit: %w", err)
+		return fmt.Errorf("commit: %w", err)
 	}
-	s.logger.Infow("order created", "order_id", id, "user_id", order.UserID)
-	return id, nil
+
+	s.logger.Infow("order saved", "order_id", order.OrderID)
+	return nil
 }
 
-func (s *OrderStore) GetOrder(ctx context.Context, orderID string) (*entity.Order, error) {
+// ============= GET ORDER =====================
+
+func (s *OrderStore) GetOrder(ctx context.Context, id string) (*entity.Order, error) {
 	var o entity.Order
-	err := s.db.GetContext(ctx, &o, `SELECT id, user_id, total, status, created_at FROM orders WHERE id = $1`, orderID)
+
+	err := s.db.GetContext(ctx, &o,
+		`SELECT id AS order_id, user_id, total, status, created_at
+         FROM orders WHERE id = $1`, id,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("select order: %w", err)
 	}
 
-	rows, err := s.db.QueryxContext(ctx, `SELECT product_id, price, quantity FROM order_items WHERE order_id = $1`, orderID)
+	rows, err := s.db.QueryxContext(ctx,
+		`SELECT product_id, quantity
+         FROM order_items WHERE order_id = $1`, id,
+	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("select order items: %w", err)
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		var it entity.OrderItem
 		if err := rows.StructScan(&it); err != nil {
 			return nil, err
 		}
-		o.Items = append(o.Items, it)
+		o.Products = append(o.Products, it)
 	}
+
 	return &o, nil
 }
 
+// ============= LIST ORDERS ====================
+
 func (s *OrderStore) ListOrdersByUser(ctx context.Context, userID int64, limit, offset int) ([]entity.Order, error) {
-	q := s.builder.Select("id, user_id, total, status, created_at").
+	q := s.builder.
+		Select("id AS order_id", "user_id", "total", "status").
 		From("orders").
 		Where(sq.Eq{"user_id": userID}).
 		OrderBy("created_at DESC").
-		Limit(uint64(limit)).Offset(uint64(offset)).
+		Limit(uint64(limit)).
+		Offset(uint64(offset)).
 		RunWith(s.db)
 
 	rows, err := q.QueryContext(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query orders: %w", err)
 	}
 	defer rows.Close()
+
 	orders := make([]entity.Order, 0)
+
 	for rows.Next() {
 		var o entity.Order
-		if err := rows.Scan(&o.ID, &o.UserID, &o.Total, &o.Status, &o.CreatedAt); err != nil {
-			return nil, err
+		if err := rows.Scan(&o.OrderID, &o.UserID, &o.Total, &o.Status); err != nil {
+			return nil, fmt.Errorf("scan order: %w", err)
 		}
-		// load items for each order (could be optimized)
-		itemsRows, err := s.db.QueryxContext(ctx, `SELECT product_id, price, quantity FROM order_items WHERE order_id = $1`, o.ID)
+
+		// load items
+		itemsRows, err := s.db.QueryxContext(ctx,
+			`SELECT product_id, quantity 
+             FROM order_items WHERE order_id = $1`, o.OrderID,
+		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("items: %w", err)
 		}
+
 		for itemsRows.Next() {
 			var it entity.OrderItem
 			if err := itemsRows.StructScan(&it); err == nil {
-				o.Items = append(o.Items, it)
+				o.Products = append(o.Products, it)
 			}
 		}
 		itemsRows.Close()
+
 		orders = append(orders, o)
 	}
+
 	return orders, nil
 }
