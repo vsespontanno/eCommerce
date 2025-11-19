@@ -8,19 +8,21 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/app"
-	jwtClient "github.com/vsespontanno/eCommerce/cart-service/internal/client/jwt"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/client/products"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/client/saga"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/config"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/handler"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/handler/middleware"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/jobs"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/messaging"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/repository"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/postgres"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/repository/redis"
-	"github.com/vsespontanno/eCommerce/cart-service/internal/service"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/app"
+	applicationCart "github.com/vsespontanno/eCommerce/cart-service/internal-new/application/cart"
+	applicationOrder "github.com/vsespontanno/eCommerce/cart-service/internal-new/application/order"
+	applicationSaga "github.com/vsespontanno/eCommerce/cart-service/internal-new/application/saga"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/config"
+	jwtClient "github.com/vsespontanno/eCommerce/cart-service/internal-new/infrastructure/client/grpc/jwt"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/infrastructure/client/grpc/products"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/infrastructure/client/grpc/saga"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/infrastructure/db"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/infrastructure/jobs"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/infrastructure/messaging"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/infrastructure/repository/postgres"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/infrastructure/repository/redis"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/presentation/http/handlers"
+	"github.com/vsespontanno/eCommerce/cart-service/internal-new/presentation/http/handlers/middleware"
 	"github.com/vsespontanno/eCommerce/pkg/logger"
 )
 
@@ -35,7 +37,7 @@ func main() {
 
 	ctx := context.TODO()
 	// Initialize database (example: PostgreSQL)
-	db, err := repository.ConnectToPostgres(
+	pg, err := db.ConnectToPostgres(
 		cfg.PGUser,
 		cfg.PGPassword,
 		cfg.PGName,
@@ -45,14 +47,13 @@ func main() {
 	if err != nil {
 		logger.Log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
-
+	defer pg.Close()
 	// Initialize Redis with proper configuration
 	redisAddr := cfg.RedisAddr
 	if redisAddr == "" {
 		redisAddr = "localhost:6379" // default
 	}
-	redisClient := repository.ConnectToRedis(redisAddr, cfg.RedisPassword, cfg.RedisDB)
+	redisClient := db.ConnectToRedis(redisAddr, cfg.RedisPassword, cfg.RedisDB)
 	defer redisClient.Close()
 
 	productsClient := products.NewProductsClient(cfg.GRPCProductsClientPort, logger.Log)
@@ -60,12 +61,12 @@ func main() {
 	redisUpdater := redis.NewRedisUpdater(redisClient, logger.Log)
 	sagaClient := saga.NewSagaClient(cfg.GRPCOrderClientPort, logger.Log)
 	// Initialize cart service
-	pgStore := postgres.NewCartStore(db, logger.Log)
+	pgStore := postgres.NewCartStore(pg, logger.Log)
 	redisStore := redis.NewOrderStore(redisClient, logger.Log)
-	cartService := service.NewCart(logger.Log, redisStore, productsClient, pgStore)
-	sagaService := service.NewSagaService(logger.Log, redisStore, sagaClient)
+	cartService := applicationCart.NewCart(logger.Log, redisStore, productsClient, pgStore)
+	sagaService := applicationSaga.NewSagaService(logger.Log, redisStore, sagaClient)
 	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimitRPS)
-	orderService := service.NewOrderCompleteService(logger.Log, pgStore, redisCleaner)
+	orderService := applicationOrder.NewOrderCompleteService(logger.Log, pgStore, redisCleaner)
 	jobUpdater := jobs.NewCartSyncJob(pgStore, redisUpdater, logger.Log, time.Second*15)
 
 	app := app.New(logger.Log, cfg.HTTPPort, cartService)
@@ -78,7 +79,7 @@ func main() {
 	}
 	kafkaConsumer.Poll(ctx)
 
-	handler := handler.New(cartService, logger.Log, jwtClient, rateLimiter, sagaService)
+	handler := handlers.New(cartService, logger.Log, jwtClient, rateLimiter, sagaService)
 	handler.RegisterRoutes(app.HTTPApp.Router())
 
 	go func() {
