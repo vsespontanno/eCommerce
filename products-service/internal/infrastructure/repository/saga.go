@@ -6,18 +6,20 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jmoiron/sqlx"
+
 	sq "github.com/Masterminds/squirrel"
-	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
-	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/dto"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/apperrors"
+	"github.com/vsespontanno/eCommerce/products-service/internal/presentation/grpc/dto"
 )
 
 // TODO: убрать дублирование кода и сделать сет более правильным, чтобы вдруг не было отрицательных значений
 type SagaStore struct {
-	db      *sql.DB
+	db      *sqlx.DB
 	builder sq.StatementBuilderType
 }
 
-func NewSagaStore(db *sql.DB) *SagaStore {
+func NewSagaStore(db *sqlx.DB) *SagaStore {
 	return &SagaStore{
 		db:      db,
 		builder: sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
@@ -56,7 +58,7 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 		available := quantity - reserved
 		if available < it.Qty {
 			// явная бизнес-ошибка -> вернуть, транзакция откатится
-			return fmt.Errorf("%w: productID=%d requested=%d available=%d", models.ErrNotEnoughStock, it.ProductID, it.Qty, available)
+			return fmt.Errorf("%w: productID=%d requested=%d available=%d", apperrors.ErrNotEnoughStock, it.ProductID, it.Qty, available)
 		}
 
 		// Обновляем reserved
@@ -134,7 +136,7 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 		}
 
 		if quantity < it.Qty {
-			return fmt.Errorf("%w: productID=%d requested=%d available=%d", models.ErrNotEnoughStock, it.ProductID, it.Qty, quantity)
+			return fmt.Errorf("%w: productID=%d requested=%d available=%d", apperrors.ErrNotEnoughStock, it.ProductID, it.Qty, quantity)
 		}
 
 		ub := s.builder.

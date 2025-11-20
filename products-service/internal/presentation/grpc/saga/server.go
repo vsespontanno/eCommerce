@@ -3,7 +3,7 @@ package saga
 import (
 	"context"
 
-	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/dto"
+	"github.com/vsespontanno/eCommerce/products-service/internal/presentation/grpc/dto"
 	proto "github.com/vsespontanno/eCommerce/proto/products"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

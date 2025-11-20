@@ -3,8 +3,8 @@ package app
 import (
 	"github.com/vsespontanno/eCommerce/products-service/internal/app/grpcapp"
 	"github.com/vsespontanno/eCommerce/products-service/internal/app/httpapp"
-	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/saga"
-	"github.com/vsespontanno/eCommerce/products-service/internal/repository/postgres"
+	postgres "github.com/vsespontanno/eCommerce/products-service/internal/infrastructure/repository"
+	"github.com/vsespontanno/eCommerce/products-service/internal/presentation/grpc/saga"
 	"go.uber.org/zap"
 )
 

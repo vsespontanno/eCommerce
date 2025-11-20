@@ -4,15 +4,17 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/jmoiron/sqlx"
+
 	sq "github.com/Masterminds/squirrel"
 )
 
 type CartStore struct {
-	db      *sql.DB
+	db      *sqlx.DB
 	builder sq.StatementBuilderType
 }
 
-func NewCartStore(db *sql.DB) *CartStore {
+func NewCartStore(db *sqlx.DB) *CartStore {
 	return &CartStore{
 		db:      db,
 		builder: sq.StatementBuilder.PlaceholderFormat(sq.Dollar),

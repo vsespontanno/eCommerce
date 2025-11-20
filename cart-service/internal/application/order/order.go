@@ -15,6 +15,10 @@ type RedisCartCleaner interface {
 	CleanCart(ctx context.Context, order *entity.OrderEvent) error
 }
 
+type OrderClient interface {	
+	
+}
+
 type OrderCompleteService struct {
 	logger       *zap.SugaredLogger
 	pgCleaner    PGCartCleaner

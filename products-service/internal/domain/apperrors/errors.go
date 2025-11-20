@@ -1,4 +1,4 @@
-package models
+package apperrors
 
 import "errors"
 

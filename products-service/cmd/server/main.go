@@ -11,13 +11,13 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/vsespontanno/eCommerce/pkg/logger"
 	"github.com/vsespontanno/eCommerce/products-service/internal/app"
-	"github.com/vsespontanno/eCommerce/products-service/internal/client"
+	"github.com/vsespontanno/eCommerce/products-service/internal/application/saga"
 	"github.com/vsespontanno/eCommerce/products-service/internal/config"
-	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
-	"github.com/vsespontanno/eCommerce/products-service/internal/handler"
-	"github.com/vsespontanno/eCommerce/products-service/internal/repository"
-	"github.com/vsespontanno/eCommerce/products-service/internal/repository/postgres"
-	"github.com/vsespontanno/eCommerce/products-service/internal/service/saga"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/products/entity"
+	client "github.com/vsespontanno/eCommerce/products-service/internal/infrastructure/client/grpc"
+	"github.com/vsespontanno/eCommerce/products-service/internal/infrastructure/db"
+	postgres "github.com/vsespontanno/eCommerce/products-service/internal/infrastructure/repository"
+	"github.com/vsespontanno/eCommerce/products-service/internal/presentation/http/handler"
 )
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 	}
 
 	// Initialize database (example: PostgreSQL)
-	db, err := repository.ConnectToPostgres(
+	dataBase, err := db.ConnectToPostgres(
 		cfg.PGUser,
 		cfg.PGPassword,
 		cfg.PGName,
@@ -39,11 +39,11 @@ func main() {
 	if err != nil {
 		logger.Log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer db.Close()
+	defer dataBase.Close()
 
-	store := postgres.NewProductStore(db)
-	cartStore := postgres.NewCartStore(db)
-	sagaStore := postgres.NewSagaStore(db)
+	store := postgres.NewProductStore(dataBase)
+	cartStore := postgres.NewCartStore(dataBase)
+	sagaStore := postgres.NewSagaStore(dataBase)
 	sagaService := saga.NewSagaService(sagaStore, logger.Log)
 	// Initialize application
 	app := app.New(logger.Log, cfg.HTTPPort, cfg.GRPCProductsServerPort, cfg.GRPCSagaServerPort, store, sagaService)
@@ -89,7 +89,7 @@ func main() {
 }
 
 func seedSomeValues(store *postgres.ProductStore) {
-	product1 := &models.Product{
+	product1 := &entity.Product{
 		Name:         "Red Bull",
 		Description:  "Good energy drink for gym",
 		Price:        141.0,
@@ -97,7 +97,7 @@ func seedSomeValues(store *postgres.ProductStore) {
 		CountInStock: 100,
 	}
 
-	product2 := &models.Product{
+	product2 := &entity.Product{
 		Name:         "Chapman Red",
 		Description:  "vERy tasty ciagarettes for your deepression",
 		Price:        253.0,

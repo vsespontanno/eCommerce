@@ -7,8 +7,8 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/products"
-	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/saga"
+	"github.com/vsespontanno/eCommerce/products-service/internal/presentation/grpc/products"
+	"github.com/vsespontanno/eCommerce/products-service/internal/presentation/grpc/saga"
 	proto "github.com/vsespontanno/eCommerce/proto/products"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

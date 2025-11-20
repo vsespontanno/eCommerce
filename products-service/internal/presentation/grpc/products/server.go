@@ -5,7 +5,8 @@ import (
 	"errors"
 	"log"
 
-	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/apperrors"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/products/entity"
 	proto "github.com/vsespontanno/eCommerce/proto/products"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -18,8 +19,8 @@ type ProductServer struct {
 }
 
 type Products interface {
-	GetProductByID(ctx context.Context, id int64) (*models.Product, error)
-	GetProductsByID(ctx context.Context, ids []int64) ([]*models.Product, error)
+	GetProductByID(ctx context.Context, id int64) (*entity.Product, error)
+	GetProductsByID(ctx context.Context, ids []int64) ([]*entity.Product, error)
 }
 
 func NewProductServer(gRPCServer *grpc.Server, products Products) {
@@ -29,7 +30,7 @@ func NewProductServer(gRPCServer *grpc.Server, products Products) {
 func (s *ProductServer) GetProductByID(ctx context.Context, req *proto.GetProductByIDRequest) (*proto.GetProductByIDResponse, error) {
 	product, err := s.products.GetProductByID(ctx, req.Id)
 	if err != nil {
-		if errors.Is(err, models.ErrNoProductFound) {
+		if errors.Is(err, apperrors.ErrNoProductFound) {
 			return nil, status.Errorf(codes.NotFound, "product with ID %d not found", req.Id)
 		}
 

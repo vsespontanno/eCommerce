@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vsespontanno/eCommerce/products-service/internal/grpc/dto"
+	"github.com/vsespontanno/eCommerce/products-service/internal/presentation/grpc/dto"
 	"go.uber.org/zap"
 )
 

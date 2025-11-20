@@ -6,23 +6,26 @@ import (
 	"errors"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/apperrors"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/products/entity"
+
 	sq "github.com/Masterminds/squirrel"
-	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
 )
 
 type ProductStore struct {
-	db      *sql.DB
+	db      *sqlx.DB
 	builder sq.StatementBuilderType
 }
 
-func NewProductStore(db *sql.DB) *ProductStore {
+func NewProductStore(db *sqlx.DB) *ProductStore {
 	return &ProductStore{
 		db:      db,
 		builder: sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
 	}
 }
 
-func (s *ProductStore) SaveProduct(ctx context.Context, product *models.Product) error {
+func (s *ProductStore) SaveProduct(ctx context.Context, product *entity.Product) error {
 	query := s.builder.Insert("products").
 		Columns("productID", "productName", "productDescription", "productPrice", "productQuantity", "created_at").
 		Values(product.ID, product.Name, product.Description, product.Price, product.CountInStock, time.Now().Format(time.RFC1123Z)).
@@ -31,7 +34,7 @@ func (s *ProductStore) SaveProduct(ctx context.Context, product *models.Product)
 	return query.QueryRowContext(ctx).Scan(&product.ID)
 }
 
-func (s *ProductStore) GetProducts(ctx context.Context) ([]*models.Product, error) {
+func (s *ProductStore) GetProducts(ctx context.Context) ([]*entity.Product, error) {
 	query := s.builder.Select("productID", "productName", "productDescription", "productPrice", "created_at").
 		From("products").
 		RunWith(s.db)
@@ -42,9 +45,9 @@ func (s *ProductStore) GetProducts(ctx context.Context) ([]*models.Product, erro
 	}
 	defer rows.Close()
 
-	var products []*models.Product
+	var products []*entity.Product
 	for rows.Next() {
-		var p models.Product
+		var p entity.Product
 		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.CreatedAt); err != nil {
 			return nil, err
 		}
@@ -54,17 +57,17 @@ func (s *ProductStore) GetProducts(ctx context.Context) ([]*models.Product, erro
 	return products, nil
 }
 
-func (s *ProductStore) GetProductByID(ctx context.Context, id int64) (*models.Product, error) {
+func (s *ProductStore) GetProductByID(ctx context.Context, id int64) (*entity.Product, error) {
 	query := s.builder.Select("productID", "productName", "productDescription", "productPrice", "created_at").
 		From("products").
 		Where(sq.Eq{"productID": id}).
 		RunWith(s.db)
 
-	var p models.Product
+	var p entity.Product
 	err := query.QueryRowContext(ctx).Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.CreatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, models.ErrNoProductFound // No product found
+			return nil, apperrors.ErrNoProductFound // No product found
 		}
 		return nil, err
 	}
@@ -72,12 +75,12 @@ func (s *ProductStore) GetProductByID(ctx context.Context, id int64) (*models.Pr
 	return &p, nil
 }
 
-func (s *ProductStore) GetProductsByID(ctx context.Context, ids []int64) ([]*models.Product, error) {
-	products := make([]*models.Product, 0, len(ids))
+func (s *ProductStore) GetProductsByID(ctx context.Context, ids []int64) ([]*entity.Product, error) {
+	products := make([]*entity.Product, 0, len(ids))
 	for _, id := range ids {
 		product, err := s.GetProductByID(ctx, id)
 		if err != nil {
-			if errors.Is(err, models.ErrNoProductFound) {
+			if errors.Is(err, apperrors.ErrNoProductFound) {
 				continue
 			} else {
 				return nil, err

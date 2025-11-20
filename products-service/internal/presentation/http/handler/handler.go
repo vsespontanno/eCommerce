@@ -8,9 +8,10 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/vsespontanno/eCommerce/products-service/internal/client"
-	"github.com/vsespontanno/eCommerce/products-service/internal/domain/models"
-	"github.com/vsespontanno/eCommerce/products-service/internal/handler/middleware"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/apperrors"
+	"github.com/vsespontanno/eCommerce/products-service/internal/domain/products/entity"
+	client "github.com/vsespontanno/eCommerce/products-service/internal/infrastructure/client/grpc"
+	"github.com/vsespontanno/eCommerce/products-service/internal/presentation/http/handler/middleware"
 	"go.uber.org/zap"
 )
 
@@ -19,10 +20,10 @@ type CartStorer interface {
 }
 
 type ProductStorer interface {
-	SaveProduct(ctx context.Context, product *models.Product) error
-	GetProducts(ctx context.Context) ([]*models.Product, error)
-	GetProductByID(ctx context.Context, id int64) (*models.Product, error)
-	GetProductsByID(ctx context.Context, ids []int64) ([]*models.Product, error)
+	SaveProduct(ctx context.Context, product *entity.Product) error
+	GetProducts(ctx context.Context) ([]*entity.Product, error)
+	GetProductByID(ctx context.Context, id int64) (*entity.Product, error)
+	GetProductsByID(ctx context.Context, ids []int64) ([]*entity.Product, error)
 }
 
 type Handler struct {
@@ -87,7 +88,7 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 
 	product, err := h.productStore.GetProductByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, models.ErrNoProductFound) {
+		if errors.Is(err, apperrors.ErrNoProductFound) {
 			writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"})
 		} else {
 			h.sugarLogger.Errorw("failed to get product", "error", err, "id", id)
@@ -115,7 +116,7 @@ func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 
 	product, err := h.productStore.GetProductByID(ctx, productID)
 	if err != nil {
-		if errors.Is(err, models.ErrNoProductFound) {
+		if errors.Is(err, apperrors.ErrNoProductFound) {
 			writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"})
 		} else {
 			h.sugarLogger.Errorw("failed to load product for cart",

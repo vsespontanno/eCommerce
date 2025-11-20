@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vsespontanno/eCommerce/products-service/internal/client"
+	client "github.com/vsespontanno/eCommerce/products-service/internal/infrastructure/client/grpc"
 )
 
 var (
