@@ -22,7 +22,6 @@ type Config struct {
 
 func MustLoad() (*Config, error) {
 	const op = "config.MustLoad"
-	// Load environment variables from .env file
 	if err := godotenv.Load(); err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
