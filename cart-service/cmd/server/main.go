@@ -14,6 +14,7 @@ import (
 	applicationSaga "github.com/vsespontanno/eCommerce/cart-service/internal/application/saga"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/config"
 	jwtClient "github.com/vsespontanno/eCommerce/cart-service/internal/infrastructure/client/grpc/jwt"
+	"github.com/vsespontanno/eCommerce/cart-service/internal/infrastructure/client/grpc/order"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/infrastructure/client/grpc/products"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/infrastructure/client/grpc/saga"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/infrastructure/db"
@@ -59,14 +60,15 @@ func main() {
 	productsClient := products.NewProductsClient(cfg.GRPCProductsClientPort, logger.Log)
 	redisCleaner := redis.NewCleaner(redisClient, logger.Log)
 	redisUpdater := redis.NewRedisUpdater(redisClient, logger.Log)
-	sagaClient := saga.NewSagaClient(cfg.GRPCOrderClientPort, logger.Log)
+	sagaClient := saga.NewSagaClient(cfg.GRPCSagaClientPort, logger.Log)
+	orderClient := order.NewOrderClient(cfg.GRPCOrderClientPort, logger.Log)
 	// Initialize cart service
 	pgStore := postgres.NewCartStore(pg, logger.Log)
 	redisStore := redis.NewOrderStore(redisClient, logger.Log)
 	cartService := applicationCart.NewCart(logger.Log, redisStore, productsClient, pgStore)
 	sagaService := applicationSaga.NewSagaService(logger.Log, redisStore, sagaClient)
 	rateLimiter := middleware.NewRateLimiter(redisClient, cfg.RateLimitRPS)
-	orderService := applicationOrder.NewOrderCompleteService(logger.Log, pgStore, redisCleaner)
+	orderService := applicationOrder.NewOrderCompleteService(logger.Log, pgStore, redisCleaner, orderClient)
 	jobUpdater := jobs.NewCartSyncJob(pgStore, redisUpdater, logger.Log, time.Second*15)
 
 	app := app.New(logger.Log, cfg.HTTPPort, cartService)
