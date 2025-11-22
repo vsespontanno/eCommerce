@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -79,60 +78,26 @@ func initializeGRPC(log *zap.SugaredLogger, authInterceptor grpc.UnaryServerInte
 	// recovery handler with stacktrace
 	recoveryOpts := []recovery.Option{
 		recovery.WithRecoveryHandler(func(p interface{}) (err error) {
-			// log panic and stacktrace
-			log.Errorw("panic recovered in grpc handler", "panic", p, "stack", string(debug.Stack()))
+			log.Errorw("Recovered from panic", "panic", p)
 			return status.Errorf(codes.Internal, "internal error")
 		}),
 	}
-
-	// we will log payload received/sent
 	loggingOpts := []logging.Option{
 		logging.WithLogOnEvents(logging.PayloadReceived, logging.PayloadSent),
 	}
 
-	// our log adapter that preserves fields
-	logAdapter := interceptorLogger(log)
-
-	// build interceptor slice and preserve same order always
-	interceptors := []grpc.UnaryServerInterceptor{
+	gRPCServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
 		recovery.UnaryServerInterceptor(recoveryOpts...),
-		logging.UnaryServerInterceptor(logAdapter, loggingOpts...),
-	}
+		logging.UnaryServerInterceptor(interceptorLogger(log), loggingOpts...),
+		authInterceptor,
+	))
 
-	if authInterceptor != nil {
-		interceptors = append(interceptors, authInterceptor)
-	}
-
-	return grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors...))
+	return gRPCServer
 }
-
-// interceptorLogger converts grpc-middleware logging.Level -> zap level and preserves fields
 func interceptorLogger(l *zap.SugaredLogger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
-		// convert to zapcore.Level
-		// grpc_logging.Logrus library exposes level conversion helper; we only need numeric mapping.
-		// fall back to InfoLevel when unknown.
-		var zlevel zapcore.Level
-		switch lvl {
-		case logging.LevelDebug:
-			zlevel = zapcore.DebugLevel
-		case logging.LevelInfo:
-			zlevel = zapcore.InfoLevel
-		case logging.LevelWarn:
-			zlevel = zapcore.WarnLevel
-		case logging.LevelError:
-			zlevel = zapcore.ErrorLevel
-		default:
-			zlevel = zapcore.InfoLevel
-		}
-		// include fields if present
-		if len(fields) > 0 {
-			// SugaredLogger.Log accepts level and variadic args, but expects the pattern: msg, keys/values...
-			// We'll call Log with msg and fields
-			l.Log(zlevel, append([]any{msg}, fields...)...)
-			return
-		}
-		l.Log(zlevel, msg)
+		level := zapcore.Level(lvl)
+		l.Log(level, msg)
 	})
 }
 
