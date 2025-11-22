@@ -1,14 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/vsespontanno/eCommerce/pkg/logger"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/app"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/config"
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -16,17 +15,11 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	logger, err := zap.NewProduction()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
-		os.Exit(1)
-	}
-	defer logger.Sync()
-	sugar := logger.Sugar()
+	logger.InitLogger()
 
-	a, err := app.New(sugar, cfg)
+	a, err := app.New(logger.Log, cfg)
 	if err != nil {
-		sugar.Fatal(err)
+		logger.Log.Fatal(err)
 	}
 	go func() {
 		a.MustRun()
