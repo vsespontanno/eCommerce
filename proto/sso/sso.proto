@@ -1,46 +1,74 @@
-
 syntax = "proto3";
 
 package proto_sso;
 
 option go_package = "github.com/vsespontanno/eCommerce/internal/proto/sso";
 
+import "google/api/annotations.proto";
 
+// Auth service handles user authentication operations
 service Auth {
-  rpc Register (RegisterRequest) returns (RegisterResponse);
-  rpc Login (LoginRequest) returns (LoginResponse);
+  // Register creates a new user account
+  rpc Register (RegisterRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/register"
+      body: "*"
+    };
+  }
+  
+  // Login authenticates a user and returns a JWT token
+  rpc Login (LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/login"
+      body: "*"
+    };
+  }
 }
 
+// Validator service validates JWT tokens
 service Validator {
-  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+  // ValidateToken checks if a JWT token is valid
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/validate"
+      body: "*"
+    };
+  }
 }
 
+// RegisterRequest contains user registration data
 message RegisterRequest {
-  string email = 1; 
-  string password = 2; 
-  string first_name = 3; 
-  string last_name = 4; 
+  string email = 1;          // User email address (required)
+  string password = 2;       // User password (required, min 8 chars)
+  string first_name = 3;     // User first name (required)
+  string last_name = 4;      // User last name (required)
 }
 
+// RegisterResponse contains the newly created user ID
 message RegisterResponse {
-  int64 user_id = 1; 
+  int64 user_id = 1;         // Internal user ID (auto-generated)
 }
 
+// LoginRequest contains user login credentials
 message LoginRequest {
-  string email = 1;
-  string password = 2;
+  string email = 1;          // User email address
+  string password = 2;       // User password
 }
 
+// LoginResponse contains the authentication token
 message LoginResponse {
-  string token = 1;
+  string token = 1;          // JWT access token
+  int64 expires_at = 2;      // Token expiration timestamp (Unix time)
 }
 
+// ValidateTokenRequest contains the token to validate
 message ValidateTokenRequest {
-  string token = 1;
+  string token = 1;          // JWT token to validate
 }
 
+// ValidateTokenResponse contains validation result
 message ValidateTokenResponse {
-  bool valid = 1;
-  int64 user_id = 2; // UUID of the user
+  bool valid = 1;            // Whether the token is valid
+  int64 user_id = 2;         // User ID extracted from token (if valid)
+  string email = 3;          // User email extracted from token (if valid)
 }
-

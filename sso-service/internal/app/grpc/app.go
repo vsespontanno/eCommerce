@@ -37,8 +37,10 @@ func NewApp(log *zap.SugaredLogger, authService authgrpc.Auth, validator validat
 		recovery.UnaryServerInterceptor(recoveryOpts...),
 		logging.UnaryServerInterceptor(interceptorLogger(log), loggingOpts...),
 	))
-	authgrpc.NewAuthServer(gRPCServer, authService)
-	validategrpc.NewValidationServer(gRPCServer, validator)
+
+	authgrpc.NewAuthServer(gRPCServer, authService, log)
+	validategrpc.NewValidationServer(gRPCServer, validator, log)
+
 	return &App{
 		log:        log,
 		gRPCServer: gRPCServer,
@@ -66,9 +68,9 @@ func (a *App) Run() error {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	a.log.Info("user server started", zap.Stringer("addr", l.Addr()))
+	a.log.Infow("gRPC server started", "addr", l.Addr().String(), "port", a.port)
 	if err := a.gRPCServer.Serve(l); err != nil {
-		a.log.Errorw(op, zap.Error(err))
+		a.log.Errorw(op, "error", err)
 		return err
 	}
 
@@ -78,9 +80,6 @@ func (a *App) Run() error {
 func (a *App) Stop() {
 	const op = "grpcapp.Stop"
 
-	a.log.Info("stopping gRPC server",
-		zap.Int("port", a.port),
-		zap.String("op", op))
-
+	a.log.Infow("stopping gRPC server", "port", a.port, "op", op)
 	a.gRPCServer.GracefulStop()
 }

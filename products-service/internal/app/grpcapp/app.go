@@ -47,7 +47,7 @@ func NewApp(log *zap.SugaredLogger, productsInterface products.Products, sagaRes
 	))
 
 	// Register servers
-	products.NewProductServer(productsServer, productsInterface)
+	products.NewProductServer(productsServer, productsInterface, log)
 	proto.RegisterSagaProductsServer(sagaServer, saga.NewSagaServer(sagaReserver))
 
 	return &App{

@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Test coverage
+*.coverprofile
+coverage.*
+profile.cov
+
+# Documentation
+*.md
+README.md
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+<!-- # Environment files
+.env 
+.env.local
+.env.*.local -->
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db

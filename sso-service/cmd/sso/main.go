@@ -22,9 +22,23 @@ func main() {
 	if err != nil {
 		panic("Failed to connect to db: " + err.Error())
 	}
-	application := app.New(logger.Log, cfg.GRPCPort, sDb, cfg.JWTSecret, time.Duration(1*time.Hour))
+
+	// HTTP port по умолчанию 8080
+	httpPort := 8080
+
+	application := app.New(logger.Log, cfg.GRPCPort, httpPort, sDb, cfg.JWTSecret, time.Duration(1*time.Hour))
+
+	// Запуск gRPC сервера
 	go func() {
 		application.GRPCServer.MustRun()
+	}()
+
+	// Даем gRPC серверу время на запуск перед стартом HTTP Gateway
+	time.Sleep(1 * time.Second)
+
+	// Запуск HTTP Gateway
+	go func() {
+		application.HTTPGateway.MustRun()
 	}()
 
 	// Graceful shutdown
@@ -36,6 +50,7 @@ func main() {
 	<-stop
 
 	// initiate graceful shutdown
-	application.GRPCServer.Stop() // Assuming GRPCServer has Stop() method for graceful shutdown
+	application.GRPCServer.Stop()
+	application.HTTPGateway.Stop()
 	logger.Log.Infow("Gracefully stopped")
 }

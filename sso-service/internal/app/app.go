@@ -5,6 +5,7 @@ import (
 	"time"
 
 	grpcapp "github.com/vsespontanno/eCommerce/sso-service/internal/app/grpc"
+	httpapp "github.com/vsespontanno/eCommerce/sso-service/internal/app/http"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/repository/postgres"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/services/auth"
 	"github.com/vsespontanno/eCommerce/sso-service/internal/services/validator"
@@ -12,10 +13,11 @@ import (
 )
 
 type App struct {
-	GRPCServer *grpcapp.App
+	GRPCServer  *grpcapp.App
+	HTTPGateway *httpapp.Gateway
 }
 
-func New(log *zap.SugaredLogger, grpcPort int, db *sql.DB, jwtSecret string, tokenTTL time.Duration) *App {
+func New(log *zap.SugaredLogger, grpcPort, httpPort int, db *sql.DB, jwtSecret string, tokenTTL time.Duration) *App {
 	pg := postgres.NewStorage(db)
 
 	authService := auth.NewAuth(log, pg, tokenTTL, jwtSecret)
@@ -24,7 +26,10 @@ func New(log *zap.SugaredLogger, grpcPort int, db *sql.DB, jwtSecret string, tok
 
 	grpcApp := grpcapp.NewApp(log, authService, validateService, grpcPort)
 
+	httpGateway := httpapp.NewGateway(log, httpPort, grpcPort)
+
 	return &App{
-		GRPCServer: grpcApp,
+		GRPCServer:  grpcApp,
+		HTTPGateway: httpGateway,
 	}
 }
