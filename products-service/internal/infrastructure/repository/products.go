@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -28,10 +27,15 @@ func NewProductStore(db *sqlx.DB) *ProductStore {
 func (s *ProductStore) SaveProduct(ctx context.Context, product *entity.Product) error {
 	query := s.builder.Insert("products").
 		Columns("productID", "productName", "productDescription", "productPrice", "productQuantity", "created_at").
-		Values(product.ID, product.Name, product.Description, product.Price, product.CountInStock, time.Now().Format(time.RFC1123Z)).
-		RunWith(s.db)
+		Values(product.ID, product.Name, product.Description, product.Price, product.CountInStock, time.Now().Format(time.RFC1123Z))
 
-	return query.QueryRowContext(ctx).Scan(&product.ID)
+	sqlStr, args, err := query.ToSql()
+	if err != nil {
+		return err
+	}
+
+	_, err = s.db.ExecContext(ctx, sqlStr, args...)
+	return err
 }
 
 func (s *ProductStore) GetProducts(ctx context.Context) ([]*entity.Product, error) {
@@ -76,17 +80,33 @@ func (s *ProductStore) GetProductByID(ctx context.Context, id int64) (*entity.Pr
 }
 
 func (s *ProductStore) GetProductsByID(ctx context.Context, ids []int64) ([]*entity.Product, error) {
-	products := make([]*entity.Product, 0, len(ids))
-	for _, id := range ids {
-		product, err := s.GetProductByID(ctx, id)
-		if err != nil {
-			if errors.Is(err, apperrors.ErrNoProductFound) {
-				continue
-			} else {
-				return nil, err
-			}
-		}
-		products = append(products, product)
+	if len(ids) == 0 {
+		return []*entity.Product{}, nil
 	}
+
+	query := s.builder.Select("productID", "productName", "productDescription", "productPrice", "created_at").
+		From("products").
+		Where(sq.Eq{"productID": ids}).
+		RunWith(s.db)
+
+	rows, err := query.QueryContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	products := make([]*entity.Product, 0, len(ids))
+	for rows.Next() {
+		var p entity.Product
+		if err := rows.Scan(&p.ID, &p.Name, &p.Description, &p.Price, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		products = append(products, &p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return products, nil
 }

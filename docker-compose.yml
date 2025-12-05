@@ -11,6 +11,8 @@ services:
         - "5432:5432"
       volumes:
         - pg_data:/var/lib/postgresql/data
+      networks:
+        - ecommerce-network
         
   redis:
     image: redis:7.2
@@ -20,6 +22,8 @@ services:
     volumes:
       - redis_data:/data
     command: redis-server --save 60 1 --loglevel warning
+    networks:
+      - ecommerce-network
   
   zookeeper:
     image: confluentinc/cp-zookeeper
@@ -27,6 +31,8 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - ecommerce-network
 
   broker:
     image: confluentinc/cp-kafka:7.5.0
@@ -43,9 +49,161 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - ecommerce-network
 
+  # NGINX API Gateway
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-gateway
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - sso-service-1
+      - sso-service-2
+      - sso-service-3
+      - products-service-1
+      - products-service-2
+      - products-service-3
+    restart: always
+    networks:
+      - ecommerce-network
 
-  
+  # SSO Service - Replica 1
+  sso-service-1:
+    build:
+      context: .
+      dockerfile: sso-service/Dockerfile
+    container_name: sso-service-1
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      GRPC_PORT: 50051
+      HTTP_PORT: 8080
+      TOKEN_TTL: 1h
+    depends_on:
+      - postgres
+    networks:
+      - ecommerce-network
+
+  # SSO Service - Replica 2
+  sso-service-2:
+    build:
+      context: .
+      dockerfile: sso-service/Dockerfile
+    container_name: sso-service-2
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      GRPC_PORT: 50051
+      HTTP_PORT: 8080
+      TOKEN_TTL: 1h
+    depends_on:
+      - postgres
+    networks:
+      - ecommerce-network
+
+  # SSO Service - Replica 3
+  sso-service-3:
+    build:
+      context: .
+      dockerfile: sso-service/Dockerfile
+    container_name: sso-service-3
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      GRPC_PORT: 50051
+      HTTP_PORT: 8080
+      TOKEN_TTL: 1h
+    depends_on:
+      - postgres
+    networks:
+      - ecommerce-network
+
+  # Products Service - Replica 1
+  products-service-1:
+    build:
+      context: .
+      dockerfile: products-service/Dockerfile
+    container_name: products-service-1
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DB}
+      HTTP_PORT: 8081
+      GRPC_PRODUCTS_SERVER_PORT: 50052
+      GRPC_SAGA_SERVER_PORT: 50053
+      GRPC_JWT_CLIENT_PORT: sso-service-1:50051
+    depends_on:
+      - postgres
+      - sso-service-1
+    networks:
+      - ecommerce-network
+
+  # Products Service - Replica 2
+  products-service-2:
+    build:
+      context: .
+      dockerfile: products-service/Dockerfile
+    container_name: products-service-2
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DB}
+      HTTP_PORT: 8081
+      GRPC_PRODUCTS_SERVER_PORT: 50052
+      GRPC_SAGA_SERVER_PORT: 50053
+      GRPC_JWT_CLIENT_PORT: sso-service-2:50051
+    depends_on:
+      - postgres
+      - sso-service-2
+    networks:
+      - ecommerce-network
+
+  # Products Service - Replica 3
+  products-service-3:
+    build:
+      context: .
+      dockerfile: products-service/Dockerfile
+    container_name: products-service-3
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DB}
+      HTTP_PORT: 8081
+      GRPC_PRODUCTS_SERVER_PORT: 50052
+      GRPC_SAGA_SERVER_PORT: 50053
+      GRPC_JWT_CLIENT_PORT: sso-service-3:50051
+    depends_on:
+      - postgres
+      - sso-service-3
+    networks:
+      - ecommerce-network
+
+networks:
+  ecommerce-network:
+    driver: bridge
+
 volumes:
   pg_data:
   redis_data:

@@ -14,7 +14,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrInvalidCredentials = errors.New("invalid credentials")
+var (
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInvalidInput       = errors.New("invalid input")
+)
 
 type UserStorage interface {
 	SaveUser(ctx context.Context, email, firstName, lastName string, passHash []byte) (int64, error)
@@ -45,7 +48,7 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email, password, firstName, 
 	// Validate input
 	if !validator.ValidateUser(email, password, firstName, lastName) {
 		a.log.Warnw("invalid user input", "op", op, "email", email)
-		return 0, ErrInvalidCredentials
+		return 0, fmt.Errorf("%s: %w", op, ErrInvalidInput)
 	}
 
 	// Hash password
@@ -58,6 +61,10 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email, password, firstName, 
 	// Save user in DB
 	id, err := a.userStorage.SaveUser(ctx, email, firstName, lastName, hash)
 	if err != nil {
+		if errors.Is(err, repository.ErrUserExists) {
+			a.log.Warnw("user already exists", "op", op, "email", email)
+			return 0, fmt.Errorf("%s: %w", op, repository.ErrUserExists)
+		}
 		a.log.Errorw("failed to save user", "op", op, "email", email, "error", err)
 		return 0, fmt.Errorf("%s: %w", op, err)
 	}
@@ -66,7 +73,7 @@ func (a *Auth) RegisterNewUser(ctx context.Context, email, password, firstName, 
 	return id, nil
 }
 
-func (a *Auth) Login(ctx context.Context, email, password string) (string, error) {
+func (a *Auth) Login(ctx context.Context, email, password string) (string, int64, error) {
 	const op = "auth.Login"
 
 	a.log.Infow("attempting login", "op", op, "email", email)
@@ -75,25 +82,25 @@ func (a *Auth) Login(ctx context.Context, email, password string) (string, error
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
 			a.log.Warnw("user not found", "op", op, "email", email)
-			return "", ErrInvalidCredentials
+			return "", 0, ErrInvalidCredentials
 		}
 		a.log.Errorw("failed to fetch user from storage", "op", op, "email", email, "error", err)
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	// Compare password
 	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
 		a.log.Warnw("invalid password", "op", op, "email", email)
-		return "", ErrInvalidCredentials
+		return "", 0, ErrInvalidCredentials
 	}
 
-	// Generate JWT
-	token, err := jwt.NewToken(user, a.jwtSecret, a.tokenTTL)
+	// Generate JWT with expiry
+	tokenPair, err := jwt.NewTokenWithExpiry(user, a.jwtSecret, a.tokenTTL)
 	if err != nil {
 		a.log.Errorw("failed to generate JWT token", "op", op, "email", email, "error", err)
-		return "", fmt.Errorf("%s: %w", op, err)
+		return "", 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	a.log.Infow("user logged in successfully", "op", op, "user_id", user.ID, "email", email)
-	return token, nil
+	return tokenPair.Token, tokenPair.ExpiresAt, nil
 }

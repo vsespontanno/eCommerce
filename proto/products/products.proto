@@ -4,70 +4,96 @@ package proto_products;
 
 option go_package = "github.com/vsespontanno/eCommerce/internal/proto/products";
 
+// Products service provides product catalog operations for inter-service communication
 service Products {
+  // GetProductByID retrieves a single product by its ID
   rpc GetProductByID (GetProductByIDRequest) returns (GetProductByIDResponse);
+  
+  // GetProducts retrieves multiple products by their IDs (batch operation)
   rpc GetProducts (GetProductsByIDRequest) returns (GetProductsByIDResponse);
 }
 
+// SagaProducts service implements saga pattern for distributed transactions
+// Used by saga-orchestrator to manage product inventory in multi-step transactions
 service SagaProducts {
+  // ReserveProducts reserves product inventory (saga prepare phase)
+  // This is the first step in a distributed transaction
   rpc ReserveProducts (ReserveProductsRequest) returns (ReserveProductsResponse);
+  
+  // ReleaseProducts releases previously reserved inventory (saga rollback/compensate)
+  // Called when transaction needs to be rolled back
   rpc ReleaseProducts (ReleaseProductsRequest) returns (ReleaseProductsResponse);
+  
+  // CommitProducts commits the reservation and decrements inventory (saga commit)
+  // Final step when transaction is successful
   rpc CommitProducts (CommitProductsRequest) returns (CommitProductsResponse);
 }
 
+// ReserveProductsRequest contains products to reserve
 message ReserveProductsRequest {
-  repeated ProductSaga products = 1;
+  repeated ProductSaga products = 1;  // List of products with quantities to reserve
 }
 
+// ProductSaga represents a product in saga transaction
 message ProductSaga {
-  int64 id = 1;
-  int64 quantity = 2;
+  int64 id = 1;        // Product ID
+  int64 quantity = 2;  // Quantity to reserve/release/commit
 }
 
+// ReserveProductsResponse indicates reservation result
 message ReserveProductsResponse {
-  bool success = 1;
-  string error = 2;
+  bool success = 1;    // True if reservation successful
+  string error = 2;    // Error message if failed
 }
 
+// ReleaseProductsRequest contains products to release
 message ReleaseProductsRequest {
-  repeated ProductSaga products = 1;
+  repeated ProductSaga products = 1;  // List of products with quantities to release
 }
 
+// ReleaseProductsResponse indicates release result
 message ReleaseProductsResponse {
-  bool success = 1;
-  string error = 2;
+  bool success = 1;    // True if release successful
+  string error = 2;    // Error message if failed
 }
 
+// CommitProductsRequest contains products to commit
 message CommitProductsRequest {
-  repeated ProductSaga products = 1;
+  repeated ProductSaga products = 1;  // List of products with quantities to commit
 }
 
+// CommitProductsResponse indicates commit result
 message CommitProductsResponse {
-  bool success = 1;
-  string error = 2;
+  bool success = 1;    // True if commit successful
+  string error = 2;    // Error message if failed
 }
 
+// GetProductByIDRequest contains product ID to retrieve
 message GetProductByIDRequest {
-  int64 id = 1;
+  int64 id = 1;  // Product ID (required)
 }
 
+// GetProductByIDResponse contains requested product or error
 message GetProductByIDResponse {
-  string error = 1;
-  Product product = 2;
+  string error = 1;    // Error message if product not found or other error
+  Product product = 2; // Product details (null if error)
 }
 
+// GetProductsByIDRequest contains multiple product IDs
 message GetProductsByIDRequest {
-  repeated int64 ids = 1;
+  repeated int64 ids = 1;  // List of product IDs to retrieve
 }
 
+// GetProductsByIDResponse contains requested products
 message GetProductsByIDResponse {
-  string error = 1;
-  repeated Product products = 2;
+  string error = 1;           // Error message if any
+  repeated Product products = 2;  // List of found products (may be partial if some IDs not found)
 }
 
+// Product represents a product in the catalog
 message Product {
-  int64 id = 1;
-  string name = 2;
-  string description = 3;
-  int64 price = 4;
+  int64 id = 1;            // Unique product ID
+  string name = 2;         // Product name
+  string description = 3;  // Product description
+  int64 price = 4;         // Product price in cents (e.g., 1000 = $10.00)
 }
