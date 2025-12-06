@@ -10,6 +10,7 @@ import (
 type Config struct {
 	GRPCUserServer int
 	GRPCSagaServer int
+	HTTPGateway    int
 	GRPCClient     string
 	PGPort         string
 	Host           string
@@ -25,6 +26,7 @@ func MustLoad() (*Config, error) {
 	}
 	cfg.GRPCUserServer = getEnvAsInt("GRPC_USER_SERVER_PORT", 50050)
 	cfg.GRPCSagaServer = getEnvAsInt("GRPC_SAGA_SERVER_PORT", 50054)
+	cfg.HTTPGateway = getEnvAsInt("HTTP_GATEWAY_PORT", 8080)
 	cfg.GRPCClient = os.Getenv("GRPC_CLIENT_PORT")
 	cfg.PGPort = os.Getenv("PG_PORT")
 	cfg.Host = os.Getenv("PG_HOST")
