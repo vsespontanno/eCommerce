@@ -4,66 +4,95 @@ package proto_wallet;
 
 option go_package = "github.com/vsespontanno/eCommerce/internal/proto/wallet";
 
+import "google/api/annotations.proto";
+
+// WalletTopUP service handles user wallet operations (authenticated)
 service WalletTopUP {
-  rpc CreateWallet (CreateWalletRequest) returns (CreateWalletResponse);
-  rpc Balance (BalanceRequest) returns (BalanceResponse);
-  rpc TopUp (TopUpRequest) returns (TopUpResponse);
+  rpc CreateWallet (CreateWalletRequest) returns (CreateWalletResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/wallet/create"
+      body: "*"
+    };
+  }
+  rpc Balance (BalanceRequest) returns (BalanceResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/wallet/balance"
+    };
+  }
+  rpc TopUp (TopUpRequest) returns (TopUpResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/wallet/topup"
+      body: "*"
+    };
+  }
 }
 
+// Wallet service handles saga transaction operations (internal, no auth)
 service Wallet {
   rpc ReserveFunds (ReserveFundsRequest) returns (ReserveFundsResponse);
   rpc ReleaseFunds (ReleaseFundsRequest) returns (ReleaseFundsResponse);
   rpc CommitFunds (CommitFundsRequest) returns (CommitFundsResponse);
 }
 
+// ReserveFundsRequest reserves funds for a transaction
 message ReserveFundsRequest {
   int64 user_id = 1;
-  int64 amount = 2;
+  int64 amount = 2; // Amount in cents/kopecks
+  string transaction_id = 3; // For idempotency
 }
 
 message ReserveFundsResponse {
   bool success = 1;
-  string error = 2;
+  string message = 2;
 }
 
+// ReleaseFundsRequest releases previously reserved funds (rollback)
 message ReleaseFundsRequest {
   int64 user_id = 1;
   int64 amount = 2;
+  string transaction_id = 3;
 }
 
 message ReleaseFundsResponse {
   bool success = 1;
-  string error = 2;
+  string message = 2;
 }
 
+// CommitFundsRequest commits reserved funds (final deduction)
 message CommitFundsRequest {
   int64 user_id = 1;
   int64 amount = 2;
+  string transaction_id = 3;
 }
 
 message CommitFundsResponse {
   bool success = 1;
-  string error = 2;
+  string message = 2;
 }
 
+// TopUpRequest adds funds to user wallet
 message TopUpRequest {
-  int64 amount = 2; // Amount to top up
+  int64 amount = 1; // Amount in cents/kopecks (must be positive)
 }
 
 message TopUpResponse {
-  bool success = 1; // True if the top up was successful, false otherwise
-  string error = 2; // Error message if the top up failed
+  bool success = 1;
+  string message = 2;
+  int64 new_balance = 3; // New balance after top up
 }
 
 message BalanceRequest {
+  // User ID extracted from JWT token
 }
 
 message BalanceResponse {
-  int64 balance = 1;
-  string error = 2;
+  int64 balance = 1; // Current available balance
+  int64 reserved = 2; // Currently reserved amount
+  string message = 3; // Error or info message
 }
 
 message CreateWalletRequest {
+  // User ID extracted from JWT token
 }
 
 message CreateWalletResponse {
