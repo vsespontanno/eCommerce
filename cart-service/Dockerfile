@@ -1,4 +1,4 @@
-# Simple Dockerfile for SSO service
+# Simple Dockerfile for Cart service
 FROM golang:1.23
 
 # Set working directory
@@ -12,11 +12,11 @@ RUN go mod download
 COPY . .
 
 # Build the application
-WORKDIR /app/sso-service
-RUN go build -o /app/sso-service-bin ./cmd/server/main.go
+WORKDIR /app/cart-service
+RUN go build -o /app/cart-service-bin ./cmd/server/main.go
 
-# Expose ports (gRPC and HTTP)
-EXPOSE 50051 8080
+# Expose HTTP port
+EXPOSE 8082
 
 # Run the application
-CMD ["/app/sso-service-bin"]
+CMD ["/app/cart-service-bin"]
