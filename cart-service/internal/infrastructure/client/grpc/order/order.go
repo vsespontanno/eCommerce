@@ -6,14 +6,14 @@ import (
 	"log"
 
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/order/entity"
-	order "github.com/vsespontanno/eCommerce/proto/orders"
+	proto "github.com/vsespontanno/eCommerce/proto/orders"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 type OrderClient struct {
-	client order.OrderClient
+	client proto.OrderClient
 	logger *zap.SugaredLogger
 	port   string
 }
