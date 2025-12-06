@@ -44,7 +44,6 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 			Suffix("FOR UPDATE")
 
 		sqlStr, args, _ := qb.ToSql()
-		fmt.Println("SQL:", sqlStr)
 
 		var quantity, reserved int
 		row := tx.QueryRowContext(ctx, sqlStr, args...)
@@ -68,7 +67,6 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 			Where(sq.Eq{"productID": it.ProductID})
 
 		updateSQL, updateArgs, _ := ub.ToSql()
-		fmt.Println("UPDATE SQL:", updateSQL)
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
 			return err
 		}
@@ -96,7 +94,6 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 
 		sqlStr, args, _ := qb.ToSql()
 		var reserved int
-		fmt.Println("SQL:", sqlStr)
 		if err := tx.QueryRowContext(ctx, sqlStr, args...).Scan(&reserved); err != nil {
 			return err
 		}
@@ -106,7 +103,6 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 			Set("reserved", sq.Expr("GREATEST(reserved - ?, 0)", it.Qty)).
 			Where(sq.Eq{"productID": it.ProductID})
 		updateSQL, updateArgs, _ := ub.ToSql()
-		fmt.Println("UPDATE SQL:", updateSQL)
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
 			return err
 		}
@@ -138,11 +134,14 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 		if quantity < it.Qty {
 			return fmt.Errorf("%w: productID=%d requested=%d available=%d", apperrors.ErrNotEnoughStock, it.ProductID, it.Qty, quantity)
 		}
+		if reserved < it.Qty {
+			return fmt.Errorf("insufficient reserved quantity: productID=%d reserved=%d requested=%d", it.ProductID, reserved, it.Qty)
+		}
 
 		ub := s.builder.
 			Update("products").
 			Set("productquantity", sq.Expr("productquantity - ?", it.Qty)).
-			Set("reserved", sq.Expr("GREATEST(reserved - ?, 0)", it.Qty)).
+			Set("reserved", sq.Expr("reserved - ?", it.Qty)).
 			Where(sq.Eq{"productID": it.ProductID})
 		updateSQL, updateArgs, _ := ub.ToSql()
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {

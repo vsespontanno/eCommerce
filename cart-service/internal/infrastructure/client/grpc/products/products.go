@@ -34,17 +34,20 @@ func NewProductsClient(port string, logger *zap.SugaredLogger) *ProductsClient {
 }
 
 func (c *ProductsClient) Product(ctx context.Context, id int64) (*entity.CartItem, error) {
-	res, err := c.client.GetProductByID(context.Background(), &products.GetProductByIDRequest{Id: id})
+	res, err := c.client.GetProductByID(ctx, &products.GetProductByIDRequest{Id: id})
 	if err != nil {
-		c.logger.Errorf("error while getting product: %w", err.Error())
-		return &entity.CartItem{}, err
+		c.logger.Errorf("error while getting product: %v", err)
+		return nil, err
 	}
-	var product entity.CartItem
 	if res.Product == nil {
-		return &entity.CartItem{}, apperrors.ErrProductIsNotInStock
+		return nil, apperrors.ErrProductIsNotInStock
 	}
-	product.ProductID = res.Product.Id
-	product.Price = res.Product.Price
 
-	return &product, nil
+	product := &entity.CartItem{
+		ProductID: res.Product.Id,
+		Price:     res.Product.Price,
+		Quantity:  1,
+	}
+
+	return product, nil
 }

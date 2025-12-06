@@ -34,6 +34,21 @@ func (s *OrderStore) CreateOrder(ctx context.Context, order *entity.Order) error
 	}
 	defer tx.Rollback()
 
+	// Проверка идемпотентности - заказ с таким ID уже существует?
+	var exists bool
+	err = tx.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM orders WHERE id = $1)`,
+		order.OrderID,
+	).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("check order exists: %w", err)
+	}
+
+	if exists {
+		s.logger.Infow("order already exists, skipping", "order_id", order.OrderID)
+		return nil // Идемпотентность - заказ уже создан
+	}
+
 	// insert into orders (UUID as string)
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO orders (id, user_id, total, status)

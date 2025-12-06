@@ -76,11 +76,16 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 				if err != nil {
 					continue
 				}
-				if order.Status == "Pending" {
+				// Обрабатываем только успешно завершенные заказы из saga
+				if order.Status == "Completed" {
 					if err := k.orderCompleter.CompleteOrder(ctx, order); err != nil {
-						k.logger.Errorw("Error cleaning cart", "order_id", order.OrderID, "error", err)
+						k.logger.Errorw("Error completing order", "order_id", order.OrderID, "error", err)
+						// НЕ коммитим offset при ошибке - сообщение будет обработано повторно
 						continue
 					}
+					k.logger.Infow("Order completed successfully", "order_id", order.OrderID, "user_id", order.UserID)
+				} else {
+					k.logger.Warnw("Received order with unexpected status", "order_id", order.OrderID, "status", order.Status)
 				}
 
 				if _, err := k.consumer.CommitMessage(msg); err != nil {
