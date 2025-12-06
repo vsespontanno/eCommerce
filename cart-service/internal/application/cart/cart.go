@@ -2,7 +2,6 @@ package cart
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/apperrors"
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/cart/entity"
@@ -30,26 +29,26 @@ type PostgresCartRepo interface {
 }
 
 type CartService struct {
-	sugarLogger   *zap.SugaredLogger
-	redisStore    RedisCartRepo
-	productClient Producter
-	cartStore     PostgresCartRepo
+	sugarLogger        *zap.SugaredLogger
+	redisStore         RedisCartRepo
+	productClient      Producter
+	cartStore          PostgresCartRepo
+	maxProductQuantity int
 }
 
-func NewCart(logger *zap.SugaredLogger, redisStore RedisCartRepo, productClient Producter, cartStore PostgresCartRepo) *CartService {
+func NewCart(logger *zap.SugaredLogger, redisStore RedisCartRepo, productClient Producter, cartStore PostgresCartRepo, maxProductQuantity int) *CartService {
 	return &CartService{
-		sugarLogger:   logger,
-		redisStore:    redisStore,
-		productClient: productClient,
-		cartStore:     cartStore,
+		sugarLogger:        logger,
+		redisStore:         redisStore,
+		productClient:      productClient,
+		cartStore:          cartStore,
+		maxProductQuantity: maxProductQuantity,
 	}
 }
 
 func (s *CartService) Cart(ctx context.Context, userID int64) (*entity.Cart, error) {
-	fmt.Println("stage 3")
 	cart, err := s.redisStore.GetCart(ctx, userID)
 	if err != nil {
-		fmt.Println("stage 4 - need")
 		if err == apperrors.ErrNoCartFound {
 			dbCart, err := s.cartStore.GetCart(ctx, userID)
 			if err != nil {
@@ -94,7 +93,7 @@ func (s *CartService) AddProductToCart(ctx context.Context, userID int64, produc
 		product.UserID = userID
 		return s.redisStore.AddNewProductToCart(ctx, userID, product)
 	}
-	if q.Quantity == 100 {
+	if q.Quantity >= int64(s.maxProductQuantity) {
 		return apperrors.ErrTooManyProductsOfOneType
 	}
 	err = s.redisStore.IncrementInCart(ctx, userID, productID)

@@ -39,10 +39,15 @@ func (w *WalletClient) ReserveFunds(ctx context.Context, userID int64, amount in
 		Amount: amount,
 	})
 	if err != nil {
-		w.logger.Errorw("Error reserving funds", "error", err, "stage", "WalletClient.ReserveFunds")
-		return fmt.Sprintf("success=%v, error=%s", response.Success, response.Error), err
+		w.logger.Errorw("Error reserving funds", "error", err, "userID", userID, "amount", amount)
+		return "", err
 	}
-	return fmt.Sprintf("success=%v, error=%s", response.Success, response.Error), err
+	if !response.Success {
+		w.logger.Errorw("Failed to reserve funds", "error", response.Error, "userID", userID, "amount", amount)
+		return "", fmt.Errorf("reserve funds failed: %s", response.Error)
+	}
+	w.logger.Infow("Funds reserved successfully", "userID", userID, "amount", amount)
+	return "success", nil
 }
 
 func (w *WalletClient) CommitFunds(ctx context.Context, userID int64, amount int64) (string, error) {
@@ -51,10 +56,15 @@ func (w *WalletClient) CommitFunds(ctx context.Context, userID int64, amount int
 		Amount: amount,
 	})
 	if err != nil {
-		w.logger.Errorw("Error committing funds", "error", err, "stage", "WalletClient.CommitFunds")
-		return fmt.Sprintf("success=%v, error=%s", resp.Success, resp.Error), err
+		w.logger.Errorw("Error committing funds", "error", err, "userID", userID, "amount", amount)
+		return "", err
 	}
-	return fmt.Sprintf("success=%v, error=%s", resp.Success, resp.Error), err
+	if !resp.Success {
+		w.logger.Errorw("Failed to commit funds", "error", resp.Error, "userID", userID, "amount", amount)
+		return "", fmt.Errorf("commit funds failed: %s", resp.Error)
+	}
+	w.logger.Infow("Funds committed successfully", "userID", userID, "amount", amount)
+	return "success", nil
 }
 
 func (w *WalletClient) ReleaseFunds(ctx context.Context, userID int64, amount int64) (string, error) {
@@ -63,8 +73,13 @@ func (w *WalletClient) ReleaseFunds(ctx context.Context, userID int64, amount in
 		Amount: amount,
 	})
 	if err != nil {
-		w.logger.Errorw("Error releasing funds", "error", err, "stage", "WalletClient.ReleaseFunds")
-		return fmt.Sprintf("success=%v, error=%s", resp.Success, resp.Error), err
+		w.logger.Errorw("Error releasing funds", "error", err, "userID", userID, "amount", amount)
+		return "", err
 	}
-	return fmt.Sprintf("success=%v, error=%s", resp.Success, resp.Error), err
+	if !resp.Success {
+		w.logger.Errorw("Failed to release funds", "error", resp.Error, "userID", userID, "amount", amount)
+		return "", fmt.Errorf("release funds failed: %s", resp.Error)
+	}
+	w.logger.Infow("Funds released successfully", "userID", userID, "amount", amount)
+	return "success", nil
 }

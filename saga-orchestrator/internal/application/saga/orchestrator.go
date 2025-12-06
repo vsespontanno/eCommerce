@@ -46,61 +46,88 @@ func New(config *config.Config, wallet MoneyReserver, products ProductsReserver,
 	return &Orchestrator{config: config, logger: logger, wallet: wallet, products: products, eventer: eventer}
 }
 
-// TODO: product reserve; release; generic func to release if something's wrong;
 func (o *Orchestrator) SagaTransaction(ctx context.Context, Order orderEntity.OrderEvent) error {
+	// Шаг 1: Резервируем деньги
 	_, err := o.wallet.ReserveFunds(ctx, Order.UserID, Order.Total)
 	if err != nil {
+		o.logger.Errorw("Failed to reserve funds", "error", err, "userID", Order.UserID, "amount", Order.Total)
 		o.rollbackTransaction(ctx, Order, StepWallet)
 		return fmt.Errorf("wallet reserve failed: %w", err)
 	}
 
+	// Сортируем товары по ID для предотвращения deadlock
 	sort.Slice(Order.Products, func(i, j int) bool {
 		return Order.Products[i].ID < Order.Products[j].ID
 	})
 
+	// Шаг 2: Резервируем товары
 	_, err = o.products.ReserveProducts(ctx, Order.Products)
 	if err != nil {
-		o.logger.Errorw("Error reserving products", "error", err, "stage", "Orchestrator.SagaTransaction", "step", 1)
+		o.logger.Errorw("Failed to reserve products", "error", err, "orderID", Order.OrderID)
 		o.rollbackTransaction(ctx, Order, StepProducts)
-		return err
+		return fmt.Errorf("products reserve failed: %w", err)
 	}
 
-	err = o.eventer.ProccessEvent(ctx, Order)
-	if err != nil {
-		o.logger.Errorw("Failed to publish Kafka message", "orderID", Order.OrderID, "error", err)
-		o.rollbackTransaction(ctx, Order, StepProducts)
-		return err
-	}
-
+	// Шаг 3: Коммитим деньги
 	_, err = o.wallet.CommitFunds(ctx, Order.UserID, Order.Total)
 	if err != nil {
-		o.logger.Errorw("Error committing funds", "error", err, "stage", "Orchestrator.SagaTransaction", "step", 2)
+		o.logger.Errorw("Failed to commit funds", "error", err, "orderID", Order.OrderID)
 		o.rollbackTransaction(ctx, Order, StepProducts)
-		return err
+		return fmt.Errorf("wallet commit failed: %w", err)
 	}
+
+	// Шаг 4: Коммитим товары
 	_, err = o.products.CommitProducts(ctx, Order.Products)
 	if err != nil {
-		o.logger.Errorw("Error committing products", "error", err, "stage", "Orchestrator.SagaTransaction", "step", 3)
+		o.logger.Errorw("Failed to commit products", "error", err, "orderID", Order.OrderID)
+		// КРИТИЧНО: Если commit товаров упал, нужно откатить commit денег!
+		// Но это уже сложная ситуация - деньги уже списаны
+		o.logger.Errorw("CRITICAL: Funds committed but products commit failed - manual intervention required", "orderID", Order.OrderID)
 		o.rollbackTransaction(ctx, Order, StepProducts)
-		return err
+		return fmt.Errorf("products commit failed: %w", err)
 	}
+
+	// Шаг 5: ТОЛЬКО ПОСЛЕ успешного commit отправляем в Kafka
+	Order.Status = "Completed"
+	err = o.eventer.ProccessEvent(ctx, Order)
+	if err != nil {
+		o.logger.Errorw("Failed to publish Kafka message (order already completed)", "orderID", Order.OrderID, "error", err)
+		// Заказ уже выполнен, но событие не отправлено - это не критично
+		// Можно добавить retry механизм или outbox pattern
+		return fmt.Errorf("kafka publish failed (order completed): %w", err)
+	}
+
+	o.logger.Infow("Saga transaction completed successfully", "orderID", Order.OrderID, "userID", Order.UserID)
 	return nil
 }
 
 func (o *Orchestrator) rollbackTransaction(ctx context.Context, Order orderEntity.OrderEvent, step SagaStep) {
+	o.logger.Infow("Starting rollback", "orderID", Order.OrderID, "step", step)
+
 	switch step {
-	case 1:
-		// Отменяем только резерв бабок
+	case StepWallet:
+		// Отменяем только резерв денег
 		if _, err := o.wallet.ReleaseFunds(ctx, Order.UserID, Order.Total); err != nil {
-			o.logger.Errorw("rollback: failed to release funds", "error", err)
+			o.logger.Errorw("rollback: failed to release funds", "orderID", Order.OrderID, "error", err)
+		} else {
+			o.logger.Infow("rollback: funds released successfully", "orderID", Order.OrderID)
 		}
-	case 2:
-		// Отменяем всё
+
+	case StepProducts:
+		// Отменяем резерв товаров
 		if _, err := o.products.ReleaseProducts(ctx, Order.Products); err != nil {
-			o.logger.Errorw("rollback: failed to release products", "error", err)
+			o.logger.Errorw("rollback: failed to release products", "orderID", Order.OrderID, "error", err)
+		} else {
+			o.logger.Infow("rollback: products released successfully", "orderID", Order.OrderID)
 		}
+
+		// Отменяем резерв денег
 		if _, err := o.wallet.ReleaseFunds(ctx, Order.UserID, Order.Total); err != nil {
-			o.logger.Errorw("rollback: failed to release funds", "error", err)
+			o.logger.Errorw("rollback: failed to release funds", "orderID", Order.OrderID, "error", err)
+		} else {
+			o.logger.Infow("rollback: funds released successfully", "orderID", Order.OrderID)
 		}
 	}
+
+	o.logger.Infow("Rollback completed", "orderID", Order.OrderID)
 }

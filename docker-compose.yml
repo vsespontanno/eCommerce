@@ -69,6 +69,8 @@ services:
       - products-service-3
       - wallet-service-1
       - wallet-service-2
+      - cart-service-1
+      - cart-service-2
     restart: always
     networks:
       - ecommerce-network
@@ -243,6 +245,109 @@ services:
     depends_on:
       - postgres
       - sso-service-2
+    networks:
+      - ecommerce-network
+
+  # Cart Service - Replica 1
+  cart-service-1:
+    build:
+      context: .
+      dockerfile: cart-service/Dockerfile
+    container_name: cart-service-1
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      HTTP_PORT: 8082
+      GRPC_JWT_CLIENT_PORT: sso-service-1:50051
+      GRPC_PRODUCTS_CLIENT_PORT: products-service-1:50052
+      GRPC_SAGA_CLIENT_PORT: saga-orchestrator:50054
+      GRPC_ORDER_CLIENT_PORT: order-service:50055
+      KAFKA_BROKERS: broker:9092
+      KAFKA_TOPIC: order-completed
+      KAFKA_GROUP_ID: cart-service-group
+    depends_on:
+      - postgres
+      - redis
+      - broker
+      - sso-service-1
+      - products-service-1
+      - saga-orchestrator
+      - order-service
+    networks:
+      - ecommerce-network
+
+  # Cart Service - Replica 2
+  cart-service-2:
+    build:
+      context: .
+      dockerfile: cart-service/Dockerfile
+    container_name: cart-service-2
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DB}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      HTTP_PORT: 8082
+      GRPC_JWT_CLIENT_PORT: sso-service-2:50051
+      GRPC_PRODUCTS_CLIENT_PORT: products-service-2:50052
+      GRPC_SAGA_CLIENT_PORT: saga-orchestrator:50054
+      GRPC_ORDER_CLIENT_PORT: order-service:50055
+      KAFKA_BROKERS: broker:9092
+      KAFKA_TOPIC: order-completed
+      KAFKA_GROUP_ID: cart-service-group
+    depends_on:
+      - postgres
+      - redis
+      - broker
+      - sso-service-2
+      - products-service-2
+      - saga-orchestrator
+      - order-service
+    networks:
+      - ecommerce-network
+
+  # Order Service
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: order-service
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DB}
+      GRPC_PORT: 50055
+    depends_on:
+      - postgres
+    networks:
+      - ecommerce-network
+
+  # Saga Orchestrator
+  saga-orchestrator:
+    build:
+      context: .
+      dockerfile: saga-orchestrator/Dockerfile
+    container_name: saga-orchestrator
+    environment:
+      GRPC_PORT: 50054
+      GRPC_PRODUCTS_CLIENT_PORT: products-service-1:50053
+      GRPC_WALLET_CLIENT_PORT: wallet-service-1:50054
+      KAFKA_BROKERS: broker:9092
+      KAFKA_TOPIC: order-completed
+    depends_on:
+      - broker
+      - products-service-1
+      - wallet-service-1
     networks:
       - ecommerce-network
 

@@ -54,55 +54,87 @@ func (s *Server) CreateOrder(ctx context.Context, req *proto.CreateOrderRequest)
 	return &proto.CreateOrderResponse{OrderId: id}, nil
 }
 
-// func (s *Server) GetOrder(ctx context.Context, req *proto.GetOrderRequest) (*proto.GetOrderResponse, error) {
-// 	o, err := s.svc.GetOrder(ctx, req.OrderId)
-// 	if err != nil {
-// 		s.logger.Errorw("get order failed", "err", err)
-// 		return nil, err
-// 	}
-// 	if o == nil {
-// 		return &proto.GetOrderResponse{Error: "not found"}, nil
-// 	}
+func (s *Server) GetOrder(ctx context.Context, req *proto.GetOrderRequest) (*proto.GetOrderResponse, error) {
+	if req.OrderId == "" {
+		s.logger.Warnw("empty order_id in GetOrder request")
+		return &proto.GetOrderResponse{}, nil
+	}
 
-// 	resp := &proto.GetOrderResponse{
-// 		Order.Order: o.OrderID,
-// 		UserId:  o.UserID,
-// 		Total:   o.Total,
-// 		Status:  o.Status,
-// 	}
+	o, err := s.svc.GetOrder(ctx, req.OrderId)
+	if err != nil {
+		s.logger.Errorw("get order failed", "order_id", req.OrderId, "err", err)
+		return nil, err
+	}
+	if o == nil {
+		s.logger.Warnw("order not found", "order_id", req.OrderId)
+		return &proto.GetOrderResponse{}, nil
+	}
 
-// 	for _, it := range o.Products {
-// 		resp.Items = append(resp.Items, &proto.OrderItem{
-// 			ProductId: it.ProductID,
-// 			Quantity:  it.Quantity,
-// 		})
-// 	}
+	// Конвертируем entity.Order в proto.OrderEvent
+	orderEvent := &proto.OrderEvent{
+		OrderId: o.OrderID,
+		UserId:  o.UserID,
+		Total:   o.Total,
+		Status:  o.Status,
+	}
 
-// 	return resp, nil
-// }
+	for _, it := range o.Products {
+		orderEvent.Items = append(orderEvent.Items, &proto.OrderItem{
+			ProductId: it.ProductID,
+			Quantity:  it.Quantity,
+		})
+	}
 
-// func (s *Server) ListOrders(ctx context.Context, req *proto.ListOrdersRequest) (*proto.ListOrdersResponse, error) {
-// 	orders, err := s.svc.ListOrdersByUser(ctx, req.UserId, int(req.Limit), int(req.Offset))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	resp := &proto.ListOrdersResponse{}
-// 	for _, o := range orders {
-// 		r := &proto.GetOrderResponse{
-// 			OrderId:   o.ID,
-// 			UserId:    o.UserID,
-// 			Total:     o.Total,
-// 			Status:    o.Status,
-// 			CreatedAt: o.CreatedAt.Unix(),
-// 		}
-// 		for _, it := range o.Items {
-// 			r.Items = append(r.Items, &proto.OrderItem{
-// 				ProductId: it.ProductID,
-// 				Price:     it.Price,
-// 				Quantity:  it.Quantity,
-// 			})
-// 		}
-// 		resp.Orders = append(resp.Orders, r)
-// 	}
-// 	return resp, nil
-// }
+	return &proto.GetOrderResponse{Order: orderEvent}, nil
+}
+
+func (s *Server) ListOrders(ctx context.Context, req *proto.ListOrdersRequest) (*proto.ListOrdersResponse, error) {
+	// Валидация
+	if req.UserId <= 0 {
+		s.logger.Warnw("invalid user_id in ListOrders", "user_id", req.UserId)
+		return &proto.ListOrdersResponse{Orders: []*proto.GetOrderResponse{}}, nil
+	}
+
+	limit := int(req.Limit)
+	if limit <= 0 || limit > 100 {
+		limit = 10 // default
+	}
+
+	offset := int(req.Offset)
+	if offset < 0 {
+		offset = 0
+	}
+
+	orders, err := s.svc.ListOrdersByUser(ctx, req.UserId, limit, offset)
+	if err != nil {
+		s.logger.Errorw("list orders failed", "user_id", req.UserId, "err", err)
+		return nil, err
+	}
+
+	resp := &proto.ListOrdersResponse{
+		Orders: make([]*proto.GetOrderResponse, 0, len(orders)),
+	}
+
+	for _, o := range orders {
+		orderEvent := &proto.OrderEvent{
+			OrderId: o.OrderID,
+			UserId:  o.UserID,
+			Total:   o.Total,
+			Status:  o.Status,
+		}
+
+		for _, it := range o.Products {
+			orderEvent.Items = append(orderEvent.Items, &proto.OrderItem{
+				ProductId: it.ProductID,
+				Quantity:  it.Quantity,
+			})
+		}
+
+		resp.Orders = append(resp.Orders, &proto.GetOrderResponse{
+			Order: orderEvent,
+		})
+	}
+
+	s.logger.Infow("orders listed", "user_id", req.UserId, "count", len(orders))
+	return resp, nil
+}

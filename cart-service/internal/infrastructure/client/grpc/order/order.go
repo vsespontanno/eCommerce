@@ -2,6 +2,7 @@ package order
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/vsespontanno/eCommerce/cart-service/internal/domain/order/entity"
@@ -23,8 +24,8 @@ func NewOrderClient(port string, logger *zap.SugaredLogger) *OrderClient {
 	if err != nil {
 		log.Fatalf("Failed to dial gRPC server %s: %v", addr, err)
 	}
-	client := proto.NewOrderClient(conn)
-	logger.Infow("Connected to Products service as a client")
+	client := order.NewOrderClient(conn)
+	logger.Infow("Connected to Order service as a client")
 	return &OrderClient{
 		client: client,
 		port:   port,
@@ -32,29 +33,38 @@ func NewOrderClient(port string, logger *zap.SugaredLogger) *OrderClient {
 	}
 }
 
-// need to implement
-func (o *OrderClient) CreateOrder(ctx context.Context, order *entity.OrderEvent) (string, error) {
-	items := make([]*proto.OrderItem, 0, len(order.Products))
-	for _, p := range order.Products {
-		items = append(items, &proto.OrderItem{
-			ProductId: p.ID,
-			Quantity:  p.Quantity,
-		})
-	}
-	newOrder := &proto.OrderEvent{
-		OrderId: order.OrderID,
-		UserId:  order.UserID,
-		Status:  order.Status,
-		Items:   items,
-		Total:   order.Total,
+func (o *OrderClient) CreateOrder(ctx context.Context, orderEvent *entity.OrderEvent) (string, error) {
+	// Конвертируем entity.OrderEvent в proto.OrderEvent
+	protoOrder := &order.OrderEvent{
+		OrderId: orderEvent.OrderID,
+		UserId:  orderEvent.UserID,
+		Total:   orderEvent.Total,
+		Status:  orderEvent.Status,
 	}
 
-	req := &proto.CreateOrderRequest{
-		Order: newOrder,
+	// Конвертируем Products
+	for _, p := range orderEvent.Products {
+		protoOrder.Items = append(protoOrder.Items, &order.OrderItem{
+			ProductId: p.ID,
+			Quantity:  int64(p.Quantity),
+		})
 	}
-	resp, err := o.client.CreateOrder(ctx, req)
+
+	// Вызываем gRPC метод
+	resp, err := o.client.CreateOrder(ctx, &order.CreateOrderRequest{
+		Order: protoOrder,
+	})
+
 	if err != nil {
-		return resp.Error, err
+		o.logger.Errorw("Failed to create order via gRPC", "error", err, "orderID", orderEvent.OrderID)
+		return "", err
 	}
+
+	if resp.Error != "" {
+		o.logger.Errorw("Order service returned error", "error", resp.Error, "orderID", orderEvent.OrderID)
+		return "", fmt.Errorf("order service error: %s", resp.Error)
+	}
+
+	o.logger.Infow("Order created successfully", "orderID", resp.OrderId)
 	return resp.OrderId, nil
 }

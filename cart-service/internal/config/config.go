@@ -23,9 +23,11 @@ type Config struct {
 	GRPCProductsClientPort string
 	GRPCSagaClientPort     string
 	GRPCOrderClientPort    string
+	GRPCSagaClientPort     string
 	KafkaBroker            string
 	KafkaGroup             string
 	KafkaTopic             string
+	MaxProductQuantity     int
 }
 
 func MustLoad() (*Config, error) {
@@ -49,6 +51,11 @@ func MustLoad() (*Config, error) {
 		RateLimitRPS = 60 // default 60 requests per minute
 	}
 
+	MaxProductQuantity, err := strconv.Atoi(os.Getenv("MAX_PRODUCT_QUANTITY"))
+	if err != nil {
+		MaxProductQuantity = 100 // default max 100 items per product
+	}
+
 	return &Config{
 		PGUser:                 os.Getenv("PG_USER"),
 		PGPassword:             os.Getenv("PG_PASSWORD"),
@@ -67,5 +74,6 @@ func MustLoad() (*Config, error) {
 		KafkaBroker:            os.Getenv("KAFKA_BROKER"),
 		KafkaGroup:             os.Getenv("KAFKA_GROUP_ID"),
 		KafkaTopic:             os.Getenv("KAFKA_TOPIC"),
+		MaxProductQuantity:     MaxProductQuantity,
 	}, nil
 }

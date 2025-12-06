@@ -40,17 +40,15 @@ func NewRateLimiter(rdb *redis.Client, rateLimitRPS int) *RateLimiter {
 
 func (rl *RateLimiter) RateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Получаем userID из контекста (должен быть установлен AuthMiddleware)
-		userID, ok := r.Context().Value(UserIDKey).(int64)
-		if !ok {
-			// Если нет userID, используем IP адрес
-			userID = 0 // fallback для неавторизованных пользователей
-		}
+		// Rate limiter работает ДО auth middleware, поэтому используем IP или токен
+		var key string
 
-		// Создаем ключ для rate limiting
-		key := fmt.Sprintf("user_%d", userID)
-		if userID == 0 {
-			// Для неавторизованных пользователей используем IP
+		// Пытаемся получить userID из контекста (если auth уже отработал)
+		userID, ok := r.Context().Value(UserIDKey).(int64)
+		if ok && userID != 0 {
+			key = fmt.Sprintf("user_%d", userID)
+		} else {
+			// Если auth еще не отработал, используем IP адрес
 			key = fmt.Sprintf("ip_%s", r.RemoteAddr)
 		}
 

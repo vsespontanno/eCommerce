@@ -13,19 +13,19 @@ import (
 	"go.uber.org/zap"
 )
 
-type OrderStore struct {
+type CartStore struct {
 	rdb    *redis.Client
 	logger *zap.SugaredLogger
 }
 
-func NewOrderStore(rdb *redis.Client, logger *zap.SugaredLogger) *OrderStore {
-	return &OrderStore{
+func NewCartStore(rdb *redis.Client, logger *zap.SugaredLogger) *CartStore {
+	return &CartStore{
 		rdb:    rdb,
 		logger: logger,
 	}
 }
 
-func (s *OrderStore) IncrementInCart(ctx context.Context, userID int64, productID int64) error {
+func (s *CartStore) IncrementInCart(ctx context.Context, userID int64, productID int64) error {
 	key := fmt.Sprintf("cart:%d", userID)
 	field := strconv.FormatInt(productID, 10)
 	existingJSON, err := s.rdb.HGet(ctx, key, field).Result()
@@ -55,7 +55,7 @@ func (s *OrderStore) IncrementInCart(ctx context.Context, userID int64, productI
 	return apperrors.ErrProductIsNotInCart
 }
 
-func (s *OrderStore) AddNewProductToCart(ctx context.Context, userID int64, product *entity.CartItem) error {
+func (s *CartStore) AddNewProductToCart(ctx context.Context, userID int64, product *entity.CartItem) error {
 	key := fmt.Sprintf("cart:%d", userID)
 	field := strconv.FormatInt(product.ProductID, 10)
 	data, err := json.Marshal(product)
@@ -70,7 +70,7 @@ func (s *OrderStore) AddNewProductToCart(ctx context.Context, userID int64, prod
 	return s.rdb.Expire(ctx, key, 30*24*time.Hour).Err()
 }
 
-func (s *OrderStore) SaveCart(ctx context.Context, userID int64, cart *entity.Cart) error {
+func (s *CartStore) SaveCart(ctx context.Context, userID int64, cart *entity.Cart) error {
 	key := fmt.Sprintf("cart:%d", userID)
 	for _, item := range cart.Items {
 		data, err := json.Marshal(item)
@@ -78,7 +78,8 @@ func (s *OrderStore) SaveCart(ctx context.Context, userID int64, cart *entity.Ca
 			s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
 			return err
 		}
-		if _, err := s.rdb.HSet(ctx, key, item.ProductID, data).Result(); err != nil {
+		field := strconv.FormatInt(item.ProductID, 10)
+		if _, err := s.rdb.HSet(ctx, key, field, data).Result(); err != nil {
 			s.logger.Errorw("Failed to add product to cart", "error", err, "stage", "AddToCart")
 			return err
 		}
@@ -86,7 +87,7 @@ func (s *OrderStore) SaveCart(ctx context.Context, userID int64, cart *entity.Ca
 	return s.rdb.Expire(ctx, key, 24*time.Hour).Err()
 }
 
-func (s *OrderStore) DecrementInCart(ctx context.Context, userID, productID int64) error {
+func (s *CartStore) DecrementInCart(ctx context.Context, userID, productID int64) error {
 	key := fmt.Sprintf("cart:%d", userID)
 	field := strconv.FormatInt(productID, 10)
 
@@ -116,7 +117,7 @@ func (s *OrderStore) DecrementInCart(ctx context.Context, userID, productID int6
 	return err
 }
 
-func (s *OrderStore) RemoveProductFromCart(ctx context.Context, userID int64, productID int64) error {
+func (s *CartStore) RemoveProductFromCart(ctx context.Context, userID int64, productID int64) error {
 	_, err := s.rdb.HDel(ctx, "cart:"+strconv.FormatInt(userID, 10), strconv.FormatInt(productID, 10)).Result()
 	if err != nil {
 		s.logger.Errorw("Failed to remove product from cart", "error", err, "stage", "RemoveProductFromCart")
@@ -125,7 +126,7 @@ func (s *OrderStore) RemoveProductFromCart(ctx context.Context, userID int64, pr
 	return nil
 }
 
-func (s *OrderStore) GetCartProducts(ctx context.Context, userID int64) (*entity.Cart, error) {
+func (s *CartStore) GetCartProducts(ctx context.Context, userID int64) (*entity.Cart, error) {
 	key := fmt.Sprintf("cart:%d", userID)
 	items, err := s.rdb.HGetAll(ctx, key).Result()
 	if err != nil {
@@ -145,7 +146,7 @@ func (s *OrderStore) GetCartProducts(ctx context.Context, userID int64) (*entity
 	return &cart, nil
 }
 
-func (s *OrderStore) ClearCart(ctx context.Context, userID int64) error {
+func (s *CartStore) ClearCart(ctx context.Context, userID int64) error {
 	_, err := s.rdb.Del(ctx, "cart:"+strconv.FormatInt(userID, 10)).Result()
 	if err != nil {
 		s.logger.Errorw("Failed to clear cart", "error", err, "stage", "ClearCart")
@@ -154,7 +155,7 @@ func (s *OrderStore) ClearCart(ctx context.Context, userID int64) error {
 	return nil
 }
 
-func (s *OrderStore) GetCart(ctx context.Context, userID int64) (*entity.Cart, error) {
+func (s *CartStore) GetCart(ctx context.Context, userID int64) (*entity.Cart, error) {
 	key := fmt.Sprintf("cart:%d", userID)
 	items, err := s.rdb.HGetAll(ctx, key).Result()
 	if err != nil {
@@ -179,7 +180,7 @@ func (s *OrderStore) GetCart(ctx context.Context, userID int64) (*entity.Cart, e
 	return &cart, nil
 }
 
-func (s *OrderStore) GetProduct(ctx context.Context, userID, productID int64) (*entity.CartItem, error) {
+func (s *CartStore) GetProduct(ctx context.Context, userID, productID int64) (*entity.CartItem, error) {
 	key := fmt.Sprintf("cart:%d", userID)
 	field := strconv.FormatInt(productID, 10)
 
@@ -201,7 +202,7 @@ func (s *OrderStore) GetProduct(ctx context.Context, userID, productID int64) (*
 	return &p, nil
 }
 
-func (s *OrderStore) DeleteProduct(ctx context.Context, userID, productID int64) error {
+func (s *CartStore) DeleteProduct(ctx context.Context, userID, productID int64) error {
 	_, err := s.rdb.HDel(ctx, "cart:"+strconv.FormatInt(userID, 10), strconv.FormatInt(productID, 10)).Result()
 	if err != nil {
 		s.logger.Errorw("Failed to remove product from cart", "error", err, "stage", "RemoveProductFromCart")

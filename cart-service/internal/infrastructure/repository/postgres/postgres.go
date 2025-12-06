@@ -51,6 +51,11 @@ func (s *CartStore) GetCart(ctx context.Context, userID int64) (*entity.Cart, er
 		}
 		cart.Items = append(cart.Items, item)
 	}
+
+	if len(cart.Items) == 0 {
+		return &entity.Cart{}, apperrors.ErrNoCartFound
+	}
+
 	return &cart, nil
 }
 

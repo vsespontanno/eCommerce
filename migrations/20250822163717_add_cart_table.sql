@@ -9,6 +9,9 @@ CREATE TABLE IF NOT EXISTS cart (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_cart_user_product ON cart (user_id, product_id);
+CREATE INDEX IF NOT EXISTS idx_cart_user_id ON cart (user_id);
 
 -- +goose Down
+DROP INDEX IF EXISTS idx_cart_user_id;
+DROP INDEX IF EXISTS idx_cart_user_product;
 DROP TABLE IF EXISTS cart;
