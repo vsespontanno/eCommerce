@@ -13,7 +13,7 @@ import (
 
 func AuthInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		if info.FullMethod == "/proto_wallet.Creator/CreateWallet" {
+		if info.FullMethod == "/proto_wallet.Wallet/ReserveFunds" || info.FullMethod == "/proto_wallet.Wallet/ReleaseFunds" || info.FullMethod == "/proto_wallet.Wallet/CommitFunds" {
 			return handler(ctx, req)
 		}
 		md, ok := metadata.FromIncomingContext(ctx)

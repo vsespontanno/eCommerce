@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net"
 	"os"
@@ -17,6 +18,7 @@ import (
 	db "github.com/vsespontanno/eCommerce/wallet-service/internal/infrastructure/db/postgres"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/infrastructure/grpcClient"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/infrastructure/repository/postgres"
+	"github.com/vsespontanno/eCommerce/wallet-service/internal/presentation/gateway"
 	sagaServ "github.com/vsespontanno/eCommerce/wallet-service/internal/presentation/server/saga"
 	userServ "github.com/vsespontanno/eCommerce/wallet-service/internal/presentation/server/user"
 	"github.com/vsespontanno/eCommerce/wallet-service/internal/presentation/server/user/interceptor"
@@ -27,13 +29,16 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// App holds servers and logger
+// App holds servers, database connection, gateway and logger
 type App struct {
-	Log      *zap.SugaredLogger
-	usrServ  *grpc.Server
-	sagaSrv  *grpc.Server
-	userPort int
-	sagaPort int
+	Log         *zap.SugaredLogger
+	usrServ     *grpc.Server
+	sagaSrv     *grpc.Server
+	gateway     *gateway.Gateway
+	db          *sql.DB
+	userPort    int
+	sagaPort    int
+	gatewayPort int
 }
 
 // New builds the app (does not run servers)
@@ -63,12 +68,19 @@ func New(logger *zap.SugaredLogger, cfg *config.Config) (*App, error) {
 	userServ.NewUserWalletServer(userGRPCServer, userSvc, logger)
 	sagaServ.NewWalletSagaServer(sagaGRPCServer, sagaSvc, logger)
 
+	// Initialize HTTP Gateway
+	grpcUserAddr := fmt.Sprintf("localhost:%d", cfg.GRPCUserServer)
+	gw := gateway.NewGateway(grpcUserAddr, cfg.HTTPGateway, logger)
+
 	return &App{
-		Log:      logger,
-		usrServ:  userGRPCServer,
-		sagaSrv:  sagaGRPCServer,
-		userPort: cfg.GRPCUserServer,
-		sagaPort: cfg.GRPCSagaServer,
+		Log:         logger,
+		usrServ:     userGRPCServer,
+		sagaSrv:     sagaGRPCServer,
+		gateway:     gw,
+		db:          dataBase,
+		userPort:    cfg.GRPCUserServer,
+		sagaPort:    cfg.GRPCSagaServer,
+		gatewayPort: cfg.HTTPGateway,
 	}, nil
 }
 
@@ -118,7 +130,7 @@ func (a *App) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	errCh := make(chan error, 2)
+	errCh := make(chan error, 3)
 
 	// start user server
 	go func() {
@@ -155,20 +167,43 @@ func (a *App) Run() error {
 		}
 	}()
 
+	// start HTTP gateway
+	go func() {
+		a.Log.Infof("HTTP Gateway starting on :%d", a.gatewayPort)
+		if err := a.gateway.Start(ctx); err != nil {
+			a.Log.Infow("HTTP gateway stopped", "error", err)
+		}
+	}()
+
 	// wait for either context cancel (signal) or any server error
 	select {
 	case <-ctx.Done():
 		// shutdown initiated by signal
 		a.Log.Infow("shutdown signal received, graceful stopping servers", "reason", ctx.Err())
 		st := time.Now()
+
+		// Stop HTTP gateway
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := a.gateway.Stop(shutdownCtx); err != nil {
+			a.Log.Errorw("failed to stop HTTP gateway", "error", err)
+		}
+
+		// Stop gRPC servers
 		a.usrServ.GracefulStop()
 		a.sagaSrv.GracefulStop()
+
 		a.Log.Infow("servers stopped", "duration", time.Since(st).String())
 		return nil
 	case err := <-errCh:
 		// server returned an unexpected error
-		a.Log.Errorw("grpc server returned error", "error", err)
+		a.Log.Errorw("server returned error", "error", err)
+
 		// attempt graceful shutdown
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = a.gateway.Stop(shutdownCtx)
+
 		a.usrServ.GracefulStop()
 		a.sagaSrv.GracefulStop()
 		return err
@@ -177,7 +212,25 @@ func (a *App) Run() error {
 
 // Stop attempts graceful stop (can be called externally)
 func (a *App) Stop() {
-	a.Log.Info("shutting down the grpc servers (Stop called)")
+	a.Log.Info("shutting down all servers and database connection")
+
+	// Stop HTTP gateway
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := a.gateway.Stop(ctx); err != nil {
+		a.Log.Errorw("failed to stop HTTP gateway", "error", err)
+	}
+
+	// Stop gRPC servers
 	a.usrServ.GracefulStop()
 	a.sagaSrv.GracefulStop()
+
+	// Close database connection
+	if a.db != nil {
+		if err := a.db.Close(); err != nil {
+			a.Log.Errorw("failed to close database connection", "error", err)
+		} else {
+			a.Log.Info("database connection closed successfully")
+		}
+	}
 }

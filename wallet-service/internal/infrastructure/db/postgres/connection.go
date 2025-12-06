@@ -1,14 +1,24 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"time"
 
 	_ "github.com/lib/pq"
 )
 
+const (
+	// Connection pool settings
+	maxOpenConns    = 25
+	maxIdleConns    = 5
+	connMaxLifetime = 5 * time.Minute
+	connMaxIdleTime = 2 * time.Minute
+	pingTimeout     = 5 * time.Second
+)
+
+// ConnectToPostgres establishes a connection to PostgreSQL database
 func ConnectToPostgres(user, password, dbname, host, port string) (*sql.DB, error) {
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
 		user, password, dbname, host, port)
@@ -18,15 +28,20 @@ func ConnectToPostgres(user, password, dbname, host, port string) (*sql.DB, erro
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 
-	err = db.Ping()
-	if err != nil {
+	// Verify connection with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-	db.SetConnMaxIdleTime(2 * time.Minute)
-	log.Println("Connected to Postgres")
+	// Configure connection pool
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(maxIdleConns)
+	db.SetConnMaxLifetime(connMaxLifetime)
+	db.SetConnMaxIdleTime(connMaxIdleTime)
+
 	return db, nil
 }
