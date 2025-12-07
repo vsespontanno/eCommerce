@@ -34,16 +34,20 @@ type ProductsReserver interface {
 	ReleaseProducts(ctx context.Context, productIDs []entity.Product) (bool, error)
 }
 
+type OutboxRepo interface {
+	SaveEvent(ctx context.Context, event orderEntity.OrderEvent) error
+}
+
 type Orchestrator struct {
 	config   *config.Config
 	logger   *zap.SugaredLogger
 	wallet   MoneyReserver
 	products ProductsReserver
-	eventer  Eventer
+	outboxer OutboxRepo
 }
 
-func New(config *config.Config, wallet MoneyReserver, products ProductsReserver, eventer Eventer, logger *zap.SugaredLogger) *Orchestrator {
-	return &Orchestrator{config: config, logger: logger, wallet: wallet, products: products, eventer: eventer}
+func New(config *config.Config, wallet MoneyReserver, products ProductsReserver, outboxer OutboxRepo, logger *zap.SugaredLogger) *Orchestrator {
+	return &Orchestrator{config: config, logger: logger, wallet: wallet, products: products, outboxer: outboxer}
 }
 
 func (o *Orchestrator) SagaTransaction(ctx context.Context, Order orderEntity.OrderEvent) error {
@@ -89,12 +93,11 @@ func (o *Orchestrator) SagaTransaction(ctx context.Context, Order orderEntity.Or
 
 	// Шаг 5: ТОЛЬКО ПОСЛЕ успешного commit отправляем в Kafka
 	Order.Status = "Completed"
-	err = o.eventer.ProccessEvent(ctx, Order)
+	err = o.outboxer.SaveEvent(ctx, Order)
 	if err != nil {
-		o.logger.Errorw("Failed to publish Kafka message (order already completed)", "orderID", Order.OrderID, "error", err)
-		// Заказ уже выполнен, но событие не отправлено - это не критично
-		// Можно добавить retry механизм или outbox pattern
-		return fmt.Errorf("kafka publish failed (order completed): %w", err)
+		o.logger.Errorw("Failed to save event", "error", err, "orderID", Order.OrderID)
+		o.rollbackTransaction(ctx, Order, StepProducts)
+		return fmt.Errorf("failed to save event: %w", err)
 	}
 
 	o.logger.Infow("Saga transaction completed successfully", "orderID", Order.OrderID, "userID", Order.UserID)

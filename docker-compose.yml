@@ -260,14 +260,16 @@ services:
       PG_USER: ${PG_USER}
       PG_PASSWORD: ${PG_PASSWORD}
       PG_NAME: ${PG_DB}
+      REDIS_ADDR: redis:6379
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_DB: 0
       HTTP_PORT: 8082
       GRPC_JWT_CLIENT_PORT: sso-service-1:50051
       GRPC_PRODUCTS_CLIENT_PORT: products-service-1:50052
       GRPC_SAGA_CLIENT_PORT: saga-orchestrator:50054
       GRPC_ORDER_CLIENT_PORT: order-service:50055
-      KAFKA_BROKERS: broker:9092
+      KAFKA_BROKER: broker:9092
       KAFKA_TOPIC: order-completed
       KAFKA_GROUP_ID: cart-service-group
     depends_on:
@@ -293,14 +295,16 @@ services:
       PG_USER: ${PG_USER}
       PG_PASSWORD: ${PG_PASSWORD}
       PG_NAME: ${PG_DB}
+      REDIS_ADDR: redis:6379
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_DB: 0
       HTTP_PORT: 8082
       GRPC_JWT_CLIENT_PORT: sso-service-2:50051
       GRPC_PRODUCTS_CLIENT_PORT: products-service-2:50052
       GRPC_SAGA_CLIENT_PORT: saga-orchestrator:50054
       GRPC_ORDER_CLIENT_PORT: order-service:50055
-      KAFKA_BROKERS: broker:9092
+      KAFKA_BROKER: broker:9092
       KAFKA_TOPIC: order-completed
       KAFKA_GROUP_ID: cart-service-group
     depends_on:
@@ -339,12 +343,18 @@ services:
       dockerfile: saga-orchestrator/Dockerfile
     container_name: saga-orchestrator
     environment:
-      GRPC_PORT: 50054
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD}
+      PG_NAME: ${PG_DB}
+      GRPC_SERVER_PORT: 50054
       GRPC_PRODUCTS_CLIENT_PORT: products-service-1:50053
       GRPC_WALLET_CLIENT_PORT: wallet-service-1:50054
-      KAFKA_BROKERS: broker:9092
+      KAFKA_BROKER: broker:9092
       KAFKA_TOPIC: order-completed
     depends_on:
+      - postgres
       - broker
       - products-service-1
       - wallet-service-1

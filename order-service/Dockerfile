@@ -1,5 +1,5 @@
 # Simple Dockerfile for Order service
-FROM golang:1.23
+FROM golang:1.24
 
 # Set working directory
 WORKDIR /app

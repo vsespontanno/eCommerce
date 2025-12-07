@@ -14,8 +14,7 @@ type JwtClient struct {
 	port   string
 }
 
-func NewJwtClient(port string) *JwtClient {
-	addr := "localhost:" + port
+func NewJwtClient(addr string) *JwtClient {
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to dial gRPC server %s: %v", addr, err)
@@ -23,7 +22,7 @@ func NewJwtClient(port string) *JwtClient {
 	client := sso.NewValidatorClient(conn)
 	return &JwtClient{
 		client: client,
-		port:   port,
+		port:   addr,
 	}
 }
 func (j *JwtClient) ValidateToken(ctx context.Context, token string) (*sso.ValidateTokenResponse, error) {

@@ -1,5 +1,10 @@
 # Simple Dockerfile for Cart service
-FROM golang:1.23
+FROM golang:1.24
+
+# Install librdkafka for ARM64
+RUN apt-get update && apt-get install -y \
+    librdkafka-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -11,9 +16,9 @@ RUN go mod download
 # Copy all source code
 COPY . .
 
-# Build the application
+# Build the application with CGO enabled
 WORKDIR /app/cart-service
-RUN go build -o /app/cart-service-bin ./cmd/server/main.go
+RUN CGO_ENABLED=1 go build -tags dynamic -o /app/cart-service-bin ./cmd/server/main.go
 
 # Expose HTTP port
 EXPOSE 8082

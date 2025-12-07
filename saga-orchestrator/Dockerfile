@@ -1,5 +1,10 @@
 # Simple Dockerfile for Saga Orchestrator service
-FROM golang:1.23
+FROM golang:1.24
+
+# Install librdkafka for ARM64
+RUN apt-get update && apt-get install -y \
+    librdkafka-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -11,9 +16,9 @@ RUN go mod download
 # Copy all source code
 COPY . .
 
-# Build the application
+# Build the application with CGO enabled
 WORKDIR /app/saga-orchestrator
-RUN go build -o /app/saga-orchestrator-bin ./cmd/server/main.go
+RUN CGO_ENABLED=1 go build -tags dynamic -o /app/saga-orchestrator-bin ./cmd/server/main.go
 
 # Expose gRPC port
 EXPOSE 50054

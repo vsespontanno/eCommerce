@@ -7,16 +7,20 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/vsespontanno/eCommerce/pkg/logger"
 	proto "github.com/vsespontanno/eCommerce/proto/saga"
 	applicationSaga "github.com/vsespontanno/eCommerce/saga-orchestrator/internal/application/saga"
 	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/config"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/infrastructure/db"
 	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/infrastructure/grpcClient/products"
 	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/infrastructure/grpcClient/wallet"
-	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/infrastructure/messaging"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/infrastructure/outbox"
+	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/infrastructure/repository"
 	"github.com/vsespontanno/eCommerce/saga-orchestrator/internal/presentation/saga"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -32,16 +36,48 @@ func main() {
 	}
 	logger.InitLogger()
 
-	// Kafka init
-	kafkaProducer, err := messaging.NewKafkaProducer(cfg.KafkaBroker, cfg.KafkaTopic, logger.Log)
+	// PostgreSQL init
+	postgresDB, err := db.NewPostgresDB(cfg, logger.Log)
+	if err != nil {
+		logger.Log.Fatalw("failed to connect to postgres", "error", err)
+	}
+	defer postgresDB.Close()
+
+	// Outbox repository
+	outboxRepo := repository.NewOutboxRepository(postgresDB, logger.Log)
+
+	// Kafka producer для outbox publisher
+	kafkaProducer, err := kafka.NewProducer(&kafka.ConfigMap{
+		"bootstrap.servers":  cfg.KafkaBroker,
+		"acks":               "all",
+		"retries":            10,
+		"enable.idempotence": true,
+	})
 	if err != nil {
 		logger.Log.Fatalw("failed to create kafka producer", "error", err)
 	}
 	defer kafkaProducer.Close()
+
+	// Outbox publisher (фоновый worker)
+	outboxPublisher := outbox.NewOutboxPublisher(
+		postgresDB,
+		kafkaProducer,
+		logger.Log,
+		cfg.KafkaTopic,
+		5*time.Second,
+	)
+
+	// Запускаем outbox publisher
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	outboxPublisher.Start(ctx)
+
+	// gRPC clients
 	walletClient := wallet.NewWalletClient(cfg.GRPCWalletClientPort, logger.Log)
 	productsClient := products.NewProductsClient(cfg.GRPCProductsClientPort, logger.Log)
-	// TODO: inject real clients later (wallet, products)
-	sagaService := applicationSaga.New(cfg, &walletClient, &productsClient, kafkaProducer, logger.Log)
+
+	// Saga service (использует outbox)
+	sagaService := applicationSaga.New(cfg, &walletClient, &productsClient, outboxRepo, logger.Log)
 	sagaServer := saga.NewSagaServer(logger.Log, sagaService)
 
 	grpcServer := initializeGRPC(logger.Log)
@@ -60,13 +96,21 @@ func main() {
 		}
 	}()
 
-	// graceful shutdown
+	// Graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
 
 	logger.Log.Info("Shutting down Saga orchestrator...")
+
+	// Останавливаем outbox publisher
+	cancel()
+	time.Sleep(1 * time.Second)
+
+	// Останавливаем gRPC
 	grpcServer.GracefulStop()
+
+	logger.Log.Info("Saga orchestrator stopped gracefully")
 }
 
 func interceptorLogger(l *zap.SugaredLogger) logging.Logger {
