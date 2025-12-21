@@ -46,7 +46,7 @@ func (o *Client) CreateOrder(ctx context.Context, orderEvent *entity.OrderEvent)
 	for _, p := range orderEvent.Products {
 		protoOrder.Items = append(protoOrder.Items, &order.OrderItem{
 			ProductId: p.ID,
-			Quantity:  int64(p.Quantity),
+			Quantity:  p.Quantity,
 		})
 	}
 
