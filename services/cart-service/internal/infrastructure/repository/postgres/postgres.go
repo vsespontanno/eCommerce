@@ -52,6 +52,11 @@ func (s *CartStore) GetCart(ctx context.Context, userID int64) (*entity.Cart, er
 		cart.Items = append(cart.Items, item)
 	}
 
+	// Проверяем ошибки, возникшие во время итерации
+	if err := rows.Err(); err != nil {
+		return &entity.Cart{}, err
+	}
+
 	if len(cart.Items) == 0 {
 		return &entity.Cart{}, apperrors.ErrNoCartFound
 	}
@@ -59,15 +64,18 @@ func (s *CartStore) GetCart(ctx context.Context, userID int64) (*entity.Cart, er
 	return &cart, nil
 }
 
-func (c *CartStore) UpsertCart(ctx context.Context, userID int64, cart *[]entity.CartItem) error {
-	tx, err := c.db.BeginTxx(ctx, nil)
+func (s *CartStore) UpsertCart(ctx context.Context, userID int64, cart *[]entity.CartItem) error {
+	tx, err := s.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback()
+
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	for _, item := range *cart {
-		qb := c.builder.
+		qb := s.builder.
 			Insert("cart").
 			Columns("user_id", "product_id", "quantity", "amount_for_product").
 			Values(userID, item.ProductID, item.Quantity, item.Price).
@@ -82,7 +90,7 @@ func (c *CartStore) UpsertCart(ctx context.Context, userID int64, cart *[]entity
 		}
 
 		if _, err := tx.ExecContext(ctx, sqlStr, args...); err != nil {
-			c.logger.Errorw("failed to upsert cart item",
+			s.logger.Errorw("failed to upsert cart item",
 				"user_id", userID,
 				"product_id", item.ProductID,
 				"error", err,
@@ -95,17 +103,20 @@ func (c *CartStore) UpsertCart(ctx context.Context, userID int64, cart *[]entity
 		return fmt.Errorf("failed to commit upsert: %w", err)
 	}
 
-	c.logger.Infow("cart upserted successfully", "user_id", userID, "items", len(*cart))
+	s.logger.Infow("cart upserted successfully", "user_id", userID, "items", len(*cart))
 	return nil
 }
 
-func (c *CartStore) CleanCart(ctx context.Context, order *orderEntity.OrderEvent) error {
-	tx, err := c.db.BeginTxx(ctx, nil)
+func (s *CartStore) CleanCart(ctx context.Context, order *orderEntity.OrderEvent) error {
+	tx, err := s.db.BeginTxx(ctx, nil)
 	if err != nil {
-		c.logger.Errorw("Failed to start transaction", "error", err)
+		s.logger.Errorw("Failed to start transaction", "error", err)
 		return err
 	}
-	defer tx.Rollback()
+
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	for _, p := range order.Products {
 		_, err = tx.ExecContext(ctx,
@@ -113,7 +124,7 @@ func (c *CartStore) CleanCart(ctx context.Context, order *orderEntity.OrderEvent
 			order.UserID, p.ID,
 		)
 		if err != nil {
-			c.logger.Errorw("Failed to delete product from cart",
+			s.logger.Errorw("Failed to delete product from cart",
 				"userID", order.UserID,
 				"productID", p.ID,
 				"error", err)
@@ -122,9 +133,9 @@ func (c *CartStore) CleanCart(ctx context.Context, order *orderEntity.OrderEvent
 	}
 
 	if err := tx.Commit(); err != nil {
-		c.logger.Errorw("Failed to commit cart cleaning transaction", "error", err)
+		s.logger.Errorw("Failed to commit cart cleaning transaction", "error", err)
 		return err
 	}
-	c.logger.Infow("Cart cleaned in Postgres", "userID", order.UserID)
+	s.logger.Infow("Cart cleaned in Postgres", "userID", order.UserID)
 	return nil
 }

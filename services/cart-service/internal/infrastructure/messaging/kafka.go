@@ -57,7 +57,7 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 			default:
 				msg, err := k.consumer.ReadMessage( /*100 * time.Millisecond*/ -1)
 				if err != nil {
-					if err.(kafka.Error).Code() == kafka.ErrTimedOut {
+					if kafkaErr, ok := err.(kafka.Error); ok && kafkaErr.Code() == kafka.ErrTimedOut {
 						continue
 					}
 					k.logger.Errorw("Error reading message", "error", err)

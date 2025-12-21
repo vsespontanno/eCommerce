@@ -13,20 +13,20 @@ const (
 	MaxTransactionAmount = 100_000_000
 )
 
-type SagaWalletService struct {
+type WalletService struct {
 	walletRepo interfaces.TransactionWallet
 	logger     *zap.SugaredLogger
 }
 
-func NewSagaWalletService(walletRepo interfaces.TransactionWallet, logger *zap.SugaredLogger) *SagaWalletService {
-	return &SagaWalletService{
+func NewSagaWalletService(walletRepo interfaces.TransactionWallet, logger *zap.SugaredLogger) *WalletService {
+	return &WalletService{
 		walletRepo: walletRepo,
 		logger:     logger,
 	}
 }
 
 // Reserve reserves funds for a transaction (saga step 1)
-func (s *SagaWalletService) Reserve(ctx context.Context, userID int64, amount int64) error {
+func (s *WalletService) Reserve(ctx context.Context, userID int64, amount int64) error {
 	// Validate input
 	if err := s.validateTransactionAmount(userID, amount); err != nil {
 		s.logger.Warnw("Invalid reserve request",
@@ -57,7 +57,7 @@ func (s *SagaWalletService) Reserve(ctx context.Context, userID int64, amount in
 }
 
 // Release releases previously reserved funds (saga rollback)
-func (s *SagaWalletService) Release(ctx context.Context, userID int64, amount int64) error {
+func (s *WalletService) Release(ctx context.Context, userID int64, amount int64) error {
 	// Validate input
 	if err := s.validateTransactionAmount(userID, amount); err != nil {
 		s.logger.Warnw("Invalid release request",
@@ -87,7 +87,7 @@ func (s *SagaWalletService) Release(ctx context.Context, userID int64, amount in
 }
 
 // Commit commits reserved funds (saga step 2 - final deduction)
-func (s *SagaWalletService) Commit(ctx context.Context, userID int64, amount int64) error {
+func (s *WalletService) Commit(ctx context.Context, userID int64, amount int64) error {
 	// Validate input
 	if err := s.validateTransactionAmount(userID, amount); err != nil {
 		s.logger.Warnw("Invalid commit request",
@@ -117,7 +117,7 @@ func (s *SagaWalletService) Commit(ctx context.Context, userID int64, amount int
 }
 
 // validateTransactionAmount validates transaction parameters
-func (s *SagaWalletService) validateTransactionAmount(userID int64, amount int64) error {
+func (s *WalletService) validateTransactionAmount(userID int64, amount int64) error {
 	if userID <= 0 {
 		return fmt.Errorf("invalid user ID: %d", userID)
 	}

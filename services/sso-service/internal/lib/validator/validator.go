@@ -17,15 +17,7 @@ func ValidatePassword(password string) bool {
 	if len(password) < 8 {
 		return false
 	}
-	if password == "password" {
-		return false
-	}
-	if password == "12345678" {
-		return false
-	}
-	if password == "QWERTY123" {
-		return false
-	}
+
 	return true
 }
 
@@ -38,6 +30,6 @@ func ValidateName(name string) bool {
 	return true
 }
 
-func ValidateUser(email, password, FirstName, LastName string) bool {
-	return ValidateEmail(email) && ValidatePassword(password) && ValidateName(FirstName) && ValidateName(LastName)
+func ValidateUser(email, password, firstName, lastName string) bool {
+	return ValidateEmail(email) && ValidatePassword(password) && ValidateName(firstName) && ValidateName(lastName)
 }

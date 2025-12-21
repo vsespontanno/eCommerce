@@ -11,10 +11,10 @@ import (
 	"go.uber.org/zap"
 )
 
-type SagaStep int
+type Step int
 
 const (
-	StepWallet SagaStep = iota + 1
+	StepWallet Step = iota + 1
 	StepProducts
 )
 
@@ -104,33 +104,33 @@ func (o *Orchestrator) SagaTransaction(ctx context.Context, Order orderEntity.Or
 	return nil
 }
 
-func (o *Orchestrator) rollbackTransaction(ctx context.Context, Order orderEntity.OrderEvent, step SagaStep) {
-	o.logger.Infow("Starting rollback", "orderID", Order.OrderID, "step", step)
+func (o *Orchestrator) rollbackTransaction(ctx context.Context, order orderEntity.OrderEvent, step Step) {
+	o.logger.Infow("Starting rollback", "orderID", order.OrderID, "step", step)
 
 	switch step {
 	case StepWallet:
 		// Отменяем только резерв денег
-		if _, err := o.wallet.ReleaseFunds(ctx, Order.UserID, Order.Total); err != nil {
-			o.logger.Errorw("rollback: failed to release funds", "orderID", Order.OrderID, "error", err)
+		if _, err := o.wallet.ReleaseFunds(ctx, order.UserID, order.Total); err != nil {
+			o.logger.Errorw("rollback: failed to release funds", "orderID", order.OrderID, "error", err)
 		} else {
-			o.logger.Infow("rollback: funds released successfully", "orderID", Order.OrderID)
+			o.logger.Infow("rollback: funds released successfully", "orderID", order.OrderID)
 		}
 
 	case StepProducts:
 		// Отменяем резерв товаров
-		if _, err := o.products.ReleaseProducts(ctx, Order.Products); err != nil {
-			o.logger.Errorw("rollback: failed to release products", "orderID", Order.OrderID, "error", err)
+		if _, err := o.products.ReleaseProducts(ctx, order.Products); err != nil {
+			o.logger.Errorw("rollback: failed to release products", "orderID", order.OrderID, "error", err)
 		} else {
-			o.logger.Infow("rollback: products released successfully", "orderID", Order.OrderID)
+			o.logger.Infow("rollback: products released successfully", "orderID", order.OrderID)
 		}
 
 		// Отменяем резерв денег
-		if _, err := o.wallet.ReleaseFunds(ctx, Order.UserID, Order.Total); err != nil {
-			o.logger.Errorw("rollback: failed to release funds", "orderID", Order.OrderID, "error", err)
+		if _, err := o.wallet.ReleaseFunds(ctx, order.UserID, order.Total); err != nil {
+			o.logger.Errorw("rollback: failed to release funds", "orderID", order.OrderID, "error", err)
 		} else {
-			o.logger.Infow("rollback: funds released successfully", "orderID", Order.OrderID)
+			o.logger.Infow("rollback: funds released successfully", "orderID", order.OrderID)
 		}
 	}
 
-	o.logger.Infow("Rollback completed", "orderID", Order.OrderID)
+	o.logger.Infow("Rollback completed", "orderID", order.OrderID)
 }

@@ -32,6 +32,6 @@ func (s *OrderService) GetOrder(ctx context.Context, orderID string) (*entity.Or
 	return s.repo.GetOrder(ctx, orderID)
 }
 
-func (s *OrderService) ListOrdersByUser(ctx context.Context, userID int64, limit, offset int) ([]entity.Order, error) {
+func (s *OrderService) ListOrdersByUser(ctx context.Context, userID int64, limit, offset uint64) ([]entity.Order, error) {
 	return s.repo.ListOrdersByUser(ctx, userID, limit, offset)
 }

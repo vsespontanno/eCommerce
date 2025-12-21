@@ -32,8 +32,9 @@ func (s *OrderStore) CreateOrder(ctx context.Context, order *entity.Order) error
 	if err != nil {
 		return fmt.Errorf("tx begin: %w", err)
 	}
-	defer tx.Rollback()
-
+	defer func() {
+		_ = tx.Rollback()
+	}()
 	// Проверка идемпотентности - заказ с таким ID уже существует?
 	var exists bool
 	err = tx.QueryRowContext(ctx,
@@ -116,14 +117,14 @@ func (s *OrderStore) GetOrder(ctx context.Context, id string) (*entity.Order, er
 
 // ============= LIST ORDERS ====================
 
-func (s *OrderStore) ListOrdersByUser(ctx context.Context, userID int64, limit, offset int) ([]entity.Order, error) {
+func (s *OrderStore) ListOrdersByUser(ctx context.Context, userID int64, limit, offset uint64) ([]entity.Order, error) {
 	q := s.builder.
 		Select("id AS order_id", "user_id", "total", "status").
 		From("orders").
 		Where(sq.Eq{"user_id": userID}).
 		OrderBy("created_at DESC").
-		Limit(uint64(limit)).
-		Offset(uint64(offset)).
+		Limit(limit).
+		Offset(offset).
 		RunWith(s.db)
 
 	rows, err := q.QueryContext(ctx)
@@ -145,6 +146,11 @@ func (s *OrderStore) ListOrdersByUser(ctx context.Context, userID int64, limit, 
 			`SELECT product_id, quantity 
              FROM order_items WHERE order_id = $1`, o.OrderID,
 		)
+
+		defer func() {
+			_ = itemsRows.Close()
+		}()
+
 		if err != nil {
 			return nil, fmt.Errorf("items: %w", err)
 		}
@@ -155,7 +161,6 @@ func (s *OrderStore) ListOrdersByUser(ctx context.Context, userID int64, limit, 
 				o.Products = append(o.Products, it)
 			}
 		}
-		itemsRows.Close()
 
 		orders = append(orders, o)
 	}

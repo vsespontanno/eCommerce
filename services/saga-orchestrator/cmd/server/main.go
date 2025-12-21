@@ -77,7 +77,7 @@ func main() {
 	productsClient := products.NewProductsClient(cfg.GRPCProductsClientPort, logger.Log)
 
 	// Saga service (использует outbox)
-	sagaService := applicationSaga.New(cfg, &walletClient, &productsClient, outboxRepo, logger.Log)
+	sagaService := applicationSaga.New(cfg, walletClient, productsClient, outboxRepo, logger.Log)
 	sagaServer := saga.NewSagaServer(logger.Log, sagaService)
 
 	grpcServer := initializeGRPC(logger.Log)
@@ -115,7 +115,8 @@ func main() {
 
 func interceptorLogger(l *zap.SugaredLogger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
-		level := zapcore.Level(lvl)
+		// #nosec G115 - logging.Level и zapcore.Level имеют одинаковые значения
+		level := zapcore.Level(int8(lvl))
 		l.Log(level, msg)
 	})
 }

@@ -12,13 +12,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type ProductsClient struct {
+type Client struct {
 	client products.ProductsClient
 	logger *zap.SugaredLogger
 	port   string
 }
 
-func NewProductsClient(port string, logger *zap.SugaredLogger) *ProductsClient {
+func NewProductsClient(port string, logger *zap.SugaredLogger) *Client {
 	addr := "localhost:" + port
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -26,14 +26,14 @@ func NewProductsClient(port string, logger *zap.SugaredLogger) *ProductsClient {
 	}
 	client := products.NewProductsClient(conn)
 	logger.Infow("Connected to Products service as a client")
-	return &ProductsClient{
+	return &Client{
 		client: client,
 		port:   port,
 		logger: logger,
 	}
 }
 
-func (c *ProductsClient) Product(ctx context.Context, id int64) (*entity.CartItem, error) {
+func (c *Client) Product(ctx context.Context, id int64) (*entity.CartItem, error) {
 	res, err := c.client.GetProductByID(ctx, &products.GetProductByIDRequest{Id: id})
 	if err != nil {
 		c.logger.Errorf("error while getting product: %v", err)

@@ -65,7 +65,7 @@ func main() {
 
 func interceptorLogger(l *zap.SugaredLogger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
-		level := zapcore.Level(lvl)
+		level := zapcore.Level(int8(lvl))
 		l.Log(level, msg)
 	})
 }

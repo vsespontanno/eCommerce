@@ -89,7 +89,7 @@ func (a *Auth) Login(ctx context.Context, email, password string) (string, int64
 	}
 
 	// Compare password
-	if err := bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
+	if err = bcrypt.CompareHashAndPassword(user.PassHash, []byte(password)); err != nil {
 		a.log.Warnw("invalid password", "op", op, "email", email)
 		return "", 0, ErrInvalidCredentials
 	}

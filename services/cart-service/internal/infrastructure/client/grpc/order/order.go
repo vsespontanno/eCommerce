@@ -12,13 +12,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type OrderClient struct {
+type Client struct {
 	client order.OrderClient
 	logger *zap.SugaredLogger
 	port   string
 }
 
-func NewOrderClient(port string, logger *zap.SugaredLogger) *OrderClient {
+func NewOrderClient(port string, logger *zap.SugaredLogger) *Client {
 	addr := "localhost:" + port
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -26,14 +26,14 @@ func NewOrderClient(port string, logger *zap.SugaredLogger) *OrderClient {
 	}
 	client := order.NewOrderClient(conn)
 	logger.Infow("Connected to Order service as a client")
-	return &OrderClient{
+	return &Client{
 		client: client,
 		port:   port,
 		logger: logger,
 	}
 }
 
-func (o *OrderClient) CreateOrder(ctx context.Context, orderEvent *entity.OrderEvent) (string, error) {
+func (o *Client) CreateOrder(ctx context.Context, orderEvent *entity.OrderEvent) (string, error) {
 	// Конвертируем entity.OrderEvent в proto.OrderEvent
 	protoOrder := &order.OrderEvent{
 		OrderId: orderEvent.OrderID,

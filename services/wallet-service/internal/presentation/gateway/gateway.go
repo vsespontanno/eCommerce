@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/vsespontanno/eCommerce/proto/wallet"
@@ -56,8 +57,11 @@ func (g *Gateway) Start(ctx context.Context) error {
 
 	// Create HTTP server
 	g.httpServer = &http.Server{
-		Addr:    fmt.Sprintf(":%d", g.httpPort),
-		Handler: corsMiddleware(loggingMiddleware(g.mux, g.logger)),
+		Addr:         fmt.Sprintf(":%d", g.httpPort),
+		Handler:      corsMiddleware(loggingMiddleware(g.mux, g.logger)),
+		ReadTimeout:  1 * time.Second,
+		WriteTimeout: 1 * time.Second,
+		IdleTimeout:  1 * time.Second,
 	}
 
 	g.logger.Infow("Starting HTTP gateway server",

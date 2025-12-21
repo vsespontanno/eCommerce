@@ -11,7 +11,7 @@ import (
 type OrderSvc interface {
 	CreateOrder(ctx context.Context, order *entity.Order) (string, error)
 	GetOrder(ctx context.Context, orderID string) (*entity.Order, error)
-	ListOrdersByUser(ctx context.Context, userID int64, limit, offset int) ([]entity.Order, error)
+	ListOrdersByUser(ctx context.Context, userID int64, limit, offset uint64) ([]entity.Order, error)
 }
 
 type Server struct {
@@ -95,15 +95,12 @@ func (s *Server) ListOrders(ctx context.Context, req *proto.ListOrdersRequest) (
 		return &proto.ListOrdersResponse{Orders: []*proto.GetOrderResponse{}}, nil
 	}
 
-	limit := int(req.Limit)
-	if limit <= 0 || limit > 100 {
+	limit := uint64(req.Limit)
+	if limit > 100 {
 		limit = 10 // default
 	}
 
-	offset := int(req.Offset)
-	if offset < 0 {
-		offset = 0
-	}
+	offset := uint64(req.Offset)
 
 	orders, err := s.svc.ListOrdersByUser(ctx, req.UserId, limit, offset)
 	if err != nil {

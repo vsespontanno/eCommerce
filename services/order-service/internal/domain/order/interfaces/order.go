@@ -9,5 +9,5 @@ import (
 type OrderRepo interface {
 	CreateOrder(ctx context.Context, order *entity.Order) error
 	GetOrder(ctx context.Context, orderID string) (*entity.Order, error)
-	ListOrdersByUser(ctx context.Context, userID int64, limit, offset int) ([]entity.Order, error)
+	ListOrdersByUser(ctx context.Context, userID int64, limit, offset uint64) ([]entity.Order, error)
 }

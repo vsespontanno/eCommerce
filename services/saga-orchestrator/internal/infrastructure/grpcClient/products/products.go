@@ -11,13 +11,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type ProductsClient struct {
+type Client struct {
 	client products.SagaProductsClient
 	logger *zap.SugaredLogger
 	port   string
 }
 
-func NewProductsClient(port string, logger *zap.SugaredLogger) ProductsClient {
+func NewProductsClient(port string, logger *zap.SugaredLogger) *Client {
 	address := "localhost:" + port
 
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -26,14 +26,14 @@ func NewProductsClient(port string, logger *zap.SugaredLogger) ProductsClient {
 	}
 
 	client := products.NewSagaProductsClient(conn)
-	return ProductsClient{
+	return &Client{
 		client: client,
 		port:   port,
 		logger: logger,
 	}
 }
 
-func (p *ProductsClient) ReserveProducts(ctx context.Context, productIDs []entity.Product) (bool, error) {
+func (p *Client) ReserveProducts(ctx context.Context, productIDs []entity.Product) (bool, error) {
 	req := &products.ReserveProductsRequest{}
 	for _, v := range productIDs {
 		req.Products = append(req.Products, &products.ProductSaga{
@@ -58,7 +58,7 @@ func (p *ProductsClient) ReserveProducts(ctx context.Context, productIDs []entit
 	return true, nil
 }
 
-func (p *ProductsClient) CommitProducts(ctx context.Context, productIDs []entity.Product) (bool, error) {
+func (p *Client) CommitProducts(ctx context.Context, productIDs []entity.Product) (bool, error) {
 	req := &products.CommitProductsRequest{}
 	for _, v := range productIDs {
 		req.Products = append(req.Products, &products.ProductSaga{
@@ -83,7 +83,7 @@ func (p *ProductsClient) CommitProducts(ctx context.Context, productIDs []entity
 	return true, nil
 }
 
-func (p *ProductsClient) ReleaseProducts(ctx context.Context, productIDs []entity.Product) (bool, error) {
+func (p *Client) ReleaseProducts(ctx context.Context, productIDs []entity.Product) (bool, error) {
 	req := &products.ReleaseProductsRequest{}
 	for _, v := range productIDs {
 		req.Products = append(req.Products, &products.ProductSaga{

@@ -26,7 +26,7 @@ func main() {
 	// HTTP port по умолчанию 8080
 	httpPort := 8080
 
-	application := app.New(logger.Log, cfg.GRPCPort, httpPort, sDb, cfg.JWTSecret, time.Duration(1*time.Hour))
+	application := app.New(logger.Log, cfg.GRPCPort, httpPort, sDb, cfg.JWTSecret, 1*time.Hour)
 
 	// Запуск gRPC сервера
 	go func() {

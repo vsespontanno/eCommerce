@@ -11,13 +11,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type SagaClient struct {
+type Client struct {
 	client saga.SagaClient
 	logger *zap.SugaredLogger
 	port   string
 }
 
-func NewSagaClient(port string, logger *zap.SugaredLogger) *SagaClient {
+func NewSagaClient(port string, logger *zap.SugaredLogger) *Client {
 	addr := "localhost:" + port
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -25,14 +25,14 @@ func NewSagaClient(port string, logger *zap.SugaredLogger) *SagaClient {
 	}
 	client := saga.NewSagaClient(conn)
 	logger.Infow("Connected to Saga service as a client")
-	return &SagaClient{
+	return &Client{
 		client: client,
 		port:   port,
 		logger: logger,
 	}
 }
 
-func (s *SagaClient) StartCheckout(ctx context.Context, userID int64, cart *entity.Cart) (string, error) {
+func (s *Client) StartCheckout(ctx context.Context, userID int64, cart *entity.Cart) (string, error) {
 	// конвертируем []entity.Product → []*saga.Cart
 	items := make([]*saga.Cart, 0, len(cart.Items))
 	for _, p := range cart.Items {

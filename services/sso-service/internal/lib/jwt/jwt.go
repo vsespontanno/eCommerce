@@ -1,6 +1,7 @@
 package jwt
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -17,7 +18,10 @@ func NewToken(user models.User, jwtSecret string, duration time.Duration) (strin
 
 	expiresAt := time.Now().Add(duration).Unix()
 
-	claims := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", fmt.Errorf("failed to get claims")
+	}
 	claims["uid"] = user.ID
 	claims["email"] = user.Email
 	claims["exp"] = expiresAt
@@ -36,7 +40,10 @@ func NewTokenWithExpiry(user models.User, jwtSecret string, duration time.Durati
 
 	expiresAt := time.Now().Add(duration).Unix()
 
-	claims := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return TokenPair{}, fmt.Errorf("failed to get claims")
+	}
 	claims["uid"] = user.ID
 	claims["email"] = user.Email
 	claims["exp"] = expiresAt

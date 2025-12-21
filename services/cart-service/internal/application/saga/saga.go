@@ -15,21 +15,21 @@ type Carter interface {
 	GetCartProducts(ctx context.Context, userID int64) (*entity.Cart, error)
 }
 
-type SagaService struct {
+type Service struct {
 	sugarLogger *zap.SugaredLogger
 	redisStore  Carter
 	sagaClient  Saga
 }
 
-func NewSagaService(sugarLogger *zap.SugaredLogger, redisStore Carter, sagaClient Saga) *SagaService {
-	return &SagaService{
+func NewSagaService(sugarLogger *zap.SugaredLogger, redisStore Carter, sagaClient Saga) *Service {
+	return &Service{
 		sugarLogger: sugarLogger,
 		redisStore:  redisStore,
 		sagaClient:  sagaClient,
 	}
 }
 
-func (s *SagaService) Checkout(ctx context.Context, userID int64) (string, error) {
+func (s *Service) Checkout(ctx context.Context, userID int64) (string, error) {
 	cart, err := s.redisStore.GetCartProducts(ctx, userID)
 	if err != nil {
 		s.sugarLogger.Errorf("error while getting cart from store: %v", err)

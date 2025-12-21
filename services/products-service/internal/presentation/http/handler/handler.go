@@ -99,29 +99,37 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 
 	h.sugarLogger.Infow("product retrieved", "id", id)
 
-	writeJSON(w, http.StatusOK, product)
+	if err := writeJSON(w, http.StatusOK, product); err != nil {
+		h.sugarLogger.Errorw("failed to write product response", "error", err)
+	}
 }
 
 func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	userID := r.Context().Value(middleware.UserIDKey).(int64)
+	userIDValue := r.Context().Value(middleware.UserIDKey)
+	userID, ok := userIDValue.(int64)
+	if !ok {
+		h.sugarLogger.Errorw("invalid user_id type in context", "value", userIDValue)
+		_ = writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "unauthorized"})
+		return
+	}
 
 	vars := mux.Vars(r)
 	productID, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid product id"})
+		_ = writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid product id"})
 		return
 	}
 
 	product, err := h.productStore.GetProductByID(ctx, productID)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrNoProductFound) {
-			writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"})
+			_ = writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"})
 		} else {
 			h.sugarLogger.Errorw("failed to load product for cart",
 				"error", err, "product_id", productID, "user_id", userID)
-			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load product"})
+			_ = writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load product"})
 		}
 		return
 	}
@@ -133,7 +141,7 @@ func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 			"user_id", userID,
 			"product_id", product.ID,
 		)
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to add to cart"})
+		_ = writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to add to cart"})
 		return
 	}
 
@@ -142,8 +150,10 @@ func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 		"product_id", product.ID,
 	)
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	if err := writeJSON(w, http.StatusOK, map[string]any{
 		"message": "product added to cart",
 		"product": product,
-	})
+	}); err != nil {
+		h.sugarLogger.Errorw("failed to write success response", "error", err)
+	}
 }

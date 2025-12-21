@@ -16,38 +16,38 @@ type ProductStorage interface {
 	CommitTxn(ctx context.Context, products []*dto.ItemRequest) error
 }
 
-type SagaService struct {
+type Service struct {
 	storage ProductStorage
 	logger  *zap.SugaredLogger
 }
 
-func NewSagaService(storage ProductStorage, logger *zap.SugaredLogger) *SagaService {
-	return &SagaService{storage: storage, logger: logger}
+func NewSagaService(storage ProductStorage, logger *zap.SugaredLogger) *Service {
+	return &Service{storage: storage, logger: logger}
 }
 
-func (s *SagaService) Reserve(ctx context.Context, products []*dto.ItemRequest) error {
+func (s *Service) Reserve(ctx context.Context, products []*dto.ItemRequest) error {
 	s.logger.Infow("Reserving products in saga", "products ", products)
-	return s.execWithRetry(ctx, "reserve", func() error {
+	return s.execWithRetry("reserve", func() error {
 		return s.storage.ReserveTxn(ctx, products)
 	})
 }
 
-func (s *SagaService) Release(ctx context.Context, products []*dto.ItemRequest) error {
+func (s *Service) Release(ctx context.Context, products []*dto.ItemRequest) error {
 	s.logger.Infow("Releasing products in saga", "products ", products)
-	return s.execWithRetry(ctx, "release", func() error {
+	return s.execWithRetry("release", func() error {
 		return s.storage.ReleaseTxn(ctx, products)
 	})
 }
 
-func (s *SagaService) Commit(ctx context.Context, products []*dto.ItemRequest) error {
+func (s *Service) Commit(ctx context.Context, products []*dto.ItemRequest) error {
 	s.logger.Infow("Committing products in saga", "products ", products)
-	return s.execWithRetry(ctx, "commit", func() error {
+	return s.execWithRetry("commit", func() error {
 		return s.storage.CommitTxn(ctx, products)
 	})
 }
 
 // execWithRetry — обёртка для любых транзакций, защищает от transient ошибок (deadlock, serialization failure).
-func (s *SagaService) execWithRetry(ctx context.Context, op string, fn func() error) error {
+func (s *Service) execWithRetry(op string, fn func() error) error {
 	const maxAttempts = 5
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		err := fn()

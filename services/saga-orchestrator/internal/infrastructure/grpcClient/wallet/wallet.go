@@ -11,13 +11,15 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type WalletClient struct {
+const Success = "success"
+
+type Client struct {
 	client wallet.WalletClient
 	logger *zap.SugaredLogger
 	port   string
 }
 
-func NewWalletClient(port string, logger *zap.SugaredLogger) WalletClient {
+func NewWalletClient(port string, logger *zap.SugaredLogger) *Client {
 	address := "localhost:" + port
 
 	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -26,14 +28,14 @@ func NewWalletClient(port string, logger *zap.SugaredLogger) WalletClient {
 	}
 
 	client := wallet.NewWalletClient(conn)
-	return WalletClient{
+	return &Client{
 		client: client,
 		port:   port,
 		logger: logger,
 	}
 }
 
-func (w *WalletClient) ReserveFunds(ctx context.Context, userID int64, amount int64) (string, error) {
+func (w *Client) ReserveFunds(ctx context.Context, userID int64, amount int64) (string, error) {
 	response, err := w.client.ReserveFunds(ctx, &wallet.ReserveFundsRequest{
 		UserId: userID,
 		Amount: amount,
@@ -47,10 +49,10 @@ func (w *WalletClient) ReserveFunds(ctx context.Context, userID int64, amount in
 		return "", fmt.Errorf("reserve funds failed: %s", response.Error)
 	}
 	w.logger.Infow("Funds reserved successfully", "userID", userID, "amount", amount)
-	return "success", nil
+	return Success, nil
 }
 
-func (w *WalletClient) CommitFunds(ctx context.Context, userID int64, amount int64) (string, error) {
+func (w *Client) CommitFunds(ctx context.Context, userID int64, amount int64) (string, error) {
 	resp, err := w.client.CommitFunds(ctx, &wallet.CommitFundsRequest{
 		UserId: userID,
 		Amount: amount,
@@ -64,10 +66,10 @@ func (w *WalletClient) CommitFunds(ctx context.Context, userID int64, amount int
 		return "", fmt.Errorf("commit funds failed: %s", resp.Error)
 	}
 	w.logger.Infow("Funds committed successfully", "userID", userID, "amount", amount)
-	return "success", nil
+	return Success, nil
 }
 
-func (w *WalletClient) ReleaseFunds(ctx context.Context, userID int64, amount int64) (string, error) {
+func (w *Client) ReleaseFunds(ctx context.Context, userID int64, amount int64) (string, error) {
 	resp, err := w.client.ReleaseFunds(ctx, &wallet.ReleaseFundsRequest{
 		UserId: userID,
 		Amount: amount,
@@ -81,5 +83,5 @@ func (w *WalletClient) ReleaseFunds(ctx context.Context, userID int64, amount in
 		return "", fmt.Errorf("release funds failed: %s", resp.Error)
 	}
 	w.logger.Infow("Funds released successfully", "userID", userID, "amount", amount)
-	return "success", nil
+	return Success, nil
 }

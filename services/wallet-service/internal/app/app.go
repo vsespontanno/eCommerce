@@ -84,8 +84,6 @@ func New(logger *zap.SugaredLogger, cfg *config.Config) (*App, error) {
 	}, nil
 }
 
-// initializeGRPC creates a grpc.Server with unified interceptor chain.
-// if authInterceptor != nil it is appended as the last interceptor (so it runs after logging/recovery).
 func initializeGRPC(log *zap.SugaredLogger, authInterceptor grpc.UnaryServerInterceptor) *grpc.Server {
 	// recovery handler with stacktrace
 	recoveryOpts := []recovery.Option{
@@ -108,25 +106,21 @@ func initializeGRPC(log *zap.SugaredLogger, authInterceptor grpc.UnaryServerInte
 }
 func interceptorLogger(l *zap.SugaredLogger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
-		level := zapcore.Level(lvl)
+		level := zapcore.Level(int8(lvl))
 		l.Log(level, msg)
 	})
 }
 
-// MustRun panics on error (convenience wrapper)
 func (a *App) MustRun() {
 	a.Log.Info("running grpc servers (must)")
 	if err := a.Run(); err != nil {
-		// panic so supervisor notices
 		panic(err)
 	}
 }
 
-// Run starts both gRPC servers and waits until an error occurs or termination signal received.
 func (a *App) Run() error {
 	const op = "grpcapp.Run"
 
-	// create cancellable context that listens to SIGINT/SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

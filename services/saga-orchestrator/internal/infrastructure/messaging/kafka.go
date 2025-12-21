@@ -39,8 +39,7 @@ func NewKafkaProducer(broker string, topic string, logger *zap.SugaredLogger) (*
 
 func (k *KafkaProducer) monitorDelivery() {
 	for e := range k.producer.Events() {
-		switch ev := e.(type) {
-		case *kafka.Message:
+		if ev, ok := e.(*kafka.Message); ok {
 			if ev.TopicPartition.Error != nil {
 				k.logger.Errorw("Delivery failed",
 					"error", ev.TopicPartition.Error,
@@ -67,7 +66,7 @@ func (k *KafkaProducer) Close() {
 func (k *KafkaProducer) ProccessEvent(ctx context.Context, event entity.OrderEvent) error {
 	data, err := json.Marshal(event)
 	if err != nil {
-		k.logger.Errorw("Error marshalling message", "error", err, "stage: ", "ProccessEvent")
+		k.logger.Errorw("Error marshaling message", "error", err, "stage: ", "ProccessEvent")
 		return err
 	}
 	msg := &kafka.Message{

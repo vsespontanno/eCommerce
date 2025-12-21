@@ -15,18 +15,18 @@ type Reserver interface {
 	Commit(ctx context.Context, products []*dto.ItemRequest) error
 }
 
-type SagaServer struct {
+type Server struct {
 	reserver Reserver
 	proto.UnimplementedSagaProductsServer
 }
 
-func NewSagaServer(reserver Reserver) *SagaServer {
-	return &SagaServer{
+func NewSagaServer(reserver Reserver) *Server {
+	return &Server{
 		reserver: reserver,
 	}
 }
 
-func (s *SagaServer) ReserveProducts(ctx context.Context, req *proto.ReserveProductsRequest) (*proto.ReserveProductsResponse, error) {
+func (s *Server) ReserveProducts(ctx context.Context, req *proto.ReserveProductsRequest) (*proto.ReserveProductsResponse, error) {
 	products := mapProtoToDTO(req.Products)
 	err := s.reserver.Reserve(ctx, products)
 	if err != nil {
@@ -36,7 +36,7 @@ func (s *SagaServer) ReserveProducts(ctx context.Context, req *proto.ReserveProd
 	return &proto.ReserveProductsResponse{Success: true}, nil
 }
 
-func (s *SagaServer) ReleaseProducts(ctx context.Context, req *proto.ReleaseProductsRequest) (*proto.ReleaseProductsResponse, error) {
+func (s *Server) ReleaseProducts(ctx context.Context, req *proto.ReleaseProductsRequest) (*proto.ReleaseProductsResponse, error) {
 	products := mapProtoToDTO(req.Products)
 	err := s.reserver.Release(ctx, products)
 	if err != nil {
@@ -46,7 +46,7 @@ func (s *SagaServer) ReleaseProducts(ctx context.Context, req *proto.ReleaseProd
 	return &proto.ReleaseProductsResponse{Success: true}, nil
 }
 
-func (s *SagaServer) CommitProducts(ctx context.Context, req *proto.CommitProductsRequest) (*proto.CommitProductsResponse, error) {
+func (s *Server) CommitProducts(ctx context.Context, req *proto.CommitProductsRequest) (*proto.CommitProductsResponse, error) {
 	products := mapProtoToDTO(req.Products)
 	err := s.reserver.Commit(ctx, products)
 	if err != nil {

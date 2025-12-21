@@ -29,8 +29,9 @@ import (
 
 func main() {
 	logger.InitLogger()
-	defer logger.Log.Sync()
-
+	defer func() {
+		_ = logger.Log.Sync()
+	}()
 	cfg, err := config.MustLoad()
 	if err != nil {
 		logger.Log.Fatalf("Failed to load config: %v", err)

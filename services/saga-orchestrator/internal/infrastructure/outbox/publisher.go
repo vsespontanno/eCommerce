@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type OutboxPublisher struct {
+type Publisher struct {
 	db       *sqlx.DB
 	producer *kafka.Producer
 	interval time.Duration
@@ -17,8 +17,8 @@ type OutboxPublisher struct {
 	topic    string
 }
 
-func NewOutboxPublisher(db *sqlx.DB, producer *kafka.Producer, log *zap.SugaredLogger, topic string, interval time.Duration) *OutboxPublisher {
-	return &OutboxPublisher{
+func NewOutboxPublisher(db *sqlx.DB, producer *kafka.Producer, log *zap.SugaredLogger, topic string, interval time.Duration) *Publisher {
+	return &Publisher{
 		db:       db,
 		producer: producer,
 		interval: interval,
@@ -27,7 +27,7 @@ func NewOutboxPublisher(db *sqlx.DB, producer *kafka.Producer, log *zap.SugaredL
 	}
 }
 
-func (p *OutboxPublisher) Start(ctx context.Context) {
+func (p *Publisher) Start(ctx context.Context) {
 	ticker := time.NewTicker(p.interval)
 	defer ticker.Stop()
 
@@ -44,7 +44,7 @@ func (p *OutboxPublisher) Start(ctx context.Context) {
 	}
 }
 
-func (p *OutboxPublisher) processOutbox(ctx context.Context) {
+func (p *Publisher) processOutbox(ctx context.Context) {
 	rows, err := p.db.QueryContext(ctx,
 		`SELECT id, event_type, payload 
          FROM outbox 
@@ -63,7 +63,7 @@ func (p *OutboxPublisher) processOutbox(ctx context.Context) {
 		var eventType string
 		var payload []byte
 
-		if err := rows.Scan(&id, &eventType, &payload); err != nil {
+		if err = rows.Scan(&id, &eventType, &payload); err != nil {
 			continue
 		}
 

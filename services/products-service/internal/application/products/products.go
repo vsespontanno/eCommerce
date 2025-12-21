@@ -6,15 +6,15 @@ import (
 	"github.com/vsespontanno/eCommerce/services/products-service/internal/domain/products/entity"
 )
 
-type ProductsStorage interface {
+type Storage interface {
 	GetProductByID(ctx context.Context, id int64) (entity.Product, error)
 }
 
 type ProductService struct {
-	storage ProductsStorage
+	storage Storage
 }
 
-func NewProductService(storage ProductsStorage) *ProductService {
+func NewProductService(storage Storage) *ProductService {
 	return &ProductService{
 		storage: storage,
 	}
