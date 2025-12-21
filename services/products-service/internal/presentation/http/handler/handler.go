@@ -1,0 +1,149 @@
+package handler
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
+	"github.com/vsespontanno/eCommerce/services/products-service/internal/domain/apperrors"
+	"github.com/vsespontanno/eCommerce/services/products-service/internal/domain/products/entity"
+	client "github.com/vsespontanno/eCommerce/services/products-service/internal/infrastructure/client/grpc"
+	"github.com/vsespontanno/eCommerce/services/products-service/internal/presentation/http/handler/middleware"
+	"go.uber.org/zap"
+)
+
+type CartStorer interface {
+	UpsertProductToCart(ctx context.Context, userID int64, productID int64, amountForProduct int64) (int, error)
+}
+
+type ProductStorer interface {
+	SaveProduct(ctx context.Context, product *entity.Product) error
+	GetProducts(ctx context.Context) ([]*entity.Product, error)
+	GetProductByID(ctx context.Context, id int64) (*entity.Product, error)
+	GetProductsByID(ctx context.Context, ids []int64) ([]*entity.Product, error)
+}
+
+type Handler struct {
+	cartStore    CartStorer
+	productStore ProductStorer
+	sugarLogger  *zap.SugaredLogger
+	grpcClient   *client.JwtClient
+}
+
+func New(cartStore CartStorer, productStore ProductStorer, sugarLogger *zap.SugaredLogger, grpcClient *client.JwtClient) *Handler {
+	return &Handler{
+		cartStore:    cartStore,
+		productStore: productStore,
+		sugarLogger:  sugarLogger,
+		grpcClient:   grpcClient,
+	}
+}
+
+func (h *Handler) RegisterRoutes(router *mux.Router) {
+	router.HandleFunc("/products/{id}", h.GetProduct).Methods(http.MethodGet)
+	router.HandleFunc("/products", h.GetProducts).Methods(http.MethodGet)
+	router.Handle("/products/{id}/add-to-cart",
+		middleware.AuthMiddleware(http.HandlerFunc(h.AddProductToCart), h.grpcClient),
+	).Methods(http.MethodPost)
+}
+
+// ---------- Helpers ----------
+func writeJSON(w http.ResponseWriter, status int, payload any) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	return json.NewEncoder(w).Encode(payload)
+}
+
+// ---------- Handlers ----------
+
+func (h *Handler) GetProducts(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	products, err := h.productStore.GetProducts(ctx)
+	if err != nil {
+		h.sugarLogger.Errorw("failed to get products", "error", err)
+		http.Error(w, "Failed to get products", http.StatusInternalServerError)
+		return
+	}
+
+	h.sugarLogger.Infow("products retrieved", "count", len(products))
+
+	if err := writeJSON(w, http.StatusOK, products); err != nil {
+		h.sugarLogger.Errorw("failed to write products response", "error", err)
+	}
+}
+
+func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vars := mux.Vars(r)
+
+	id, err := strconv.ParseInt(vars["id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid id"})
+		return
+	}
+
+	product, err := h.productStore.GetProductByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrNoProductFound) {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"})
+		} else {
+			h.sugarLogger.Errorw("failed to get product", "error", err, "id", id)
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load product"})
+		}
+		return
+	}
+
+	h.sugarLogger.Infow("product retrieved", "id", id)
+
+	writeJSON(w, http.StatusOK, product)
+}
+
+func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	userID := r.Context().Value(middleware.UserIDKey).(int64)
+
+	vars := mux.Vars(r)
+	productID, err := strconv.ParseInt(vars["id"], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid product id"})
+		return
+	}
+
+	product, err := h.productStore.GetProductByID(ctx, productID)
+	if err != nil {
+		if errors.Is(err, apperrors.ErrNoProductFound) {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"})
+		} else {
+			h.sugarLogger.Errorw("failed to load product for cart",
+				"error", err, "product_id", productID, "user_id", userID)
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load product"})
+		}
+		return
+	}
+
+	_, err = h.cartStore.UpsertProductToCart(ctx, userID, product.ID, product.Price)
+	if err != nil {
+		h.sugarLogger.Errorw("failed to add product to cart",
+			"error", err,
+			"user_id", userID,
+			"product_id", product.ID,
+		)
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to add to cart"})
+		return
+	}
+
+	h.sugarLogger.Infow("product added to cart",
+		"user_id", userID,
+		"product_id", product.ID,
+	)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"message": "product added to cart",
+		"product": product,
+	})
+}

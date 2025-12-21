@@ -7,12 +7,13 @@
 package sso
 
 import (
-	_ "google.golang.org/genproto/googleapis/api/annotations"
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	_ "google.golang.org/genproto/googleapis/api/annotations"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -378,7 +379,7 @@ const file_sso_sso_proto_rawDesc = "" +
 	"\bRegister\x12\x1a.proto_sso.RegisterRequest\x1a\x1b.proto_sso.RegisterResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/auth/register\x12Y\n" +
 	"\x05Login\x12\x17.proto_sso.LoginRequest\x1a\x18.proto_sso.LoginResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/api/v1/auth/login2\x81\x01\n" +
 	"\tValidator\x12t\n" +
-	"\rValidateToken\x12\x1f.proto_sso.ValidateTokenRequest\x1a .proto_sso.ValidateTokenResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/auth/validateB6Z4github.com/vsespontanno/eCommerce/internal/proto/ssob\x06proto3"
+	"\rValidateToken\x12\x1f.proto_sso.ValidateTokenRequest\x1a .proto_sso.ValidateTokenResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/auth/validateB6Z4github.com/vsespontanno/eCommerce/services/internal/proto/ssob\x06proto3"
 
 var (
 	file_sso_sso_proto_rawDescOnce sync.Once
