@@ -11,8 +11,8 @@ RUN go mod download
 COPY . .
 
 # Build the products service
-WORKDIR /app/products-service
-RUN go build -o /app/products-service-bin ./cmd/server/main.go
+WORKDIR /app
+RUN go build -o /app/products-service-bin ./services/products-service/cmd/server/main.go
 
 # Runtime stage
 FROM golang:1.24
