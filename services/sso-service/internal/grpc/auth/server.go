@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type AuthServer struct {
+type Server struct {
 	proto.UnimplementedAuthServer
 	auth Auth
 	log  *zap.SugaredLogger
@@ -26,14 +26,14 @@ type Auth interface {
 
 func NewAuthServer(gRPCServer *grpc.Server, auth Auth, log *zap.SugaredLogger) {
 	log.Info("Registering AuthServer")
-	proto.RegisterAuthServer(gRPCServer, &AuthServer{
+	proto.RegisterAuthServer(gRPCServer, &Server{
 		auth: auth,
 		log:  log,
 	})
 }
 
-func (s *AuthServer) Register(ctx context.Context, in *proto.RegisterRequest) (*proto.RegisterResponse, error) {
-	const op = "AuthServer.Register"
+func (s *Server) Register(ctx context.Context, in *proto.RegisterRequest) (*proto.RegisterResponse, error) {
+	const op = "Server.Register"
 
 	s.log.Infow("register request received", "op", op, "email", in.Email)
 
@@ -72,8 +72,8 @@ func (s *AuthServer) Register(ctx context.Context, in *proto.RegisterRequest) (*
 	return &proto.RegisterResponse{UserId: uid}, nil
 }
 
-func (s *AuthServer) Login(ctx context.Context, in *proto.LoginRequest) (*proto.LoginResponse, error) {
-	const op = "AuthServer.Login"
+func (s *Server) Login(ctx context.Context, in *proto.LoginRequest) (*proto.LoginResponse, error) {
+	const op = "Server.Login"
 
 	s.log.Infow("login request received", "op", op, "email", in.Email)
 

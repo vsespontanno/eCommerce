@@ -9,20 +9,20 @@ import (
 	"go.uber.org/zap"
 )
 
-type RedisUpdater struct {
+type Updater struct {
 	client *redis.Client
 	logger *zap.SugaredLogger
 }
 
-func NewRedisUpdater(client *redis.Client, logger *zap.SugaredLogger) *RedisUpdater {
-	return &RedisUpdater{client: client, logger: logger}
+func NewRedisUpdater(client *redis.Client, logger *zap.SugaredLogger) *Updater {
+	return &Updater{client: client, logger: logger}
 }
 
-func (r *RedisUpdater) ScanKeys(ctx context.Context, pattern string) ([]string, error) {
+func (r *Updater) ScanKeys(ctx context.Context, pattern string) ([]string, error) {
 	return r.client.Keys(ctx, pattern).Result()
 }
 
-func (r *RedisUpdater) GetCartItems(ctx context.Context, key string) ([]entity.CartItem, error) {
+func (r *Updater) GetCartItems(ctx context.Context, key string) ([]entity.CartItem, error) {
 	items, err := r.client.HGetAll(ctx, key).Result()
 	if err != nil {
 		return nil, err

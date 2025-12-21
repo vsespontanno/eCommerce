@@ -25,8 +25,6 @@ func NewOrderStore(db *sqlx.DB, logger *zap.SugaredLogger) *OrderStore {
 	}
 }
 
-// ============= CREATE ORDER =================
-
 func (s *OrderStore) CreateOrder(ctx context.Context, order *entity.Order) error {
 	tx, err := s.db.BeginTxx(ctx, nil)
 	if err != nil {
@@ -34,7 +32,7 @@ func (s *OrderStore) CreateOrder(ctx context.Context, order *entity.Order) error
 	}
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			// Логируем только реальные ошибки, игнорируем ErrTxDone
+			s.logger.Errorw("failed to rollback transaction", "error", rbErr)
 		}
 	}()
 	// Проверка идемпотентности - заказ с таким ID уже существует?
@@ -81,8 +79,6 @@ func (s *OrderStore) CreateOrder(ctx context.Context, order *entity.Order) error
 	return nil
 }
 
-// ============= GET ORDER =====================
-
 func (s *OrderStore) GetOrder(ctx context.Context, id string) (*entity.Order, error) {
 	var o entity.Order
 
@@ -117,8 +113,6 @@ func (s *OrderStore) GetOrder(ctx context.Context, id string) (*entity.Order, er
 	return &o, nil
 }
 
-// ============= LIST ORDERS ====================
-
 func (s *OrderStore) ListOrdersByUser(ctx context.Context, userID int64, limit, offset uint64) ([]entity.Order, error) {
 	q := s.builder.
 		Select("id AS order_id", "user_id", "total", "status").
@@ -134,6 +128,10 @@ func (s *OrderStore) ListOrdersByUser(ctx context.Context, userID int64, limit, 
 		return nil, fmt.Errorf("query orders: %w", err)
 	}
 	defer rows.Close()
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
 
 	orders := make([]entity.Order, 0)
 

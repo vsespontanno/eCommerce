@@ -15,19 +15,19 @@ type RedisCartCleaner interface {
 	CleanCart(ctx context.Context, order *entity.OrderEvent) error
 }
 
-type OrderClient interface {
+type Client interface {
 	CreateOrder(ctx context.Context, order *entity.OrderEvent) (string, error)
 }
 
-type OrderCompleteService struct {
+type CompleteService struct {
 	logger       *zap.SugaredLogger
 	pgCleaner    PGCartCleaner
 	redisCleaner RedisCartCleaner
-	orderClient  OrderClient
+	orderClient  Client
 }
 
-func NewOrderCompleteService(logger *zap.SugaredLogger, pgCleaner PGCartCleaner, redisCleaner RedisCartCleaner, orderClient OrderClient) *OrderCompleteService {
-	return &OrderCompleteService{
+func NewOrderCompleteService(logger *zap.SugaredLogger, pgCleaner PGCartCleaner, redisCleaner RedisCartCleaner, orderClient Client) *CompleteService {
+	return &CompleteService{
 		logger:       logger,
 		pgCleaner:    pgCleaner,
 		redisCleaner: redisCleaner,
@@ -35,7 +35,7 @@ func NewOrderCompleteService(logger *zap.SugaredLogger, pgCleaner PGCartCleaner,
 	}
 }
 
-func (o *OrderCompleteService) CompleteOrder(ctx context.Context, order *entity.OrderEvent) error {
+func (o *CompleteService) CompleteOrder(ctx context.Context, order *entity.OrderEvent) error {
 	// Шаг 1: Создаем заказ в order-service
 	orderID, err := o.orderClient.CreateOrder(ctx, order)
 	if err != nil {

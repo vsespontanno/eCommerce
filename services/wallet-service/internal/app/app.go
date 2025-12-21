@@ -52,7 +52,7 @@ func New(logger *zap.SugaredLogger, cfg *config.Config) (*App, error) {
 	}
 
 	usrRepo := postgres.NewWalletUserStore(dataBase)
-	sagaRepo := postgres.NewSagaWalletStore(dataBase)
+	sagaRepo := postgres.NewSagaWalletStore(dataBase, logger)
 	gRPCClient := grpcClient.NewJwtClient(cfg.GRPCClient)
 
 	// initialize servers with interceptor chain
@@ -111,7 +111,7 @@ func initializeGRPC(log *zap.SugaredLogger, authInterceptor grpc.UnaryServerInte
 }
 func interceptorLogger(l *zap.SugaredLogger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
-		level := zapcore.Level(int8(lvl))
+		level := zapcore.Level(int8(lvl)) // #nosec G115 - logging.Level range matches zapcore.Level
 		l.Log(level, msg)
 	})
 }

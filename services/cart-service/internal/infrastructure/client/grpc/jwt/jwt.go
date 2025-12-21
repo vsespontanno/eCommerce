@@ -10,24 +10,24 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-type JwtClient struct {
+type Client struct {
 	client sso.ValidatorClient
 	port   string
 }
 
-func NewJwtClient(port string) *JwtClient {
+func NewJwtClient(port string) *Client {
 	addr := "localhost:" + port
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to dial gRPC server %s: %v", addr, err)
 	}
 	client := sso.NewValidatorClient(conn)
-	return &JwtClient{
+	return &Client{
 		client: client,
 		port:   port,
 	}
 }
-func (j *JwtClient) ValidateToken(ctx context.Context, token string) (*dto.TokenResponse, error) {
+func (j *Client) ValidateToken(ctx context.Context, token string) (*dto.TokenResponse, error) {
 	resp, err := j.client.ValidateToken(ctx, &sso.ValidateTokenRequest{Token: token})
 	if err != nil {
 		return nil, err

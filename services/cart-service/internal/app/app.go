@@ -8,10 +8,10 @@ import (
 
 type App struct {
 	HTTPApp *httpapp.App
-	Service *cart.CartService
+	Service *cart.Service
 }
 
-func New(logger *zap.SugaredLogger, httpPort int, cartService *cart.CartService) *App {
+func New(logger *zap.SugaredLogger, httpPort int, cartService *cart.Service) *App {
 	httpApp := httpapp.New(httpPort, logger)
 	return &App{
 		HTTPApp: httpApp,

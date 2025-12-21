@@ -31,7 +31,8 @@ func main() {
 	logger.InitLogger()
 	defer func() {
 		if syncErr := logger.Log.Sync(); syncErr != nil {
-			// Игнорируем ошибки sync для stderr/stdout
+			// Log sync errors (common on stderr/stdout)
+			logger.Log.Errorw("failed to sync logger", "error", syncErr)
 		}
 	}()
 	cfg, err := config.MustLoad()

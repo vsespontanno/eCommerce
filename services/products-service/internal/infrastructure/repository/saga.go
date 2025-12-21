@@ -27,20 +27,18 @@ func NewSagaStore(db *sqlx.DB) *SagaStore {
 }
 
 func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) error {
-	// Начинаем транзакцию на уровне по-умолчанию (Read Committed в Postgres), FOR UPDATE  даст нам нужную блокировку.
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			// Логируем только реальные ошибки, игнорируем ErrTxDone
+			// Log rollback errors (real errors only, ignore ErrTxDone)
+			fmt.Printf("failed to rollback transaction: %v\n", rbErr)
 		}
 	}()
 
-	// Для каждого товара: SELECT quantity, reserved FOR UPDATE , проверка, UPDATE reserved
 	for _, it := range items {
-		// Получаем актуальные значения с блокировкой
 		qb := s.builder.
 			Select("productquantity", "reserved").
 			From("products").
@@ -54,11 +52,11 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 
 		var quantity, reserved int
 		row := tx.QueryRowContext(ctx, sqlStr, args...)
-		if err := row.Scan(&quantity, &reserved); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+		if scanErr := row.Scan(&quantity, &reserved); scanErr != nil {
+			if errors.Is(scanErr, sql.ErrNoRows) {
 				return fmt.Errorf("product %d not found", it.ProductID)
 			}
-			return err
+			return scanErr
 		}
 
 		available := quantity - reserved
@@ -95,7 +93,7 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 	}
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			// Логируем только реальные ошибки, игнорируем ErrTxDone
+			fmt.Printf("failed to rollback transaction: %v\n", rbErr)
 		}
 	}()
 
@@ -111,8 +109,8 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 			return err
 		}
 		var reserved int
-		if err := tx.QueryRowContext(ctx, sqlStr, args...).Scan(&reserved); err != nil {
-			return err
+		if scanErr := tx.QueryRowContext(ctx, sqlStr, args...).Scan(&reserved); scanErr != nil {
+			return scanErr
 		}
 
 		ub := s.builder.
@@ -138,7 +136,7 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 	}
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			// Логируем только реальные ошибки, игнорируем ErrTxDone
+			fmt.Printf("failed to rollback transaction: %v\n", rbErr)
 		}
 	}()
 
@@ -154,8 +152,8 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 			return err
 		}
 
-		if err := tx.QueryRowContext(ctx, sqlStr, args...).Scan(&quantity, &reserved); err != nil {
-			return err
+		if scanErr := tx.QueryRowContext(ctx, sqlStr, args...).Scan(&quantity, &reserved); scanErr != nil {
+			return scanErr
 		}
 
 		if quantity < it.Qty {

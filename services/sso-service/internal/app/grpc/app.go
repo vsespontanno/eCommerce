@@ -50,7 +50,7 @@ func NewApp(log *zap.SugaredLogger, authService authgrpc.Auth, validator validat
 
 func interceptorLogger(l *zap.SugaredLogger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, lvl logging.Level, msg string, fields ...any) {
-		level := zapcore.Level(int8(lvl))
+		level := zapcore.Level(int8(lvl)) // #nosec G115 - logging.Level range matches zapcore.Level
 		l.Log(level, msg)
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	proto "github.com/vsespontanno/eCommerce/proto/sso"
@@ -64,8 +65,9 @@ func (g *Gateway) Run() error {
 
 	// Create HTTP server
 	g.httpServer = &http.Server{
-		Addr:    fmt.Sprintf("0.0.0.0:%d", g.port),
-		Handler: mux,
+		Addr:              fmt.Sprintf("0.0.0.0:%d", g.port),
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second, // Prevent Slowloris attacks
 	}
 
 	g.log.Infow("HTTP gateway started", "addr", g.httpServer.Addr, "grpc_endpoint", grpcEndpoint)

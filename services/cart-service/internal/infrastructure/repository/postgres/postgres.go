@@ -72,7 +72,7 @@ func (s *CartStore) UpsertCart(ctx context.Context, userID int64, cart *[]entity
 
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			// Логируем только реальные ошибки, игнорируем ErrTxDone
+			s.logger.Errorw("failed to rollback transaction", "error", rbErr)
 		}
 	}()
 
@@ -118,7 +118,7 @@ func (s *CartStore) CleanCart(ctx context.Context, order *orderEntity.OrderEvent
 
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			// Логируем только реальные ошибки, игнорируем ErrTxDone
+			s.logger.Errorw("failed to rollback transaction", "error", rbErr)
 		}
 	}()
 

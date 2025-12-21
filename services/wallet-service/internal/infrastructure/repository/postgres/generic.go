@@ -7,11 +7,13 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/vsespontanno/eCommerce/services/wallet-service/internal/domain/wallet/entity/apperrors"
+	"go.uber.org/zap"
 )
 
 type baseRepo struct {
 	db      *sql.DB
 	builder sq.StatementBuilderType
+	logger  *zap.SugaredLogger
 }
 
 // GetBalance returns the current balance for a user

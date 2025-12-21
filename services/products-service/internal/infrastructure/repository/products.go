@@ -58,6 +58,10 @@ func (s *ProductStore) GetProducts(ctx context.Context) ([]*entity.Product, erro
 		products = append(products, &p)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return products, nil
 }
 

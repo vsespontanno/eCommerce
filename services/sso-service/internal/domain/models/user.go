@@ -6,6 +6,6 @@ type User struct {
 	LastName  string
 	Email     string
 	Balance   float64
-	Role      string //TODO
+	Role      string // TODO: implement role-based access control
 	PassHash  []byte
 }

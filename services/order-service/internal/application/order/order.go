@@ -8,17 +8,17 @@ import (
 	"go.uber.org/zap"
 )
 
-type OrderService struct {
+type Service struct {
 	repo   interfaces.OrderRepo
 	logger *zap.SugaredLogger
 }
 
-func NewOrderService(repo interfaces.OrderRepo, logger *zap.SugaredLogger) *OrderService {
-	return &OrderService{repo: repo, logger: logger}
+func NewOrderService(repo interfaces.OrderRepo, logger *zap.SugaredLogger) *Service {
+	return &Service{repo: repo, logger: logger}
 }
 
 // Called by Saga when order is confirmed/reserved
-func (s *OrderService) CreateOrder(ctx context.Context, order *entity.Order) (string, error) {
+func (s *Service) CreateOrder(ctx context.Context, order *entity.Order) (string, error) {
 	err := s.repo.CreateOrder(ctx, order)
 	if err != nil {
 		s.logger.Errorw("repo create order failed", "err", err)
@@ -28,10 +28,10 @@ func (s *OrderService) CreateOrder(ctx context.Context, order *entity.Order) (st
 	return order.OrderID, nil
 }
 
-func (s *OrderService) GetOrder(ctx context.Context, orderID string) (*entity.Order, error) {
+func (s *Service) GetOrder(ctx context.Context, orderID string) (*entity.Order, error) {
 	return s.repo.GetOrder(ctx, orderID)
 }
 
-func (s *OrderService) ListOrdersByUser(ctx context.Context, userID int64, limit, offset uint64) ([]entity.Order, error) {
+func (s *Service) ListOrdersByUser(ctx context.Context, userID int64, limit, offset uint64) ([]entity.Order, error) {
 	return s.repo.ListOrdersByUser(ctx, userID, limit, offset)
 }

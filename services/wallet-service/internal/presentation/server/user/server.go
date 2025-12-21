@@ -11,13 +11,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type UserWalletServer struct {
+type WalletServer struct {
 	proto.UnimplementedWalletTopUPServer
-	userWallet UserWallet
+	userWallet Wallet
 	log        *zap.SugaredLogger
 }
 
-type UserWallet interface {
+type Wallet interface {
 	GetBalance(ctx context.Context) (int64, error)
 	CreateWallet(ctx context.Context) (bool, string, error)
 	UpdateBalance(ctx context.Context, amount int64) error
@@ -25,20 +25,20 @@ type UserWallet interface {
 
 func NewUserWalletServer(
 	gRPCServer *grpc.Server,
-	userWallet UserWallet,
+	userWallet Wallet,
 	log *zap.SugaredLogger,
 ) {
-	log.Infow("Registering UserWalletServer")
+	log.Infow("Registering WalletServer")
 	proto.RegisterWalletTopUPServer(
 		gRPCServer,
-		&UserWalletServer{
+		&WalletServer{
 			userWallet: userWallet,
 			log:        log,
 		},
 	)
 }
 
-func (s *UserWalletServer) CreateWallet(ctx context.Context, req *proto.CreateWalletRequest) (*proto.CreateWalletResponse, error) {
+func (s *WalletServer) CreateWallet(ctx context.Context, req *proto.CreateWalletRequest) (*proto.CreateWalletResponse, error) {
 	success, message, err := s.userWallet.CreateWallet(ctx)
 	if err != nil {
 		s.log.Errorw("CreateWallet failed", "error", err)
@@ -51,7 +51,7 @@ func (s *UserWalletServer) CreateWallet(ctx context.Context, req *proto.CreateWa
 	}, nil
 }
 
-func (s *UserWalletServer) Balance(ctx context.Context, req *proto.BalanceRequest) (*proto.BalanceResponse, error) {
+func (s *WalletServer) Balance(ctx context.Context, req *proto.BalanceRequest) (*proto.BalanceResponse, error) {
 	balance, err := s.userWallet.GetBalance(ctx)
 	if err != nil {
 		if err == apperrors.ErrNoWallet {
@@ -68,7 +68,7 @@ func (s *UserWalletServer) Balance(ctx context.Context, req *proto.BalanceReques
 	return &proto.BalanceResponse{Balance: balance}, nil
 }
 
-func (s *UserWalletServer) TopUp(ctx context.Context, req *proto.TopUpRequest) (*proto.TopUpResponse, error) {
+func (s *WalletServer) TopUp(ctx context.Context, req *proto.TopUpRequest) (*proto.TopUpResponse, error) {
 	err := s.userWallet.UpdateBalance(ctx, req.Amount)
 	if err != nil {
 		if err == apperrors.ErrNoWallet {

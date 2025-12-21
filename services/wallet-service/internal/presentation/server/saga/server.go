@@ -13,17 +13,17 @@ import (
 
 type WalletSagaServer struct {
 	proto.UnimplementedWalletServer
-	sagaWallet SagaWallet
+	sagaWallet Wallet
 	logger     *zap.SugaredLogger
 }
 
-type SagaWallet interface {
+type Wallet interface {
 	Reserve(ctx context.Context, userID int64, amount int64) error
 	Release(ctx context.Context, userID int64, amount int64) error
 	Commit(ctx context.Context, userID int64, amount int64) error
 }
 
-func NewWalletSagaServer(gRPCServer *grpc.Server, sagaWallet SagaWallet, logger *zap.SugaredLogger) {
+func NewWalletSagaServer(gRPCServer *grpc.Server, sagaWallet Wallet, logger *zap.SugaredLogger) {
 	logger.Infow("Registering WalletSaga gRPC server")
 	proto.RegisterWalletServer(gRPCServer,
 		&WalletSagaServer{

@@ -14,17 +14,17 @@ type Orchestrator interface {
 	SagaTransaction(ctx context.Context, Order orderEntity.OrderEvent) error
 }
 
-type SagaServer struct {
+type Server struct {
 	proto.UnimplementedSagaServer
 	saga   Orchestrator
 	logger *zap.SugaredLogger
 }
 
-func NewSagaServer(logger *zap.SugaredLogger, saga Orchestrator) *SagaServer {
-	return &SagaServer{logger: logger, saga: saga}
+func NewSagaServer(logger *zap.SugaredLogger, saga Orchestrator) *Server {
+	return &Server{logger: logger, saga: saga}
 }
 
-func (s *SagaServer) StartCheckout(ctx context.Context, req *proto.StartCheckoutRequest) (*proto.StartCheckoutResponse, error) {
+func (s *Server) StartCheckout(ctx context.Context, req *proto.StartCheckoutRequest) (*proto.StartCheckoutResponse, error) {
 	// Валидация входных данных
 	if req.UserID <= 0 {
 		s.logger.Errorw("Invalid userID", "userID", req.UserID)

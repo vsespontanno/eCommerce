@@ -22,14 +22,14 @@ type SSOValidator interface {
 	ValidateToken(ctx context.Context, token string) (int64, error)
 }
 
-type UserWalletService struct {
+type WalletService struct {
 	walletRepo interfaces.UserWallet
 	ssoClient  SSOValidator
 	logger     *zap.SugaredLogger
 }
 
-func NewWalletService(walletRepo interfaces.UserWallet, ssoClient SSOValidator, logger *zap.SugaredLogger) *UserWalletService {
-	return &UserWalletService{
+func NewWalletService(walletRepo interfaces.UserWallet, ssoClient SSOValidator, logger *zap.SugaredLogger) *WalletService {
+	return &WalletService{
 		walletRepo: walletRepo,
 		ssoClient:  ssoClient,
 		logger:     logger,
@@ -37,7 +37,7 @@ func NewWalletService(walletRepo interfaces.UserWallet, ssoClient SSOValidator, 
 }
 
 // GetBalance returns the current balance for the authenticated user
-func (s *UserWalletService) GetBalance(ctx context.Context) (int64, error) {
+func (s *WalletService) GetBalance(ctx context.Context) (int64, error) {
 	userID, err := s.getUserIDFromContext(ctx)
 	if err != nil {
 		return 0, err
@@ -61,7 +61,7 @@ func (s *UserWalletService) GetBalance(ctx context.Context) (int64, error) {
 }
 
 // UpdateBalance adds funds to the user's wallet (top up)
-func (s *UserWalletService) UpdateBalance(ctx context.Context, amount int64) error {
+func (s *WalletService) UpdateBalance(ctx context.Context, amount int64) error {
 	// Validate amount
 	if err := s.validateTopUpAmount(amount); err != nil {
 		s.logger.Warnw("Invalid top-up amount",
@@ -106,7 +106,7 @@ func (s *UserWalletService) UpdateBalance(ctx context.Context, amount int64) err
 }
 
 // CreateWallet creates a new wallet for the authenticated user
-func (s *UserWalletService) CreateWallet(ctx context.Context) (bool, string, error) {
+func (s *WalletService) CreateWallet(ctx context.Context) (bool, string, error) {
 	userID, err := s.getUserIDFromContext(ctx)
 	if err != nil {
 		return false, "", err
@@ -129,7 +129,7 @@ func (s *UserWalletService) CreateWallet(ctx context.Context) (bool, string, err
 }
 
 // getUserIDFromContext extracts and validates user ID from JWT token in context
-func (s *UserWalletService) getUserIDFromContext(ctx context.Context) (int64, error) {
+func (s *WalletService) getUserIDFromContext(ctx context.Context) (int64, error) {
 	token, ok := ctx.Value(keys.JwtKey).(string)
 	if !ok || token == "" {
 		s.logger.Warn("Missing or invalid JWT token in context")
@@ -155,7 +155,7 @@ func (s *UserWalletService) getUserIDFromContext(ctx context.Context) (int64, er
 }
 
 // validateTopUpAmount validates the top-up amount
-func (s *UserWalletService) validateTopUpAmount(amount int64) error {
+func (s *WalletService) validateTopUpAmount(amount int64) error {
 	if amount <= 0 {
 		return fmt.Errorf("amount must be positive, got: %d", amount)
 	}

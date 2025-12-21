@@ -7,17 +7,19 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/vsespontanno/eCommerce/services/wallet-service/internal/domain/wallet/entity/apperrors"
+	"go.uber.org/zap"
 )
 
 type SagaWalletStore struct {
 	*baseRepo
 }
 
-func NewSagaWalletStore(db *sql.DB) *SagaWalletStore {
+func NewSagaWalletStore(db *sql.DB, logger *zap.SugaredLogger) *SagaWalletStore {
 	return &SagaWalletStore{
 		baseRepo: &baseRepo{
 			db:      db,
 			builder: sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
+			logger:  logger,
 		},
 	}
 }
@@ -36,7 +38,7 @@ func (s *SagaWalletStore) ReserveMoney(ctx context.Context, userID int64, amount
 	}
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			// Логируем только реальные ошибки, игнорируем ErrTxDone
+			s.logger.Errorw("failed to rollback transaction", "error", rbErr)
 		}
 	}()
 
@@ -99,7 +101,7 @@ func (s *SagaWalletStore) CommitMoney(ctx context.Context, userID int64, amount 
 	}
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			// Логируем только реальные ошибки, игнорируем ErrTxDone
+			s.logger.Errorw("failed to rollback transaction", "error", rbErr)
 		}
 	}()
 
@@ -165,7 +167,7 @@ func (s *SagaWalletStore) ReleaseMoney(ctx context.Context, userID int64, amount
 	}
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			// Логируем только реальные ошибки, игнорируем ErrTxDone
+			s.logger.Errorw("failed to rollback transaction", "error", rbErr)
 		}
 	}()
 

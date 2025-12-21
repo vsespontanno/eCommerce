@@ -28,7 +28,7 @@ type PostgresCartRepo interface {
 	GetCart(ctx context.Context, userID int64) (*entity.Cart, error)
 }
 
-type CartService struct {
+type Service struct {
 	sugarLogger        *zap.SugaredLogger
 	redisStore         RedisCartRepo
 	productClient      Producter
@@ -36,8 +36,8 @@ type CartService struct {
 	maxProductQuantity int
 }
 
-func NewCart(logger *zap.SugaredLogger, redisStore RedisCartRepo, productClient Producter, cartStore PostgresCartRepo, maxProductQuantity int) *CartService {
-	return &CartService{
+func NewCart(logger *zap.SugaredLogger, redisStore RedisCartRepo, productClient Producter, cartStore PostgresCartRepo, maxProductQuantity int) *Service {
+	return &Service{
 		sugarLogger:        logger,
 		redisStore:         redisStore,
 		productClient:      productClient,
@@ -46,17 +46,17 @@ func NewCart(logger *zap.SugaredLogger, redisStore RedisCartRepo, productClient 
 	}
 }
 
-func (s *CartService) Cart(ctx context.Context, userID int64) (*entity.Cart, error) {
+func (s *Service) Cart(ctx context.Context, userID int64) (*entity.Cart, error) {
 	cart, err := s.redisStore.GetCart(ctx, userID)
 	if err != nil {
 		if err == apperrors.ErrNoCartFound {
-			dbCart, err := s.cartStore.GetCart(ctx, userID)
-			if err != nil {
-				if err == apperrors.ErrNoCartFound {
-					return &entity.Cart{}, err
+			dbCart, getErr := s.cartStore.GetCart(ctx, userID)
+			if getErr != nil {
+				if getErr == apperrors.ErrNoCartFound {
+					return &entity.Cart{}, getErr
 				}
-				s.sugarLogger.Errorf("error while getting cart from postgres: %w", err)
-				return nil, err
+				s.sugarLogger.Errorf("error while getting cart from postgres: %w", getErr)
+				return nil, getErr
 			}
 			err = s.redisStore.SaveCart(ctx, userID, dbCart)
 			if err != nil {
@@ -71,24 +71,24 @@ func (s *CartService) Cart(ctx context.Context, userID int64) (*entity.Cart, err
 	return cart, nil
 }
 
-func (s *CartService) ClearCart(ctx context.Context, userID int64) error {
+func (s *Service) ClearCart(ctx context.Context, userID int64) error {
 	err := s.redisStore.ClearCart(ctx, userID)
 	if err != nil {
 		s.sugarLogger.Errorf("error while clearing cart: %w", err)
 	}
 	return err
 }
-func (s *CartService) AddProductToCart(ctx context.Context, userID int64, productID int64) error {
+func (s *Service) AddProductToCart(ctx context.Context, userID int64, productID int64) error {
 	q, err := s.redisStore.GetProduct(ctx, userID, productID)
 	if err != nil {
 		if err != apperrors.ErrProductIsNotInCart {
 			s.sugarLogger.Errorf("error while getting and adding 1 product to cart: %w", err)
 			return err
 		}
-		product, err := s.productClient.Product(ctx, productID)
-		if err != nil {
-			s.sugarLogger.Errorf("error while getting product from grpc-client and adding 1 product to cart: %w", err)
-			return err
+		product, prodErr := s.productClient.Product(ctx, productID)
+		if prodErr != nil {
+			s.sugarLogger.Errorf("error while getting product from grpc-client and adding 1 product to cart: %w", prodErr)
+			return prodErr
 		}
 		product.UserID = userID
 		return s.redisStore.AddNewProductToCart(ctx, userID, product)
@@ -103,7 +103,7 @@ func (s *CartService) AddProductToCart(ctx context.Context, userID int64, produc
 	return err
 }
 
-func (s *CartService) Increment(ctx context.Context, userID int64, productID int64) error {
+func (s *Service) Increment(ctx context.Context, userID int64, productID int64) error {
 	err := s.redisStore.IncrementInCart(ctx, userID, productID)
 	if err != nil {
 		s.sugarLogger.Errorf("error while incrementing 1 product to cart: %w", err)
@@ -111,7 +111,7 @@ func (s *CartService) Increment(ctx context.Context, userID int64, productID int
 	return err
 }
 
-func (s *CartService) Decrement(ctx context.Context, userID int64, productID int64) error {
+func (s *Service) Decrement(ctx context.Context, userID int64, productID int64) error {
 	err := s.redisStore.DecrementInCart(ctx, userID, productID)
 	if err != nil {
 		s.sugarLogger.Errorf("error while decrementing 1 product to cart: %w", err)
@@ -119,7 +119,7 @@ func (s *CartService) Decrement(ctx context.Context, userID int64, productID int
 	return err
 }
 
-func (s *CartService) DeleteProductFromCart(ctx context.Context, userID int64, productID int64) error {
+func (s *Service) DeleteProductFromCart(ctx context.Context, userID int64, productID int64) error {
 	err := s.redisStore.DeleteProduct(ctx, userID, productID)
 	if err != nil {
 		s.sugarLogger.Errorf("error while deleting 1 product to cart: %w", err)
