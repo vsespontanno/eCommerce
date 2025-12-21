@@ -1,0 +1,22 @@
+# Simple Dockerfile for Wallet service
+FROM golang:1.24
+
+# Set working directory
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy all source code
+COPY . .
+
+# Build the application
+WORKDIR /app
+RUN go build -o /app/wallet-service-bin ./services/wallet-service/cmd/server/main.go
+
+# Expose ports (gRPC and HTTP)
+EXPOSE 50051 8080
+
+# Run the application
+CMD ["/app/wallet-service-bin"]

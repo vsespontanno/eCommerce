@@ -1,0 +1,96 @@
+# golangci-lint configuration for eCommerce microservices
+# https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck      # Проверка необработанных ошибок
+    - gosimple      # Упрощение кода
+    - govet         # Проверка подозрительных конструкций
+    - ineffassign   # Обнаружение неиспользуемых присваиваний
+    - staticcheck   # Статический анализ
+    - unused        # Неиспользуемые константы, переменные, функции
+    - gofmt         # Форматирование кода
+    - goimports     # Управление импортами
+    - misspell      # Проверка орфографии
+    - revive        # Быстрая замена golint
+    - gosec         # Проверка безопасности
+    - bodyclose     # Проверка закрытия HTTP body
+    - noctx         # Проверка использования context
+    - sqlclosecheck # Проверка закрытия SQL соединений
+    - rowserrcheck  # Проверка ошибок rows.Err()
+    - gocritic      # Расширенная проверка кода
+    - gocyclo       # Цикломатическая сложность
+    # - dupl        # Дублирование кода (отключен - много ложных срабатываний в saga паттернах)
+    - goconst       # Повторяющиеся строки -> константы
+    - unconvert     # Ненужные конвертации типов
+    - unparam       # Неиспользуемые параметры функций
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  
+  govet:
+    enable:
+      - shadow  # Проверка затенения переменных
+  
+  gocyclo:
+    min-complexity: 15
+  
+  dupl:
+    threshold: 100
+  
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  
+  misspell:
+    locale: US
+  
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+      - name: unexported-return
+        severity: warning
+      - name: time-naming
+        severity: warning
+      - name: var-declaration
+        severity: warning
+      - name: receiver-naming
+        severity: warning
+      - name: indent-error-flow
+        severity: warning
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+    
+    # Exclude generated files
+    - path: \.pb\.go$
+      linters:
+        - all
+    
+    - path: \.pb\.gw\.go$
+      linters:
+        - all
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  formats:
+    - format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true

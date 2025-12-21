@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package proto_order;
 
-option go_package = "github.com/vsespontanno/eCommerce/internal/proto/order";
+option go_package = "github.com/vsespontanno/eCommerce/proto/orders";
 
 service Order {
   rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);

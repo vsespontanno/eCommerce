@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package proto_sso;
 
-option go_package = "github.com/vsespontanno/eCommerce/internal/proto/sso";
+option go_package = "github.com/vsespontanno/eCommerce/proto/sso";
 
 import "google/api/annotations.proto";
 
