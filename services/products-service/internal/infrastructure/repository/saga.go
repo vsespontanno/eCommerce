@@ -32,7 +32,9 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback() // Игнорируем ошибку, т.к. Commit уже мог быть вызван
+	}()
 
 	// Для каждого товара: SELECT quantity, reserved FOR UPDATE , проверка, UPDATE reserved
 	for _, it := range items {
@@ -83,7 +85,9 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback() // Игнорируем ошибку, т.к. Commit уже мог быть вызван
+	}()
 
 	for _, it := range items {
 		qb := s.builder.
@@ -116,7 +120,9 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback() // Игнорируем ошибку, т.к. Commit уже мог быть вызван
+	}()
 
 	for _, it := range items {
 		var quantity, reserved int

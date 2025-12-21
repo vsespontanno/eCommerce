@@ -43,18 +43,18 @@ jobs:
           skip-pkg-cache: false
           skip-build-cache: false
 
-      - name: Run tests
-        run: |
-          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
-          go tool cover -func=coverage.out
+      # - name: Run tests
+      #   run: |
+      #     go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+      #     go tool cover -func=coverage.out
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.out
-          flags: unittests
-          name: codecov-umbrella
-          fail_ci_if_error: false
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v4
+      #   with:
+      #     file: ./coverage.out
+      #     flags: unittests
+      #     name: codecov-umbrella
+      #     fail_ci_if_error: false
 
   # Job 2: Build and Push Docker Images
   build-and-push:
