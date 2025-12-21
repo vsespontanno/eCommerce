@@ -12,8 +12,8 @@ RUN go mod download
 COPY . .
 
 # Build the application
-WORKDIR /app/sso-service
-RUN go build -o /app/sso-service-bin ./cmd/server/main.go
+WORKDIR /app
+RUN go build -o /app/sso-service-bin ./services/sso-service/cmd/server/main.go
 
 # Expose ports (gRPC and HTTP)
 EXPOSE 50051 8080

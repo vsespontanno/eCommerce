@@ -12,8 +12,8 @@ RUN go mod download
 COPY . .
 
 # Build the application
-WORKDIR /app/wallet-service
-RUN go build -o /app/wallet-service-bin ./cmd/server/main.go
+WORKDIR /app
+RUN go build -o /app/wallet-service-bin ./services/wallet-service/cmd/server/main.go
 
 # Expose ports (gRPC user, gRPC saga, HTTP gateway)
 EXPOSE 50050 50054 8080

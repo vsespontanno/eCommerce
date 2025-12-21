@@ -12,8 +12,8 @@ RUN go mod download
 COPY . .
 
 # Build the application
-WORKDIR /app/order-service
-RUN go build -o /app/order-service-bin ./cmd/server/main.go
+WORKDIR /app
+RUN go build -o /app/order-service-bin ./services/order-service/cmd/server/main.go
 
 # Expose gRPC port
 EXPOSE 50055

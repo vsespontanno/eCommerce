@@ -17,8 +17,8 @@ RUN go mod download
 COPY . .
 
 # Build the application with CGO enabled
-WORKDIR /app/cart-service
-RUN CGO_ENABLED=1 go build -tags dynamic -o /app/cart-service-bin ./cmd/server/main.go
+WORKDIR /app
+RUN CGO_ENABLED=1 go build -tags dynamic -o /app/cart-service-bin ./services/cart-service/cmd/server/main.go
 
 # Expose HTTP port
 EXPOSE 8082

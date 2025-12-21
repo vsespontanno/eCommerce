@@ -17,8 +17,8 @@ RUN go mod download
 COPY . .
 
 # Build the application with CGO enabled
-WORKDIR /app/saga-orchestrator
-RUN CGO_ENABLED=1 go build -tags dynamic -o /app/saga-orchestrator-bin ./cmd/server/main.go
+WORKDIR /app
+RUN CGO_ENABLED=1 go build -tags dynamic -o /app/saga-orchestrator-bin ./services/saga-orchestrator/cmd/server/main.go
 
 # Expose gRPC port
 EXPOSE 50054
