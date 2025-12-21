@@ -23,7 +23,6 @@ type Config struct {
 	GRPCProductsClientPort string
 	GRPCSagaClientPort     string
 	GRPCOrderClientPort    string
-	GRPCSagaClientPort     string
 	KafkaBroker            string
 	KafkaGroup             string
 	KafkaTopic             string
