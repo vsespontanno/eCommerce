@@ -36,7 +36,8 @@ linters-settings:
     check-blank: true
   
   govet:
-    check-shadowing: true
+    enable:
+      - shadow  # Проверка затенения переменных
   
   gocyclo:
     min-complexity: 15
@@ -89,6 +90,7 @@ issues:
   max-same-issues: 0
 
 output:
-  format: colored-line-number
+  formats:
+    - format: colored-line-number
   print-issued-lines: true
   print-linter-name: true
