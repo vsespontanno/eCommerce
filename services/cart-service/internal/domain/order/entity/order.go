@@ -10,5 +10,5 @@ type OrderEvent struct {
 
 type ProductForOrder struct {
 	ID       int64 `json:"product_id"`
-	Quantity int   `json:"quantity"`
+	Quantity int64 `json:"quantity"`
 }

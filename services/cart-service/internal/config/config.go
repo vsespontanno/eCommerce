@@ -21,6 +21,7 @@ type Config struct {
 	GRPCJWTClientPort      string
 	RateLimitRPS           int
 	GRPCProductsClientPort string
+	GRPCSagaClientPort     string
 	GRPCOrderClientPort    string
 	GRPCSagaClientPort     string
 	KafkaBroker            string
