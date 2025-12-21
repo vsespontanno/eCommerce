@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package proto_saga;
 
-option go_package = "github.com/vsespontanno/eCommerce/internal/proto/saga";
+option go_package = "github.com/vsespontanno/eCommerce/proto/saga";
 
 service Saga {
     rpc StartCheckout(StartCheckoutRequest) returns (StartCheckoutResponse);

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package proto_products;
 
-option go_package = "github.com/vsespontanno/eCommerce/internal/proto/products";
+option go_package = "github.com/vsespontanno/eCommerce/proto/products";
 
 // Products service provides product catalog operations for inter-service communication
 service Products {

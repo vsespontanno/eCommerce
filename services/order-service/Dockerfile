@@ -16,7 +16,7 @@ WORKDIR /app
 RUN go build -o /app/order-service-bin ./services/order-service/cmd/server/main.go
 
 # Expose gRPC port
-EXPOSE 50055
+EXPOSE 50051
 
 # Run the application
 CMD ["/app/order-service-bin"]

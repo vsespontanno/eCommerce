@@ -57,7 +57,7 @@ func (s *WalletServer) Balance(ctx context.Context, req *proto.BalanceRequest) (
 		if err == apperrors.ErrNoWallet {
 			return &proto.BalanceResponse{
 				Balance: 0,
-				Error:   err.Error(),
+				Message: err.Error(),
 			}, nil
 		}
 
@@ -74,7 +74,7 @@ func (s *WalletServer) TopUp(ctx context.Context, req *proto.TopUpRequest) (*pro
 		if err == apperrors.ErrNoWallet {
 			return &proto.TopUpResponse{
 				Success: false,
-				Error:   err.Error(),
+				Message: err.Error(),
 			}, nil
 		}
 

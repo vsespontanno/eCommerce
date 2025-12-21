@@ -15,8 +15,8 @@ COPY . .
 WORKDIR /app
 RUN go build -o /app/wallet-service-bin ./services/wallet-service/cmd/server/main.go
 
-# Expose ports (gRPC user, gRPC saga, HTTP gateway)
-EXPOSE 50050 50054 8080
+# Expose ports (gRPC and HTTP)
+EXPOSE 50051 8080
 
 # Run the application
 CMD ["/app/wallet-service-bin"]

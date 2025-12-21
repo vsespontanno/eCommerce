@@ -22,7 +22,7 @@ WORKDIR /app
 # Copy binary from builder
 COPY --from=builder /app/products-service-bin /app/products-service-bin
 
-# Expose ports: HTTP, gRPC Products, gRPC Saga
-EXPOSE 8081 50052 50053
+# Expose ports: HTTP and gRPC
+EXPOSE 8080 50051
 
 CMD ["/app/products-service-bin"]

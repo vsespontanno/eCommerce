@@ -45,8 +45,8 @@ func (w *Client) ReserveFunds(ctx context.Context, userID int64, amount int64) (
 		return "", err
 	}
 	if !response.Success {
-		w.logger.Errorw("Failed to reserve funds", "error", response.Error, "userID", userID, "amount", amount)
-		return "", fmt.Errorf("reserve funds failed: %s", response.Error)
+		w.logger.Errorw("Failed to reserve funds", "error", response.Message, "userID", userID, "amount", amount)
+		return "", fmt.Errorf("reserve funds failed: %s", response.Message)
 	}
 	w.logger.Infow("Funds reserved successfully", "userID", userID, "amount", amount)
 	return Success, nil
@@ -62,8 +62,8 @@ func (w *Client) CommitFunds(ctx context.Context, userID int64, amount int64) (s
 		return "", err
 	}
 	if !resp.Success {
-		w.logger.Errorw("Failed to commit funds", "error", resp.Error, "userID", userID, "amount", amount)
-		return "", fmt.Errorf("commit funds failed: %s", resp.Error)
+		w.logger.Errorw("Failed to commit funds", "error", resp.Message, "userID", userID, "amount", amount)
+		return "", fmt.Errorf("commit funds failed: %s", resp.Message)
 	}
 	w.logger.Infow("Funds committed successfully", "userID", userID, "amount", amount)
 	return Success, nil
@@ -79,8 +79,8 @@ func (w *Client) ReleaseFunds(ctx context.Context, userID int64, amount int64) (
 		return "", err
 	}
 	if !resp.Success {
-		w.logger.Errorw("Failed to release funds", "error", resp.Error, "userID", userID, "amount", amount)
-		return "", fmt.Errorf("release funds failed: %s", resp.Error)
+		w.logger.Errorw("Failed to release funds", "error", resp.Message, "userID", userID, "amount", amount)
+		return "", fmt.Errorf("release funds failed: %s", resp.Message)
 	}
 	w.logger.Infow("Funds released successfully", "userID", userID, "amount", amount)
 	return Success, nil

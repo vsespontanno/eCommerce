@@ -21,7 +21,7 @@ WORKDIR /app
 RUN CGO_ENABLED=1 go build -tags dynamic -o /app/cart-service-bin ./services/cart-service/cmd/server/main.go
 
 # Expose HTTP port
-EXPOSE 8082
+EXPOSE 8080
 
 # Run the application
 CMD ["/app/cart-service-bin"]

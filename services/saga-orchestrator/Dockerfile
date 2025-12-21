@@ -21,7 +21,7 @@ WORKDIR /app
 RUN CGO_ENABLED=1 go build -tags dynamic -o /app/saga-orchestrator-bin ./services/saga-orchestrator/cmd/server/main.go
 
 # Expose gRPC port
-EXPOSE 50054
+EXPOSE 50051
 
 # Run the application
 CMD ["/app/saga-orchestrator-bin"]
