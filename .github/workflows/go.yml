@@ -123,7 +123,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
 
   # Job 3: Security Scan
   security-scan:
@@ -162,7 +162,7 @@ jobs:
 
       - name: Upload Gosec results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('gosec-results.sarif') != ''
         with:
           sarif_file: 'gosec-results.sarif'
 
