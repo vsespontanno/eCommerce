@@ -37,7 +37,7 @@ func (p *Client) ReserveProducts(ctx context.Context, productIDs []entity.Produc
 	req := &products.ReserveProductsRequest{}
 	for _, v := range productIDs {
 		req.Products = append(req.Products, &products.ProductSaga{
-			Id:       int64(v.ID),
+			Id:       v.ID,
 			Quantity: int64(v.Quantity),
 		})
 	}
@@ -62,7 +62,7 @@ func (p *Client) CommitProducts(ctx context.Context, productIDs []entity.Product
 	req := &products.CommitProductsRequest{}
 	for _, v := range productIDs {
 		req.Products = append(req.Products, &products.ProductSaga{
-			Id:       int64(v.ID),
+			Id:       v.ID,
 			Quantity: int64(v.Quantity),
 		})
 	}
@@ -87,7 +87,7 @@ func (p *Client) ReleaseProducts(ctx context.Context, productIDs []entity.Produc
 	req := &products.ReleaseProductsRequest{}
 	for _, v := range productIDs {
 		req.Products = append(req.Products, &products.ProductSaga{
-			Id:       int64(v.ID),
+			Id:       v.ID,
 			Quantity: int64(v.Quantity),
 		})
 	}

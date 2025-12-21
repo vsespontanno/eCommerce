@@ -50,57 +50,57 @@ func New(config *config.Config, wallet MoneyReserver, products ProductsReserver,
 	return &Orchestrator{config: config, logger: logger, wallet: wallet, products: products, outboxer: outboxer}
 }
 
-func (o *Orchestrator) SagaTransaction(ctx context.Context, Order orderEntity.OrderEvent) error {
+func (o *Orchestrator) SagaTransaction(ctx context.Context, order orderEntity.OrderEvent) error {
 	// Шаг 1: Резервируем деньги
-	_, err := o.wallet.ReserveFunds(ctx, Order.UserID, Order.Total)
+	_, err := o.wallet.ReserveFunds(ctx, order.UserID, order.Total)
 	if err != nil {
-		o.logger.Errorw("Failed to reserve funds", "error", err, "userID", Order.UserID, "amount", Order.Total)
-		o.rollbackTransaction(ctx, Order, StepWallet)
+		o.logger.Errorw("Failed to reserve funds", "error", err, "userID", order.UserID, "amount", order.Total)
+		o.rollbackTransaction(ctx, order, StepWallet)
 		return fmt.Errorf("wallet reserve failed: %w", err)
 	}
 
 	// Сортируем товары по ID для предотвращения deadlock
-	sort.Slice(Order.Products, func(i, j int) bool {
-		return Order.Products[i].ID < Order.Products[j].ID
+	sort.Slice(order.Products, func(i, j int) bool {
+		return order.Products[i].ID < order.Products[j].ID
 	})
 
 	// Шаг 2: Резервируем товары
-	_, err = o.products.ReserveProducts(ctx, Order.Products)
+	_, err = o.products.ReserveProducts(ctx, order.Products)
 	if err != nil {
-		o.logger.Errorw("Failed to reserve products", "error", err, "orderID", Order.OrderID)
-		o.rollbackTransaction(ctx, Order, StepProducts)
+		o.logger.Errorw("Failed to reserve products", "error", err, "orderID", order.OrderID)
+		o.rollbackTransaction(ctx, order, StepProducts)
 		return fmt.Errorf("products reserve failed: %w", err)
 	}
 
 	// Шаг 3: Коммитим деньги
-	_, err = o.wallet.CommitFunds(ctx, Order.UserID, Order.Total)
+	_, err = o.wallet.CommitFunds(ctx, order.UserID, order.Total)
 	if err != nil {
-		o.logger.Errorw("Failed to commit funds", "error", err, "orderID", Order.OrderID)
-		o.rollbackTransaction(ctx, Order, StepProducts)
+		o.logger.Errorw("Failed to commit funds", "error", err, "orderID", order.OrderID)
+		o.rollbackTransaction(ctx, order, StepProducts)
 		return fmt.Errorf("wallet commit failed: %w", err)
 	}
 
 	// Шаг 4: Коммитим товары
-	_, err = o.products.CommitProducts(ctx, Order.Products)
+	_, err = o.products.CommitProducts(ctx, order.Products)
 	if err != nil {
-		o.logger.Errorw("Failed to commit products", "error", err, "orderID", Order.OrderID)
+		o.logger.Errorw("Failed to commit products", "error", err, "orderID", order.OrderID)
 		// КРИТИЧНО: Если commit товаров упал, нужно откатить commit денег!
 		// Но это уже сложная ситуация - деньги уже списаны
-		o.logger.Errorw("CRITICAL: Funds committed but products commit failed - manual intervention required", "orderID", Order.OrderID)
-		o.rollbackTransaction(ctx, Order, StepProducts)
+		o.logger.Errorw("CRITICAL: Funds committed but products commit failed - manual intervention required", "orderID", order.OrderID)
+		o.rollbackTransaction(ctx, order, StepProducts)
 		return fmt.Errorf("products commit failed: %w", err)
 	}
 
 	// Шаг 5: ТОЛЬКО ПОСЛЕ успешного commit отправляем в Kafka
-	Order.Status = "Completed"
-	err = o.outboxer.SaveEvent(ctx, Order)
+	order.Status = "Completed"
+	err = o.outboxer.SaveEvent(ctx, order)
 	if err != nil {
-		o.logger.Errorw("Failed to save event", "error", err, "orderID", Order.OrderID)
-		o.rollbackTransaction(ctx, Order, StepProducts)
+		o.logger.Errorw("Failed to save event", "error", err, "orderID", order.OrderID)
+		o.rollbackTransaction(ctx, order, StepProducts)
 		return fmt.Errorf("failed to save event: %w", err)
 	}
 
-	o.logger.Infow("Saga transaction completed successfully", "orderID", Order.OrderID, "userID", Order.UserID)
+	o.logger.Infow("Saga transaction completed successfully", "orderID", order.OrderID, "userID", order.UserID)
 	return nil
 }
 

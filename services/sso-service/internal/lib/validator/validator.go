@@ -14,11 +14,10 @@ func ValidateEmail(email string) bool {
 }
 
 func ValidatePassword(password string) bool {
-	if len(password) < 8 {
-		return false
+	if len(password) >= 8 {
+		return true
 	}
-
-	return true
+	return false
 }
 
 func ValidateName(name string) bool {

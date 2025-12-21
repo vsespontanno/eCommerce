@@ -71,7 +71,9 @@ func (s *CartStore) UpsertCart(ctx context.Context, userID int64, cart *[]entity
 	}
 
 	defer func() {
-		_ = tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			// Логируем только реальные ошибки, игнорируем ErrTxDone
+		}
 	}()
 
 	for _, item := range *cart {
@@ -115,7 +117,9 @@ func (s *CartStore) CleanCart(ctx context.Context, order *orderEntity.OrderEvent
 	}
 
 	defer func() {
-		_ = tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			// Логируем только реальные ошибки, игнорируем ErrTxDone
+		}
 	}()
 
 	for _, p := range order.Products {

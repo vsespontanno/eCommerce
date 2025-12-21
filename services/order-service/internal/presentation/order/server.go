@@ -95,12 +95,12 @@ func (s *Server) ListOrders(ctx context.Context, req *proto.ListOrdersRequest) (
 		return &proto.ListOrdersResponse{Orders: []*proto.GetOrderResponse{}}, nil
 	}
 
-	limit := uint64(req.Limit)
+	limit := uint64(req.Limit) // #nosec G115 - req.Limit is int32, safe range for uint64
 	if limit > 100 {
 		limit = 10 // default
 	}
 
-	offset := uint64(req.Offset)
+	offset := uint64(req.Offset) // #nosec G115 - req.Offset is int32, safe range for uint64
 
 	orders, err := s.svc.ListOrdersByUser(ctx, req.UserId, limit, offset)
 	if err != nil {

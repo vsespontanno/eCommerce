@@ -79,9 +79,11 @@ func (p *Publisher) processOutbox(ctx context.Context) {
 
 		if err != nil {
 			p.log.Errorw("failed to produce message", "error", err, "id", id)
-			p.db.ExecContext(ctx,
+			if _, execErr := p.db.ExecContext(ctx,
 				"UPDATE outbox SET status = 'failed' WHERE id = $1", id,
-			)
+			); execErr != nil {
+				p.log.Errorw("failed to update outbox status to failed", "error", execErr, "id", id)
+			}
 			continue
 		}
 

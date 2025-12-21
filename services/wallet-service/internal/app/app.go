@@ -96,11 +96,16 @@ func initializeGRPC(log *zap.SugaredLogger, authInterceptor grpc.UnaryServerInte
 		logging.WithLogOnEvents(logging.PayloadReceived, logging.PayloadSent),
 	}
 
-	gRPCServer := grpc.NewServer(grpc.ChainUnaryInterceptor(
+	interceptors := []grpc.UnaryServerInterceptor{
 		recovery.UnaryServerInterceptor(recoveryOpts...),
 		logging.UnaryServerInterceptor(interceptorLogger(log), loggingOpts...),
-		authInterceptor,
-	))
+	}
+
+	if authInterceptor != nil {
+		interceptors = append(interceptors, authInterceptor)
+	}
+
+	gRPCServer := grpc.NewServer(grpc.ChainUnaryInterceptor(interceptors...))
 
 	return gRPCServer
 }
@@ -196,7 +201,9 @@ func (a *App) Run() error {
 		// attempt graceful shutdown
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = a.gateway.Stop(shutdownCtx)
+		if stopErr := a.gateway.Stop(shutdownCtx); stopErr != nil {
+			a.Log.Errorw("failed to stop gateway during error shutdown", "error", stopErr)
+		}
 
 		a.usrServ.GracefulStop()
 		a.sagaSrv.GracefulStop()

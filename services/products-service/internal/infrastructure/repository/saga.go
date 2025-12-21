@@ -33,7 +33,9 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 		return err
 	}
 	defer func() {
-		_ = tx.Rollback() // Игнорируем ошибку, т.к. Commit уже мог быть вызван
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			// Логируем только реальные ошибки, игнорируем ErrTxDone
+		}
 	}()
 
 	// Для каждого товара: SELECT quantity, reserved FOR UPDATE , проверка, UPDATE reserved
@@ -45,7 +47,10 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 			Where(sq.Eq{"productID": it.ProductID}).
 			Suffix("FOR UPDATE")
 
-		sqlStr, args, _ := qb.ToSql()
+		sqlStr, args, err := qb.ToSql()
+		if err != nil {
+			return err
+		}
 
 		var quantity, reserved int
 		row := tx.QueryRowContext(ctx, sqlStr, args...)
@@ -68,7 +73,10 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 			Set("reserved", sq.Expr("reserved + ?", it.Qty)).
 			Where(sq.Eq{"productID": it.ProductID})
 
-		updateSQL, updateArgs, _ := ub.ToSql()
+		updateSQL, updateArgs, err := ub.ToSql()
+		if err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
 			return err
 		}
@@ -86,7 +94,9 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 		return err
 	}
 	defer func() {
-		_ = tx.Rollback() // Игнорируем ошибку, т.к. Commit уже мог быть вызван
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			// Логируем только реальные ошибки, игнорируем ErrTxDone
+		}
 	}()
 
 	for _, it := range items {
@@ -96,7 +106,10 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 			Where(sq.Eq{"productID": it.ProductID}).
 			Suffix("FOR UPDATE")
 
-		sqlStr, args, _ := qb.ToSql()
+		sqlStr, args, err := qb.ToSql()
+		if err != nil {
+			return err
+		}
 		var reserved int
 		if err := tx.QueryRowContext(ctx, sqlStr, args...).Scan(&reserved); err != nil {
 			return err
@@ -106,7 +119,10 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 			Update("products").
 			Set("reserved", sq.Expr("GREATEST(reserved - ?, 0)", it.Qty)).
 			Where(sq.Eq{"productID": it.ProductID})
-		updateSQL, updateArgs, _ := ub.ToSql()
+		updateSQL, updateArgs, err := ub.ToSql()
+		if err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
 			return err
 		}
@@ -121,7 +137,9 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 		return err
 	}
 	defer func() {
-		_ = tx.Rollback() // Игнорируем ошибку, т.к. Commit уже мог быть вызван
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			// Логируем только реальные ошибки, игнорируем ErrTxDone
+		}
 	}()
 
 	for _, it := range items {
@@ -131,7 +149,10 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 			From("products").
 			Where(sq.Eq{"productID": it.ProductID}).
 			Suffix("FOR UPDATE")
-		sqlStr, args, _ := qb.ToSql()
+		sqlStr, args, err := qb.ToSql()
+		if err != nil {
+			return err
+		}
 
 		if err := tx.QueryRowContext(ctx, sqlStr, args...).Scan(&quantity, &reserved); err != nil {
 			return err
@@ -149,7 +170,10 @@ func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) err
 			Set("productquantity", sq.Expr("productquantity - ?", it.Qty)).
 			Set("reserved", sq.Expr("reserved - ?", it.Qty)).
 			Where(sq.Eq{"productID": it.ProductID})
-		updateSQL, updateArgs, _ := ub.ToSql()
+		updateSQL, updateArgs, err := ub.ToSql()
+		if err != nil {
+			return err
+		}
 		if _, err := tx.ExecContext(ctx, updateSQL, updateArgs...); err != nil {
 			return err
 		}

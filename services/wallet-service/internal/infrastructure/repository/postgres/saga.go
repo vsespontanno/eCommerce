@@ -34,7 +34,11 @@ func (s *SagaWalletStore) ReserveMoney(ctx context.Context, userID int64, amount
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			// Логируем только реальные ошибки, игнорируем ErrTxDone
+		}
+	}()
 
 	// Check if wallet exists and has sufficient balance
 	var balance, reserved int64
@@ -68,7 +72,10 @@ func (s *SagaWalletStore) ReserveMoney(ctx context.Context, userID int64, amount
 		return fmt.Errorf("failed to reserve funds: %w", err)
 	}
 
-	rowsAffected, _ := res.RowsAffected()
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return apperrors.ErrNoWallet
 	}
@@ -90,7 +97,11 @@ func (s *SagaWalletStore) CommitMoney(ctx context.Context, userID int64, amount 
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			// Логируем только реальные ошибки, игнорируем ErrTxDone
+		}
+	}()
 
 	// Verify wallet state before commit
 	var balance, reserved int64
@@ -127,7 +138,10 @@ func (s *SagaWalletStore) CommitMoney(ctx context.Context, userID int64, amount 
 		return fmt.Errorf("failed to commit funds: %w", err)
 	}
 
-	rowsAffected, _ := res.RowsAffected()
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return apperrors.ErrNoWallet
 	}
@@ -149,7 +163,11 @@ func (s *SagaWalletStore) ReleaseMoney(ctx context.Context, userID int64, amount
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			// Логируем только реальные ошибки, игнорируем ErrTxDone
+		}
+	}()
 
 	// Verify reserved amount before release
 	var reserved int64
@@ -182,7 +200,10 @@ func (s *SagaWalletStore) ReleaseMoney(ctx context.Context, userID int64, amount
 		return fmt.Errorf("failed to release funds: %w", err)
 	}
 
-	rowsAffected, _ := res.RowsAffected()
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return apperrors.ErrNoWallet
 	}

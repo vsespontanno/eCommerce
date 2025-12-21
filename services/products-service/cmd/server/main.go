@@ -105,7 +105,11 @@ func seedSomeValues(store *postgres.ProductStore) {
 		CountInStock: 100,
 	}
 
-	store.SaveProduct(context.TODO(), product1)
-	store.SaveProduct(context.TODO(), product2)
+	if err := store.SaveProduct(context.TODO(), product1); err != nil {
+		fmt.Printf("Failed to seed product1: %v\n", err)
+	}
+	if err := store.SaveProduct(context.TODO(), product2); err != nil {
+		fmt.Printf("Failed to seed product2: %v\n", err)
+	}
 	fmt.Println("Products seeded")
 }

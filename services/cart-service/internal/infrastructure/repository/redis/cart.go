@@ -101,9 +101,9 @@ func (s *CartStore) DecrementInCart(ctx context.Context, userID, productID int64
 	}
 
 	var p entity.CartItem
-	if err := json.Unmarshal([]byte(jsonStr), &p); err != nil {
-		s.logger.Errorw("Failed to unmarshal product", "error", err)
-		return err
+	if unmarshalErr := json.Unmarshal([]byte(jsonStr), &p); unmarshalErr != nil {
+		s.logger.Errorw("Failed to unmarshal product", "error", unmarshalErr)
+		return unmarshalErr
 	}
 
 	p.Quantity--
@@ -112,7 +112,11 @@ func (s *CartStore) DecrementInCart(ctx context.Context, userID, productID int64
 		return err
 	}
 
-	data, _ := json.Marshal(p)
+	data, marshalErr := json.Marshal(p)
+	if marshalErr != nil {
+		s.logger.Errorw("Failed to marshal product", "error", marshalErr)
+		return marshalErr
+	}
 	_, err = s.rdb.HSet(ctx, key, field, data).Result()
 	return err
 }

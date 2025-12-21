@@ -30,7 +30,9 @@ import (
 func main() {
 	logger.InitLogger()
 	defer func() {
-		_ = logger.Log.Sync()
+		if syncErr := logger.Log.Sync(); syncErr != nil {
+			// Игнорируем ошибки sync для stderr/stdout
+		}
 	}()
 	cfg, err := config.MustLoad()
 	if err != nil {

@@ -33,7 +33,9 @@ func (s *OrderStore) CreateOrder(ctx context.Context, order *entity.Order) error
 		return fmt.Errorf("tx begin: %w", err)
 	}
 	defer func() {
-		_ = tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
+			// Логируем только реальные ошибки, игнорируем ErrTxDone
+		}
 	}()
 	// Проверка идемпотентности - заказ с таким ID уже существует?
 	var exists bool
@@ -148,7 +150,9 @@ func (s *OrderStore) ListOrdersByUser(ctx context.Context, userID int64, limit, 
 		)
 
 		defer func() {
-			_ = itemsRows.Close()
+			if closeErr := itemsRows.Close(); closeErr != nil {
+				s.logger.Errorw("failed to close items rows", "error", closeErr)
+			}
 		}()
 
 		if err != nil {

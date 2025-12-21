@@ -107,10 +107,12 @@ func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// если это пустая корзина
 		if errors.Is(err, apperrors.ErrNoCartFound) {
-			writeJSON(w, http.StatusOK, map[string]interface{}{
+			if writeErr := writeJSON(w, http.StatusOK, map[string]interface{}{
 				"message": "Your cart is empty",
 				"items":   []entity.CartItem{},
-			})
+			}); writeErr != nil {
+				h.sugarLogger.Errorw("failed to write empty cart response", "error", writeErr)
+			}
 			return
 		}
 
@@ -120,14 +122,18 @@ func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(cart.Items) == 0 {
-		writeJSON(w, http.StatusOK, map[string]interface{}{
+		if writeErr := writeJSON(w, http.StatusOK, map[string]interface{}{
 			"message": "Your cart is empty",
 			"items":   []entity.CartItem{},
-		})
+		}); writeErr != nil {
+			h.sugarLogger.Errorw("failed to write empty cart response", "error", writeErr)
+		}
 		return
 	}
 
-	writeJSON(w, http.StatusOK, cart)
+	if writeErr := writeJSON(w, http.StatusOK, cart); writeErr != nil {
+		h.sugarLogger.Errorw("failed to write cart response", "error", writeErr)
+	}
 }
 
 func (h *Handler) ClearCart(w http.ResponseWriter, r *http.Request) {
@@ -193,7 +199,9 @@ func (h *Handler) IncrementProduct(w http.ResponseWriter, r *http.Request) {
 	err = h.cartService.AddProductToCart(ctx, userID, int64(intID))
 	if err != nil {
 		if errors.Is(err, apperrors.ErrTooManyProductsOfOneType) {
-			writeJSON(w, http.StatusUnprocessableEntity, "You cannot add more than 100 products of one")
+			if writeErr := writeJSON(w, http.StatusUnprocessableEntity, "You cannot add more than 100 products of one"); writeErr != nil {
+				h.sugarLogger.Errorw("failed to write error response", "error", writeErr)
+			}
 			return
 		}
 		http.Error(w, "Error while adding product", http.StatusBadRequest)

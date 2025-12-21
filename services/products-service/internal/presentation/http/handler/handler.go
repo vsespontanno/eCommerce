@@ -82,17 +82,23 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 
 	id, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid id"})
+		if writeErr := writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid id"}); writeErr != nil {
+			h.sugarLogger.Errorw("failed to write error response", "error", writeErr)
+		}
 		return
 	}
 
 	product, err := h.productStore.GetProductByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrNoProductFound) {
-			writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"})
+			if writeErr := writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"}); writeErr != nil {
+				h.sugarLogger.Errorw("failed to write error response", "error", writeErr)
+			}
 		} else {
 			h.sugarLogger.Errorw("failed to get product", "error", err, "id", id)
-			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load product"})
+			if writeErr := writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load product"}); writeErr != nil {
+				h.sugarLogger.Errorw("failed to write error response", "error", writeErr)
+			}
 		}
 		return
 	}
@@ -111,25 +117,33 @@ func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 	userID, ok := userIDValue.(int64)
 	if !ok {
 		h.sugarLogger.Errorw("invalid user_id type in context", "value", userIDValue)
-		_ = writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "unauthorized"})
+		if writeErr := writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "unauthorized"}); writeErr != nil {
+			h.sugarLogger.Errorw("failed to write error response", "error", writeErr)
+		}
 		return
 	}
 
 	vars := mux.Vars(r)
 	productID, err := strconv.ParseInt(vars["id"], 10, 64)
 	if err != nil {
-		_ = writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid product id"})
+		if writeErr := writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid product id"}); writeErr != nil {
+			h.sugarLogger.Errorw("failed to write error response", "error", writeErr)
+		}
 		return
 	}
 
 	product, err := h.productStore.GetProductByID(ctx, productID)
 	if err != nil {
 		if errors.Is(err, apperrors.ErrNoProductFound) {
-			_ = writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"})
+			if writeErr := writeJSON(w, http.StatusNotFound, map[string]any{"error": "product not found"}); writeErr != nil {
+				h.sugarLogger.Errorw("failed to write error response", "error", writeErr)
+			}
 		} else {
 			h.sugarLogger.Errorw("failed to load product for cart",
 				"error", err, "product_id", productID, "user_id", userID)
-			_ = writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load product"})
+			if writeErr := writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load product"}); writeErr != nil {
+				h.sugarLogger.Errorw("failed to write error response", "error", writeErr)
+			}
 		}
 		return
 	}
@@ -141,7 +155,9 @@ func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 			"user_id", userID,
 			"product_id", product.ID,
 		)
-		_ = writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to add to cart"})
+		if writeErr := writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to add to cart"}); writeErr != nil {
+			h.sugarLogger.Errorw("failed to write error response", "error", writeErr)
+		}
 		return
 	}
 
