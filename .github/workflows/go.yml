@@ -157,6 +157,7 @@ jobs:
       - name: Run Gosec Security Scanner
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
+          export PATH=$PATH:$(go env GOPATH)/bin
           gosec -no-fail -fmt sarif -out gosec-results.sarif ./...
         continue-on-error: true
 
@@ -177,6 +178,18 @@ jobs:
         uses: azure/setup-kubectl@v4
         with:
           version: latest
+
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+          
+      - name: Configure Yandex Cloud CLI
+        run: |
+          yc config profile create sa-profile
+          echo "${{ secrets.YC_SERVICE_ACCOUNT_KEY }}" | yc config set service-account-key -
+          yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
+          yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
 
       - name: Setup kubeconfig
         run: |
@@ -218,6 +231,8 @@ jobs:
 
       - name: Send Telegram notification
         uses: appleboy/telegram-action@master
+        continue-on-error: true
+        timeout-minutes: 2
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
