@@ -157,6 +157,7 @@ jobs:
       - name: Run Gosec Security Scanner
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
+          export PATH=$PATH:$(go env GOPATH)/bin
           gosec -no-fail -fmt sarif -out gosec-results.sarif ./...
         continue-on-error: true
 
@@ -165,36 +166,55 @@ jobs:
         if: always() && hashFiles('gosec-results.sarif') != ''
         with:
           sarif_file: 'gosec-results.sarif'
+  
+  cluster-access-check:
+    name: Check Kubernetes Cluster Access
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push'
 
-  # Job 4: Deploy (optional, for production)
-  # deploy:
-  #   name: Deploy to Production
-  #   runs-on: ubuntu-latest
-  #   needs: [build-and-push, security-scan]
-  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-  #   environment:
-  #     name: production
-  #     url: https://your-production-url.com
-  #
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Deploy notification
-  #       run: |
-  #         echo "🚀 Deploying to production..."
-  #         echo "Branch: ${{ github.ref }}"
-  #         echo "Commit: ${{ github.sha }}"
-  #         echo "Author: ${{ github.actor }}"
-  #
-  #     # Add your deployment steps here
-  #     # Examples:
-  #     # - Deploy to Kubernetes
-  #     # - Update docker-compose on server
-  #     # - Trigger ArgoCD sync
-  #     # - etc.
+    steps:
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
 
-  # Job 5: Notify via Telegram
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+          
+      - name: Configure Yandex Cloud CLI
+        run: |
+          # Configure YC CLI with OAuth token
+          $HOME/yandex-cloud/bin/yc config profile create ci-profile
+          $HOME/yandex-cloud/bin/yc config set token ${{ secrets.YC_OAUTH_TOKEN }}
+          $HOME/yandex-cloud/bin/yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
+          $HOME/yandex-cloud/bin/yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+
+      - name: Get kubeconfig from Yandex Cloud
+        run: |
+          echo "📥 Getting kubeconfig from Yandex Cloud..."
+          
+          # Get kubeconfig directly from YC (no need for secrets!)
+          $HOME/yandex-cloud/bin/yc managed-kubernetes cluster \
+            get-credentials ${{ secrets.YC_K8S_CLUSTER_NAME }} \
+            --external \
+            --force
+          
+          echo "✅ Kubeconfig configured successfully"
+
+      - name: Verify cluster access
+        run: |
+          echo "🔍 Checking cluster access..."
+          kubectl version --client
+          
+          echo "🔗 Attempting to connect to cluster..."
+          kubectl cluster-info
+          
+          echo "📊 Getting nodes..."
+          kubectl get nodes
+
   notify:
     name: Notify Build Status
     runs-on: ubuntu-latest
@@ -222,6 +242,8 @@ jobs:
 
       - name: Send Telegram notification
         uses: appleboy/telegram-action@master
+        continue-on-error: true
+        timeout-minutes: 2
         with:
           to: ${{ secrets.TELEGRAM_CHAT_ID }}
           token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
