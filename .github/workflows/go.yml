@@ -197,12 +197,23 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG_BASE64 }}" | base64 -d > ~/.kube/config
           chmod 600 ~/.kube/config
+          
+          # Fix yc path in kubeconfig for GitHub Actions
+          sed -i "s|/Users/shapiaev/yandex-cloud/bin/yc|$HOME/yandex-cloud/bin/yc|g" ~/.kube/config
+          
+          # Verify the fix
+          echo "📝 Kubeconfig after path fix:"
+          grep "yandex-cloud" ~/.kube/config || echo "No yc path found in kubeconfig"
 
       - name: Verify cluster access
         run: |
           echo "🔍 Checking cluster access..."
           kubectl version --client
+          
+          echo "🔗 Attempting to connect to cluster..."
           kubectl cluster-info
+          
+          echo "📊 Getting nodes..."
           kubectl get nodes
 
   notify:
