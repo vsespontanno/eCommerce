@@ -186,24 +186,23 @@ jobs:
           
       - name: Configure Yandex Cloud CLI
         run: |
-          # Configure YC CLI with OAuth token (simpler and more reliable)
+          # Configure YC CLI with OAuth token
           $HOME/yandex-cloud/bin/yc config profile create ci-profile
           $HOME/yandex-cloud/bin/yc config set token ${{ secrets.YC_OAUTH_TOKEN }}
           $HOME/yandex-cloud/bin/yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
           $HOME/yandex-cloud/bin/yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
 
-      - name: Setup kubeconfig
+      - name: Get kubeconfig from Yandex Cloud
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG_BASE64 }}" | base64 -d > ~/.kube/config
-          chmod 600 ~/.kube/config
+          echo "📥 Getting kubeconfig from Yandex Cloud..."
           
-          # Fix yc path in kubeconfig for GitHub Actions
-          sed -i "s|/Users/shapiaev/yandex-cloud/bin/yc|$HOME/yandex-cloud/bin/yc|g" ~/.kube/config
+          # Get kubeconfig directly from YC (no need for secrets!)
+          $HOME/yandex-cloud/bin/yc managed-kubernetes cluster \
+            get-credentials ${{ secrets.YC_K8S_CLUSTER_NAME }} \
+            --external \
+            --force
           
-          # Verify the fix
-          echo "📝 Kubeconfig after path fix:"
-          grep "yandex-cloud" ~/.kube/config || echo "No yc path found in kubeconfig"
+          echo "✅ Kubeconfig configured successfully"
 
       - name: Verify cluster access
         run: |
