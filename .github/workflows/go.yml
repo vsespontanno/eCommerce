@@ -186,10 +186,17 @@ jobs:
           
       - name: Configure Yandex Cloud CLI
         run: |
-          yc config profile create sa-profile
-          echo "${{ secrets.YC_SERVICE_ACCOUNT_KEY }}" | yc config set service-account-key -
-          yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
-          yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+          # Create service account key file
+          echo "${{ secrets.YC_SERVICE_ACCOUNT_KEY }}" > /tmp/sa-key.json
+          
+          # Configure YC CLI
+          $HOME/yandex-cloud/bin/yc config profile create sa-profile
+          $HOME/yandex-cloud/bin/yc config set service-account-key /tmp/sa-key.json
+          $HOME/yandex-cloud/bin/yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
+          $HOME/yandex-cloud/bin/yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+          
+          # Clean up key file
+          rm -f /tmp/sa-key.json
 
       - name: Setup kubeconfig
         run: |
