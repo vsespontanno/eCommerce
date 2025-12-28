@@ -15,9 +15,15 @@ spec:
       labels:
         app: sso-service
     spec:
+      # Секрет для доступа к Yandex Container Registry
+      imagePullSecrets:
+        - name: yc-registry-secret
+      
       containers:
         - name: sso-service
-          image: docker.io/your-username/ecommerce-sso-service:latest
+          # Образ будет обновлен через kubectl set image в CI/CD
+          # Placeholder для первого деплоя, затем CI/CD обновит на актуальный образ из YCR
+          image: cr.yandex/placeholder/ecommerce-sso-service:latest
           imagePullPolicy: Always
           
           ports:
