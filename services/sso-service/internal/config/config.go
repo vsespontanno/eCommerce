@@ -20,14 +20,17 @@ type Config struct {
 
 func MustLoad() (*Config, error) {
 	const op = "config.MustLoad"
-	err := godotenv.Load(".env")
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
+
+	// Пытаемся загрузить .env файл, но не падаем если его нет
+	// В Kubernetes переменные окружения уже установлены через ConfigMap/Secret
+	//nolint:errcheck // .env файл опционален, игнорируем ошибку если его нет
+	_ = godotenv.Load(".env")
+
 	grpcPort, err := strconv.Atoi(os.Getenv("GRPC_PORT"))
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
+		return nil, fmt.Errorf("%s: failed to parse GRPC_PORT: %w", op, err)
 	}
+
 	return &Config{
 		JWTSecret: os.Getenv("JWT_SECRET"),
 		GRPCPort:  grpcPort,

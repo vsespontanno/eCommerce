@@ -21,9 +21,7 @@ spec:
       
       containers:
         - name: sso-service
-          # Образ будет обновлен через kubectl set image в CI/CD
-          # Placeholder для первого деплоя, затем CI/CD обновит на актуальный образ из YCR
-          image: cr.yandex/placeholder/ecommerce-sso-service:latest
+          image: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-sso-service:latest
           imagePullPolicy: Always
           
           ports:
