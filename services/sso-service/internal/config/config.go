@@ -23,6 +23,7 @@ func MustLoad() (*Config, error) {
 
 	// Пытаемся загрузить .env файл, но не падаем если его нет
 	// В Kubernetes переменные окружения уже установлены через ConfigMap/Secret
+	//nolint:errcheck // .env файл опционален, игнорируем ошибку если его нет
 	_ = godotenv.Load(".env")
 
 	grpcPort, err := strconv.Atoi(os.Getenv("GRPC_PORT"))
