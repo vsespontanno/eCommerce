@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sso-service-config
+  namespace: ecommerce
+data:
+  PG_HOST: "postgres-postgresql"
+  PG_PORT: "5432"
+  PG_NAME: "ecommerce"
+  PG_USER: "ecommerce"
+  
+  GRPC_PORT: "50051"
+  HTTP_PORT: "8080"
+  
+  TOKEN_TTL: "1h"
