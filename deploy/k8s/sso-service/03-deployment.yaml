@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sso-service
+  namespace: ecommerce
+  labels:
+    app: sso-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sso-service
+  template:
+    metadata:
+      labels:
+        app: sso-service
+    spec:
+      containers:
+        - name: sso-service
+          image: docker.io/your-username/ecommerce-sso-service:latest
+          imagePullPolicy: Always
+          
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: grpc
+              containerPort: 50051
+          
+          # Переменные окружения из ConfigMap
+          envFrom:
+            - configMapRef:
+                name: sso-service-config
+          
+          # Секретные переменные из Secret
+          env:
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sso-service-secret
+                  key: PG_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: sso-service-secret
+                  key: JWT_SECRET
+          
+          # Проверка что приложение живо
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          
+          # Проверка что приложение готово принимать трафик
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          
+          # Сколько ресурсов выделить
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
