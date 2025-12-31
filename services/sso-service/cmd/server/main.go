@@ -20,7 +20,7 @@ func main() {
 	logger.InitLogger()
 	sDb, err := repository.ConnectToPostgres(cfg.User, cfg.Password, cfg.Name, cfg.Host, cfg.PGPort)
 	if err != nil {
-		panic("Failed to connect to db: " + err.Error())
+		logger.Log.Warn("Failed to connect to db: " + err.Error())
 	}
 
 	// HTTP port по умолчанию 8080
