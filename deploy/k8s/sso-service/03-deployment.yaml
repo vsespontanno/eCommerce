@@ -48,22 +48,6 @@ spec:
                   name: sso-service-secret
                   key: JWT_SECRET
           
-          # Проверка что приложение живо
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 8080
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          
-          # Проверка что приложение готово принимать трафик
-          readinessProbe:
-            httpGet:
-              path: /ready
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 5
-          
           # Сколько ресурсов выделить
           resources:
             requests:
