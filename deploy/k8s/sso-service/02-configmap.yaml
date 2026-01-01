@@ -4,7 +4,7 @@ metadata:
   name: sso-service-config
   namespace: ecommerce
 data:
-  PG_HOST: "postgres-postgresql"
+  PG_HOST: "postgres.datastore.svc.cluster.local"
   PG_PORT: "5432"
   PG_NAME: "ecommerce"
   PG_USER: "ecommerce"

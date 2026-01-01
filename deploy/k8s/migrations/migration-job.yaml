@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migrations
+  namespace: ecommerce
+spec:
+  # Не пересоздавать Job автоматически при ошибке
+  backoffLimit: 3
+  
+  template:
+    metadata:
+      labels:
+        app: db-migrations
+    spec:
+      restartPolicy: Never
+      
+      containers:
+        - name: goose-migrations
+          # Используем собранный образ с миграциями
+          image: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-migrations:latest
+          
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "🔄 Running database migrations..."
+              goose -dir /migrations postgres \
+                "host=${PG_HOST} port=${PG_PORT} user=${PG_USER} password=${PG_PASSWORD} dbname=${PG_NAME} sslmode=disable" \
+                up
+              echo "✅ Migrations completed successfully"
+          
+          # Переменные окружения из ConfigMap и Secret
+          env:
+            - name: PG_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: sso-service-config
+                  key: PG_HOST
+            - name: PG_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: sso-service-config
+                  key: PG_PORT
+            - name: PG_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: sso-service-config
+                  key: PG_NAME
+            - name: PG_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: sso-service-config
+                  key: PG_USER
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sso-service-secret
+                  key: PG_PASSWORD
+      
+      # imagePullSecret для доступа к YCR
+      imagePullSecrets:
+        - name: yc-registry-secret
