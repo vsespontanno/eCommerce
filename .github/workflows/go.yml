@@ -128,6 +128,9 @@ jobs:
           - name: saga-orchestrator
             dockerfile: services/saga-orchestrator/Dockerfile
             context: .
+          - name: migrations
+            dockerfile: migrations/Dockerfile
+            context: migrations
 
     permissions:
       contents: read
@@ -305,6 +308,28 @@ jobs:
             get-credentials ${{ secrets.YC_K8S_CLUSTER_NAME }} \
             --external \
             --force
+
+      - name: Run Database Migrations
+        run: |
+          echo "🗄️ Running database migrations..."
+          
+          # Применяем Job для миграций
+          kubectl apply -f deploy/k8s/migrations/migration-job.yaml
+          
+          # Ждем завершения миграций
+          kubectl wait --for=condition=complete --timeout=5m job/db-migrations -n ecommerce || true
+          
+          # Показываем логи миграций
+          echo "📋 Migration logs:"
+          kubectl logs job/db-migrations -n ecommerce || echo "No logs available yet"
+          
+          # Проверяем статус
+          JOB_STATUS=$(kubectl get job db-migrations -n ecommerce -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
+          if [ "$JOB_STATUS" == "True" ]; then
+            echo "✅ Migrations completed successfully"
+          else
+            echo "⚠️ Migrations may have failed, check logs above"
+          fi
 
       - name: Deploy SSO Service
         run: |
