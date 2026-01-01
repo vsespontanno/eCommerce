@@ -401,10 +401,21 @@ jobs:
       - name: Determine build status
         id: status
         run: |
-          if [ "${{ needs.lint-and-test.result }}" == "success" ] && \
-             [ "${{ needs.check-ycr-access.result }}" == "success" ] && \
-             [ "${{ needs.build-and-push.result }}" == "success" ] && \
-             [ "${{ needs.security-scan.result }}" == "success" ]; then
+          # Проверяем все критичные джобы
+          LINT_TEST="${{ needs.lint-and-test.result }}"
+          YCR_ACCESS="${{ needs.check-ycr-access.result }}"
+          BUILD_PUSH="${{ needs.build-and-push.result }}"
+          SECURITY="${{ needs.security-scan.result }}"
+          CLUSTER_ACCESS="${{ needs.cluster-access-check.result }}"
+          DEPLOY="${{ needs.deploy-to-k8s.result }}"
+          
+          # SUCCESS только если все успешны или пропущены (skipped для deploy на не-main ветках)
+          if [ "$LINT_TEST" == "success" ] && \
+             [ "$SECURITY" == "success" ] && \
+             ([ "$YCR_ACCESS" == "success" ] || [ "$YCR_ACCESS" == "skipped" ]) && \
+             ([ "$BUILD_PUSH" == "success" ] || [ "$BUILD_PUSH" == "skipped" ]) && \
+             ([ "$CLUSTER_ACCESS" == "success" ] || [ "$CLUSTER_ACCESS" == "skipped" ]) && \
+             ([ "$DEPLOY" == "success" ] || [ "$DEPLOY" == "skipped" ]); then
             echo "status=✅ SUCCESS" >> $GITHUB_OUTPUT
             echo "emoji=🎉" >> $GITHUB_OUTPUT
             echo "color=success" >> $GITHUB_OUTPUT
