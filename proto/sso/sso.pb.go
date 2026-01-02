@@ -376,9 +376,9 @@ const file_sso_sso_proto_rawDesc = "" +
 	"\x05email\x18\x03 \x01(\tR\x05email2\xba\x01\n" +
 	"\x04Auth\x12^\n" +
 	"\bRegister\x12\x1a.proto_sso.RegisterRequest\x1a\x1b.proto_sso.RegisterResponse\"\x19\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/auth/register\x12R\n" +
-	"\x05Login\x12\x17.proto_sso.LoginRequest\x1a\x18.proto_sso.LoginResponse\"\x16\x82\xd3\xe4\x93\x02\x10:\x01*\"\v/auth/login2\x81\x01\n" +
-	"\tValidator\x12t\n" +
-	"\rValidateToken\x12\x1f.proto_sso.ValidateTokenRequest\x1a .proto_sso.ValidateTokenResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/auth/validateB-Z+github.com/vsespontanno/eCommerce/proto/ssob\x06proto3"
+	"\x05Login\x12\x17.proto_sso.LoginRequest\x1a\x18.proto_sso.LoginResponse\"\x16\x82\xd3\xe4\x93\x02\x10:\x01*\"\v/auth/login2_\n" +
+	"\tValidator\x12R\n" +
+	"\rValidateToken\x12\x1f.proto_sso.ValidateTokenRequest\x1a .proto_sso.ValidateTokenResponseB-Z+github.com/vsespontanno/eCommerce/proto/ssob\x06proto3"
 
 var (
 	file_sso_sso_proto_rawDescOnce sync.Once
