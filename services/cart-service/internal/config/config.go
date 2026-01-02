@@ -31,10 +31,8 @@ type Config struct {
 
 func MustLoad() (*Config, error) {
 	const op = "config.MustLoad"
-	// Load environment variables from .env file
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
+	//nolint:errcheck // .env файл опционален, игнорируем ошибку если его нет
+	_ = godotenv.Load(".env")
 	HTTPPort, err := strconv.Atoi(os.Getenv("HTTP_PORT"))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)

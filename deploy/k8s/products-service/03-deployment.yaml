@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: products-service
+  namespace: ecommerce
+  labels:
+    app: products-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: products-service
+  template:
+    metadata:
+      labels:
+        app: products-service
+    spec:
+      containers:
+        - name: products-service
+          image: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-products-service:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: grpc-products
+              containerPort: 50051
+              protocol: TCP
+            - name: grpc-saga
+              containerPort: 50052
+              protocol: TCP
+          
+          envFrom:
+            - configMapRef:
+                name: products-service-config
+            - secretRef:
+                name: products-service-secret
+          
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      
+      imagePullSecrets:
+        - name: yc-registry-secret
