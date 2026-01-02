@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -105,11 +104,8 @@ func seedSomeValues(store *postgres.ProductStore) {
 		CountInStock: 100,
 	}
 
-	if err := store.SaveProduct(context.TODO(), product1); err != nil {
-		fmt.Printf("Failed to seed product1: %v\n", err)
-	}
-	if err := store.SaveProduct(context.TODO(), product2); err != nil {
-		fmt.Printf("Failed to seed product2: %v\n", err)
-	}
-	fmt.Println("Products seeded")
+	// Игнорируем ошибки дубликатов - продукты уже могут существовать
+	_ = store.SaveProduct(context.TODO(), product1)
+	_ = store.SaveProduct(context.TODO(), product2)
+	logger.Log.Info("Products seed completed")
 }
