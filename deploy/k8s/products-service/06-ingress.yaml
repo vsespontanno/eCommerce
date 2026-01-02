@@ -3,14 +3,12 @@ kind: Ingress
 metadata:
   name: products-service-ingress
   namespace: ecommerce
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   rules:
     - http:
         paths:
-          - path: /api/v1/products
+          - path: /products
             pathType: Prefix
             backend:
               service:
