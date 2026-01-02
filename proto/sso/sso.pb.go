@@ -373,10 +373,10 @@ const file_sso_sso_proto_rawDesc = "" +
 	"\x15ValidateTokenResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x14\n" +
-	"\x05email\x18\x03 \x01(\tR\x05email2\xc8\x01\n" +
-	"\x04Auth\x12e\n" +
-	"\bRegister\x12\x1a.proto_sso.RegisterRequest\x1a\x1b.proto_sso.RegisterResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/auth/register\x12Y\n" +
-	"\x05Login\x12\x17.proto_sso.LoginRequest\x1a\x18.proto_sso.LoginResponse\"\x1d\x82\xd3\xe4\x93\x02\x17:\x01*\"\x12/api/v1/auth/login2\x81\x01\n" +
+	"\x05email\x18\x03 \x01(\tR\x05email2\xba\x01\n" +
+	"\x04Auth\x12^\n" +
+	"\bRegister\x12\x1a.proto_sso.RegisterRequest\x1a\x1b.proto_sso.RegisterResponse\"\x19\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/auth/register\x12R\n" +
+	"\x05Login\x12\x17.proto_sso.LoginRequest\x1a\x18.proto_sso.LoginResponse\"\x16\x82\xd3\xe4\x93\x02\x10:\x01*\"\v/auth/login2\x81\x01\n" +
 	"\tValidator\x12t\n" +
 	"\rValidateToken\x12\x1f.proto_sso.ValidateTokenRequest\x1a .proto_sso.ValidateTokenResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/auth/validateB-Z+github.com/vsespontanno/eCommerce/proto/ssob\x06proto3"
 

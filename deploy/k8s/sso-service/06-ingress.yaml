@@ -8,7 +8,7 @@ spec:
   rules:
     - http:
         paths:
-          - path: /api/v1/auth
+          - path: /auth
             pathType: Prefix
             backend:
               service:
