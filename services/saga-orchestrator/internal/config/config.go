@@ -23,9 +23,8 @@ type Config struct {
 
 func MustLoad() (*Config, error) {
 	var cfg Config
-	if err := godotenv.Load(); err != nil {
-		return nil, err
-	}
+	//nolint:errcheck // .env файл опционален, игнорируем ошибку если его нет
+	_ = godotenv.Load(".env")
 	cfg.GRPCServerPort = getEnvAsInt("GRPC_SERVER_PORT", 50051)
 	cfg.GRPCWalletClientPort = os.Getenv("GRPC_WALLET_CLIENT_PORT")
 	cfg.GRPCProductsClientPort = os.Getenv("GRPC_PRODUCTS_CLIENT_PORT")

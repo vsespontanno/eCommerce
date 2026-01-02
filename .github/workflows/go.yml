@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 env:
-  GO_VERSION: '1.24.6'
+  GO_VERSION: '1.23'
   # Yandex Container Registry
   REGISTRY: cr.yandex/${{ secrets.YC_REGISTRY_ID }}
   IMAGE_PREFIX: ecommerce
@@ -42,6 +42,7 @@ jobs:
           args: --timeout=5m --config=.golangci.yml
           skip-cache: false
 
+      # тестов пока не намечетс :)
       # - name: Run tests
       #   run: |
       #     go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
@@ -309,9 +310,30 @@ jobs:
             --external \
             --force
 
+      - name: Deploy PostgreSQL
+        run: |
+          echo "🗄️ Deploying PostgreSQL..."
+          
+          # Создаем namespace для datastore если не существует
+          kubectl apply -f deploy/k8s/postgres/00-namespace.yaml || true
+          
+          # Применяем манифесты PostgreSQL
+          kubectl apply -f deploy/k8s/postgres/01-secret.yaml
+          kubectl apply -f deploy/k8s/postgres/02-service.yaml
+          kubectl apply -f deploy/k8s/postgres/03-stateful-set.yaml
+          
+          # Ждем пока PostgreSQL будет готов
+          echo "⏳ Waiting for PostgreSQL to be ready..."
+          kubectl wait --for=condition=ready pod -l app=postgres -n datastore --timeout=5m || true
+          
+          echo "✅ PostgreSQL deployed"
+
       - name: Run Database Migrations
         run: |
           echo "🗄️ Running database migrations..."
+          
+          # Удаляем старый Job если существует
+          kubectl delete job db-migrations -n ecommerce --ignore-not-found=true
           
           # Применяем Job для миграций
           kubectl apply -f deploy/k8s/migrations/migration-job.yaml
@@ -355,7 +377,7 @@ jobs:
           
           # Update deployment with new image from YCR
           echo "🔄 Updating deployment with new image..."
-          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-sso-service:${GITHUB_REF_NAME}"
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-sso-service:main"
           echo "📦 Image: $IMAGE_NAME"
           kubectl set image deployment/sso-service sso-service=$IMAGE_NAME -n ecommerce
           
@@ -384,6 +406,52 @@ jobs:
           else
             echo "❌ Some pods are not ready"
             kubectl get pods -n ecommerce -l app=sso-service
+            exit 1
+          fi
+
+      - name: Deploy Products Service
+        run: |
+          echo "🚀 Deploying Products Service to Kubernetes..."
+          
+          # Применяем манифесты
+          kubectl apply -f deploy/k8s/products-service/01-secret.yaml
+          kubectl apply -f deploy/k8s/products-service/02-configmap.yaml
+          kubectl apply -f deploy/k8s/products-service/03-deployment.yaml
+          kubectl apply -f deploy/k8s/products-service/04-service.yaml
+          kubectl apply -f deploy/k8s/products-service/05-hpa.yaml
+          kubectl apply -f deploy/k8s/products-service/06-ingress.yaml
+          
+          # Update deployment with new image from YCR
+          echo "🔄 Updating deployment with new image..."
+          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-products-service:main"
+          echo "📦 Image: $IMAGE_NAME"
+          kubectl set image deployment/products-service products-service=$IMAGE_NAME -n ecommerce
+          
+          echo "✅ Products Service manifests applied successfully"
+
+      - name: Wait for Products deployment
+        run: |
+          echo "⏳ Waiting for Products deployment to be ready..."
+          kubectl rollout status deployment/products-service -n ecommerce --timeout=5m
+          
+          echo "📊 Products Deployment status:"
+          kubectl get pods -n ecommerce -l app=products-service
+
+      - name: Verify Products deployment
+        run: |
+          echo "🔍 Verifying Products deployment..."
+          
+          # Проверяем что все поды запущены
+          READY_PODS=$(kubectl get pods -n ecommerce -l app=products-service -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -o "True" | wc -l)
+          TOTAL_PODS=$(kubectl get pods -n ecommerce -l app=products-service --no-headers | wc -l)
+          
+          echo "Ready pods: $READY_PODS / $TOTAL_PODS"
+          
+          if [ "$READY_PODS" -eq "$TOTAL_PODS" ] && [ "$TOTAL_PODS" -gt 0 ]; then
+            echo "✅ All Products pods are ready!"
+          else
+            echo "❌ Some Products pods are not ready"
+            kubectl get pods -n ecommerce -l app=products-service
             exit 1
           fi
 

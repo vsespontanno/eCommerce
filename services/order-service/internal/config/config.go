@@ -19,9 +19,8 @@ type Config struct {
 
 func MustLoad() (*Config, error) {
 	const op = "config.MustLoad"
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("%s: %w", op, err)
-	}
+	//nolint:errcheck // .env файл опционален, игнорируем ошибку если его нет
+	_ = godotenv.Load(".env")
 	GRPCServerPort, err := strconv.Atoi(os.Getenv("GRPC_SERVER_PORT"))
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
