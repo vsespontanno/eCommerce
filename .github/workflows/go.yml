@@ -375,13 +375,7 @@ jobs:
           kubectl apply -f deploy/k8s/sso-service/05-hpa.yaml
           kubectl apply -f deploy/k8s/sso-service/06-ingress.yaml
           
-          # Update deployment with new image from YCR
-          echo "🔄 Updating deployment with new image..."
-          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-sso-service:main"
-          echo "📦 Image: $IMAGE_NAME"
-          kubectl set image deployment/sso-service sso-service=$IMAGE_NAME -n ecommerce
-          
-          echo "✅ Manifests applied successfully"
+          echo "✅ SSO Service manifests applied successfully"
 
       - name: Wait for deployment
         run: |
@@ -420,12 +414,6 @@ jobs:
           kubectl apply -f deploy/k8s/products-service/04-service.yaml
           kubectl apply -f deploy/k8s/products-service/05-hpa.yaml
           kubectl apply -f deploy/k8s/products-service/06-ingress.yaml
-          
-          # Update deployment with new image from YCR
-          echo "🔄 Updating deployment with new image..."
-          IMAGE_NAME="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-products-service:main"
-          echo "📦 Image: $IMAGE_NAME"
-          kubectl set image deployment/products-service products-service=$IMAGE_NAME -n ecommerce
           
           echo "✅ Products Service manifests applied successfully"
 

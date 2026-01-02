@@ -6,7 +6,13 @@ metadata:
   labels:
     app: sso-service
 spec:
-  replicas: 3
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: sso-service
@@ -51,8 +57,8 @@ spec:
           # Сколько ресурсов выделить
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 50m
+              memory: 64Mi
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 200m
+              memory: 256Mi
