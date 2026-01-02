@@ -7,7 +7,7 @@ data:
   PG_HOST: "postgres.datastore.svc.cluster.local"
   PG_PORT: "5432"
   PG_NAME: "ecommerce"
-  PG_USER: "postgres"
+  PG_USER: "ecommerce"
   
   HTTP_PORT: "8080"
   
