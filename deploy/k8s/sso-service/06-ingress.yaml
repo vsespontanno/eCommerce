@@ -6,11 +6,8 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    # Замените на ваш реальный домен или IP
-    - host: sso.ecommerce.local
-      http:
+    - http:
         paths:
-          # Все запросы на /api/v1/auth/* идут на sso-service
           - path: /api/v1/auth
             pathType: Prefix
             backend:
