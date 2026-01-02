@@ -105,7 +105,9 @@ func seedSomeValues(store *postgres.ProductStore) {
 	}
 
 	// Игнорируем ошибки дубликатов - продукты уже могут существовать
+	//nolint:errcheck // Seed данные опциональны, игнорируем ошибки дубликатов
 	_ = store.SaveProduct(context.TODO(), product1)
+	//nolint:errcheck // Seed данные опциональны, игнорируем ошибки дубликатов
 	_ = store.SaveProduct(context.TODO(), product2)
 	logger.Log.Info("Products seed completed")
 }
