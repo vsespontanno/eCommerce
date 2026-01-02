@@ -28,12 +28,7 @@ service Auth {
 // Validator service validates JWT tokens
 service Validator {
   // ValidateToken checks if a JWT token is valid
-  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse) {
-    option (google.api.http) = {
-      post: "/api/v1/auth/validate"
-      body: "*"
-    };
-  }
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
 }
 
 // RegisterRequest contains user registration data

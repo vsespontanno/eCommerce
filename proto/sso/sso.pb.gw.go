@@ -178,7 +178,7 @@ func RegisterValidatorHandlerServer(ctx context.Context, mux *runtime.ServeMux, 
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/proto_sso.Validator/ValidateToken", runtime.WithHTTPPathPattern("/api/v1/auth/validate"))
+		annotatedContext, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/proto_sso.Validator/ValidateToken", runtime.WithHTTPPathPattern("/proto_sso.Validator/ValidateToken"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -319,7 +319,7 @@ func RegisterValidatorHandlerClient(ctx context.Context, mux *runtime.ServeMux, 
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/proto_sso.Validator/ValidateToken", runtime.WithHTTPPathPattern("/api/v1/auth/validate"))
+		annotatedContext, err := runtime.AnnotateContext(ctx, mux, req, "/proto_sso.Validator/ValidateToken", runtime.WithHTTPPathPattern("/proto_sso.Validator/ValidateToken"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
@@ -336,7 +336,7 @@ func RegisterValidatorHandlerClient(ctx context.Context, mux *runtime.ServeMux, 
 }
 
 var (
-	pattern_Validator_ValidateToken_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "auth", "validate"}, ""))
+	pattern_Validator_ValidateToken_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"proto_sso.Validator", "ValidateToken"}, ""))
 )
 
 var (
