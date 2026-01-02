@@ -375,6 +375,10 @@ jobs:
           kubectl apply -f deploy/k8s/sso-service/05-hpa.yaml
           kubectl apply -f deploy/k8s/sso-service/06-ingress.yaml
           
+          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
+          echo "🔄 Restarting deployment to pull new image..."
+          kubectl rollout restart deployment/sso-service -n ecommerce
+          
           echo "✅ SSO Service manifests applied successfully"
 
       - name: Wait for deployment
@@ -414,6 +418,10 @@ jobs:
           kubectl apply -f deploy/k8s/products-service/04-service.yaml
           kubectl apply -f deploy/k8s/products-service/05-hpa.yaml
           kubectl apply -f deploy/k8s/products-service/06-ingress.yaml
+          
+          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
+          echo "🔄 Restarting deployment to pull new image..."
+          kubectl rollout restart deployment/products-service -n ecommerce
           
           echo "✅ Products Service manifests applied successfully"
 
