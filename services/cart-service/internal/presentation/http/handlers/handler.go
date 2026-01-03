@@ -94,6 +94,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 		),
 	).Methods(http.MethodPost)
 
+	router.HandleFunc("/health", h.HealthCheck).Methods(http.MethodGet)
 }
 
 func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
@@ -263,6 +264,15 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 		h.sugarLogger.Errorf("Failed to checkout: %v", err)
 		http.Error(w, "Failed to checkout", http.StatusInternalServerError)
 		return
+	}
+}
+
+func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	if err := writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":  "healthy",
+		"service": "cart-service",
+	}); err != nil {
+		h.sugarLogger.Errorw("failed to write health check response", "error", err)
 	}
 }
 

@@ -25,6 +25,16 @@ service Auth {
   }
 }
 
+// Health service provides health check endpoint
+service Health {
+  // HealthCheck returns the health status of the service
+  rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse) {
+    option (google.api.http) = {
+      get: "/health"
+    };
+  }
+}
+
 // Validator service validates JWT tokens
 service Validator {
   // ValidateToken checks if a JWT token is valid
@@ -66,4 +76,14 @@ message ValidateTokenResponse {
   bool valid = 1;            // Whether the token is valid
   int64 user_id = 2;         // User ID extracted from token (if valid)
   string email = 3;          // User email extracted from token (if valid)
+}
+
+// HealthCheckRequest is empty as no parameters are needed
+message HealthCheckRequest {}
+
+// HealthCheckResponse contains the health status
+message HealthCheckResponse {
+  string status = 1;         // Health status (e.g., "healthy")
+  string service = 2;        // Service name
+  int64 timestamp = 3;       // Current timestamp
 }

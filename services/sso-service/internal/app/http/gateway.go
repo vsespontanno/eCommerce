@@ -63,10 +63,19 @@ func (g *Gateway) Run() error {
 		return fmt.Errorf("%s: failed to register validator handler: %w", op, err)
 	}
 
+	// Create HTTP mux with health check
+	httpMux := http.NewServeMux()
+
+	// Register gRPC-Gateway handlers
+	httpMux.Handle("/", mux)
+
+	// Register health check endpoint
+	httpMux.HandleFunc("/health", g.healthCheck)
+
 	// Create HTTP server
 	g.httpServer = &http.Server{
 		Addr:              fmt.Sprintf("0.0.0.0:%d", g.port),
-		Handler:           mux,
+		Handler:           httpMux,
 		ReadHeaderTimeout: 10 * time.Second, // Prevent Slowloris attacks
 	}
 
@@ -77,6 +86,12 @@ func (g *Gateway) Run() error {
 	}
 
 	return nil
+}
+
+func (g *Gateway) healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{"status":"healthy","service":"sso-service","timestamp":%d}`, time.Now().Unix())
 }
 
 func (g *Gateway) Stop() {

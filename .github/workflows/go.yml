@@ -390,6 +390,35 @@ jobs:
           kubectl get pods -n ecommerce -l app=sso-service
           
           echo "✅ SSO Service deployment completed successfully"
+      
+      - name: Health check SSO Service
+        run: |
+          echo "🏥 Performing health check for SSO Service..."
+          
+          # Получаем IP LoadBalancer
+          INGRESS_IP=$(kubectl get ingress sso-service-ingress -n ecommerce -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          
+          if [ -z "$INGRESS_IP" ]; then
+            echo "⚠️ LoadBalancer IP not found, skipping health check"
+            exit 0
+          fi
+          
+          echo "📍 LoadBalancer IP: $INGRESS_IP"
+          
+          # Пробуем 5 раз с интервалом 10 секунд
+          for i in {1..5}; do
+            echo "Attempt $i/5..."
+            if curl -f -s "http://$INGRESS_IP/health" | grep -q "healthy"; then
+              echo "✅ SSO Service is healthy!"
+              curl -s "http://$INGRESS_IP/health" | jq '.'
+              exit 0
+            fi
+            echo "⏳ Waiting 10 seconds before retry..."
+            sleep 10
+          done
+          
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
 
       - name: Deploy Products Service
         run: |
@@ -418,6 +447,35 @@ jobs:
           kubectl get pods -n ecommerce -l app=products-service
           
           echo "✅ Products Service deployment completed successfully"
+      
+      - name: Health check Products Service
+        run: |
+          echo "🏥 Performing health check for Products Service..."
+          
+          # Получаем IP LoadBalancer
+          INGRESS_IP=$(kubectl get ingress products-service-ingress -n ecommerce -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          
+          if [ -z "$INGRESS_IP" ]; then
+            echo "⚠️ LoadBalancer IP not found, skipping health check"
+            exit 0
+          fi
+          
+          echo "📍 LoadBalancer IP: $INGRESS_IP"
+          
+          # Пробуем 5 раз с интервалом 10 секунд
+          for i in {1..5}; do
+            echo "Attempt $i/5..."
+            if curl -f -s "http://$INGRESS_IP/health" | grep -q "healthy"; then
+              echo "✅ Products Service is healthy!"
+              curl -s "http://$INGRESS_IP/health" | jq '.'
+              exit 0
+            fi
+            echo "⏳ Waiting 10 seconds before retry..."
+            sleep 10
+          done
+          
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
 
   # Job 7: Notify Build Status
   notify:

@@ -48,6 +48,7 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	router.Handle("/products/{id}/add-to-cart",
 		middleware.AuthMiddleware(http.HandlerFunc(h.AddProductToCart), h.grpcClient),
 	).Methods(http.MethodPost)
+	router.HandleFunc("/health", h.HealthCheck).Methods(http.MethodGet)
 }
 
 // ---------- Helpers ----------
@@ -171,5 +172,14 @@ func (h *Handler) AddProductToCart(w http.ResponseWriter, r *http.Request) {
 		"product": product,
 	}); err != nil {
 		h.sugarLogger.Errorw("failed to write success response", "error", err)
+	}
+}
+
+func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	if err := writeJSON(w, http.StatusOK, map[string]any{
+		"status":  "healthy",
+		"service": "products-service",
+	}); err != nil {
+		h.sugarLogger.Errorw("failed to write health check response", "error", err)
 	}
 }
