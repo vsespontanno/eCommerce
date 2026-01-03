@@ -54,6 +54,25 @@ spec:
                   name: sso-service-secret
                   key: JWT_SECRET
           
+          # Health checks
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          
           # Сколько ресурсов выделить
           resources:
             requests:
