@@ -394,8 +394,8 @@ jobs:
           echo "🔍 Verifying deployment..."
           
           # Проверяем что все поды запущены
-          READY_PODS=$(kubectl get pods -n ecommerce -l app=sso-service -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -o "True" | wc -l)
-          TOTAL_PODS=$(kubectl get pods -n ecommerce -l app=sso-service --no-headers | wc -l)
+          TOTAL_PODS=$(kubectl get pods -n ecommerce -l app=sso-service --no-headers | wc -l | tr -d ' ')
+          READY_PODS=$(kubectl get pods -n ecommerce -l app=sso-service -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}' | grep -c "True" || echo "0")
           
           echo "Ready pods: $READY_PODS / $TOTAL_PODS"
           
@@ -438,8 +438,8 @@ jobs:
           echo "🔍 Verifying Products deployment..."
           
           # Проверяем что все поды запущены
-          READY_PODS=$(kubectl get pods -n ecommerce -l app=products-service -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -o "True" | wc -l)
-          TOTAL_PODS=$(kubectl get pods -n ecommerce -l app=products-service --no-headers | wc -l)
+          TOTAL_PODS=$(kubectl get pods -n ecommerce -l app=products-service --no-headers | wc -l | tr -d ' ')
+          READY_PODS=$(kubectl get pods -n ecommerce -l app=products-service -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}' | grep -c "True" || echo "0")
           
           echo "Ready pods: $READY_PODS / $TOTAL_PODS"
           
