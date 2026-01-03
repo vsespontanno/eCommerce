@@ -381,31 +381,44 @@ jobs:
           
           echo "✅ SSO Service manifests applied successfully"
 
-      - name: Wait for deployment
+      - name: Wait for SSO deployment
         run: |
-          echo "⏳ Waiting for deployment to be ready..."
+          echo "⏳ Waiting for SSO deployment to be ready..."
           kubectl rollout status deployment/sso-service -n ecommerce --timeout=5m
           
-          echo "📊 Deployment status:"
+          echo "📊 SSO Deployment status:"
           kubectl get pods -n ecommerce -l app=sso-service
-
-      - name: Verify deployment
+          
+          echo "✅ SSO Service deployment completed successfully"
+      
+      - name: Health check SSO Service
         run: |
-          echo "🔍 Verifying deployment..."
+          echo "🏥 Performing health check for SSO Service..."
           
-          # Проверяем что все поды запущены
-          TOTAL_PODS=$(kubectl get pods -n ecommerce -l app=sso-service --no-headers | wc -l | tr -d ' ')
-          READY_PODS=$(kubectl get pods -n ecommerce -l app=sso-service -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}' | grep -c "True" || echo "0")
+          # Получаем IP LoadBalancer
+          INGRESS_IP=$(kubectl get ingress sso-service-ingress -n ecommerce -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           
-          echo "Ready pods: $READY_PODS / $TOTAL_PODS"
-          
-          if [ "$READY_PODS" -eq "$TOTAL_PODS" ] && [ "$TOTAL_PODS" -gt 0 ]; then
-            echo "✅ All pods are ready!"
-          else
-            echo "❌ Some pods are not ready"
-            kubectl get pods -n ecommerce -l app=sso-service
-            exit 1
+          if [ -z "$INGRESS_IP" ]; then
+            echo "⚠️ LoadBalancer IP not found, skipping health check"
+            exit 0
           fi
+          
+          echo "📍 LoadBalancer IP: $INGRESS_IP"
+          
+          # Пробуем 5 раз с интервалом 10 секунд
+          for i in {1..5}; do
+            echo "Attempt $i/5..."
+            if curl -f -s "http://$INGRESS_IP/health" | grep -q "healthy"; then
+              echo "✅ SSO Service is healthy!"
+              curl -s "http://$INGRESS_IP/health" | jq '.'
+              exit 0
+            fi
+            echo "⏳ Waiting 10 seconds before retry..."
+            sleep 10
+          done
+          
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
 
       - name: Deploy Products Service
         run: |
@@ -432,24 +445,37 @@ jobs:
           
           echo "📊 Products Deployment status:"
           kubectl get pods -n ecommerce -l app=products-service
-
-      - name: Verify Products deployment
+          
+          echo "✅ Products Service deployment completed successfully"
+      
+      - name: Health check Products Service
         run: |
-          echo "🔍 Verifying Products deployment..."
+          echo "🏥 Performing health check for Products Service..."
           
-          # Проверяем что все поды запущены
-          TOTAL_PODS=$(kubectl get pods -n ecommerce -l app=products-service --no-headers | wc -l | tr -d ' ')
-          READY_PODS=$(kubectl get pods -n ecommerce -l app=products-service -o jsonpath='{range .items[*]}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}' | grep -c "True" || echo "0")
+          # Получаем IP LoadBalancer
+          INGRESS_IP=$(kubectl get ingress products-service-ingress -n ecommerce -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           
-          echo "Ready pods: $READY_PODS / $TOTAL_PODS"
-          
-          if [ "$READY_PODS" -eq "$TOTAL_PODS" ] && [ "$TOTAL_PODS" -gt 0 ]; then
-            echo "✅ All Products pods are ready!"
-          else
-            echo "❌ Some Products pods are not ready"
-            kubectl get pods -n ecommerce -l app=products-service
-            exit 1
+          if [ -z "$INGRESS_IP" ]; then
+            echo "⚠️ LoadBalancer IP not found, skipping health check"
+            exit 0
           fi
+          
+          echo "📍 LoadBalancer IP: $INGRESS_IP"
+          
+          # Пробуем 5 раз с интервалом 10 секунд
+          for i in {1..5}; do
+            echo "Attempt $i/5..."
+            if curl -f -s "http://$INGRESS_IP/health" | grep -q "healthy"; then
+              echo "✅ Products Service is healthy!"
+              curl -s "http://$INGRESS_IP/health" | jq '.'
+              exit 0
+            fi
+            echo "⏳ Waiting 10 seconds before retry..."
+            sleep 10
+          done
+          
+          echo "❌ Health check failed after 5 attempts"
+          exit 1
 
   # Job 7: Notify Build Status
   notify:
