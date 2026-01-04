@@ -449,6 +449,32 @@ jobs:
           
           echo "✅ Wallet Service deployment completed successfully"
           echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
+      
+      - name: Deploy Kafka
+        run: |
+          echo "🚀 Deploying Kafka to Kubernetes..."
+          
+          # Применяем манифесты Kafka
+          kubectl apply -f deploy/k8s/kafka/01-namespace.yaml
+          kubectl apply -f deploy/k8s/kafka/02-zookeeper-service.yaml
+          kubectl apply -f deploy/k8s/kafka/03-zookeeper-statefulset.yaml
+          kubectl apply -f deploy/k8s/kafka/04-kafka-service.yaml
+          kubectl apply -f deploy/k8s/kafka/05-kafka-statefulset.yaml
+          
+          echo "✅ Kafka manifests applied successfully"
+      
+      - name: Wait for Kafka rollout
+        run: |
+          echo "⏳ Waiting for Zookeeper to be ready..."
+          kubectl rollout status statefulset/zookeeper -n kafka --timeout=5m
+          
+          echo "⏳ Waiting for Kafka to be ready..."
+          kubectl rollout status statefulset/kafka -n kafka --timeout=5m
+          
+          echo "📊 Kafka status:"
+          kubectl get pods -n kafka
+          
+          echo "✅ Kafka is ready"
 
   # Job 7: Notify Build Status
   notify:
