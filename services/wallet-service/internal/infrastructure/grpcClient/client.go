@@ -3,6 +3,7 @@ package grpcClient
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/vsespontanno/eCommerce/proto/sso"
 	"google.golang.org/grpc"
@@ -15,7 +16,12 @@ type JwtClient struct {
 }
 
 func NewJwtClient(port string) *JwtClient {
-	addr := "localhost:" + port
+	// If port contains ':', it's already a full address (e.g., sso-service.ecommerce.svc.cluster.local:50051)
+	// Otherwise, it's just a port number and we need to add localhost
+	addr := port
+	if !strings.Contains(port, ":") {
+		addr = "localhost:" + port
+	}
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to dial gRPC server %s: %v", addr, err)
