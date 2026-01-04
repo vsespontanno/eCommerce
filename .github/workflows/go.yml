@@ -431,6 +431,7 @@ jobs:
           kubectl apply -f deploy/k8s/wallet-service/03-deployment.yaml
           kubectl apply -f deploy/k8s/wallet-service/04-service.yaml
           kubectl apply -f deploy/k8s/wallet-service/05-hpa.yaml
+          kubectl apply -f deploy/k8s/wallet-service/06-ingress.yaml
           
           # Принудительно перезапускаем deployment чтобы подтянуть новый образ
           echo "🔄 Restarting deployment to pull new image..."

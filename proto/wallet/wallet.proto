@@ -10,18 +10,18 @@ import "google/api/annotations.proto";
 service WalletTopUP {
   rpc CreateWallet (CreateWalletRequest) returns (CreateWalletResponse) {
     option (google.api.http) = {
-      post: "/api/v1/wallet/create"
+      post: "/wallet/create"
       body: "*"
     };
   }
   rpc Balance (BalanceRequest) returns (BalanceResponse) {
     option (google.api.http) = {
-      get: "/api/v1/wallet/balance"
+      get: "/wallet/balance"
     };
   }
   rpc TopUp (TopUpRequest) returns (TopUpResponse) {
     option (google.api.http) = {
-      post: "/api/v1/wallet/topup"
+      post: "/wallet/topup"
       body: "*"
     };
   }

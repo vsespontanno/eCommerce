@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wallet-service-ingress
+  namespace: ecommerce
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /wallet
+            pathType: Prefix
+            backend:
+              service:
+                name: wallet-service
+                port:
+                  number: 8080

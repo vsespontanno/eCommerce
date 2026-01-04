@@ -691,11 +691,11 @@ const file_wallet_wallet_proto_rawDesc = "" +
 	"\x13CreateWalletRequest\"J\n" +
 	"\x14CreateWalletResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\xd1\x02\n" +
-	"\vWalletTopUP\x12w\n" +
-	"\fCreateWallet\x12!.proto_wallet.CreateWalletRequest\x1a\".proto_wallet.CreateWalletResponse\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/api/v1/wallet/create\x12f\n" +
-	"\aBalance\x12\x1c.proto_wallet.BalanceRequest\x1a\x1d.proto_wallet.BalanceResponse\"\x1e\x82\xd3\xe4\x93\x02\x18\x12\x16/api/v1/wallet/balance\x12a\n" +
-	"\x05TopUp\x12\x1a.proto_wallet.TopUpRequest\x1a\x1b.proto_wallet.TopUpResponse\"\x1f\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/api/v1/wallet/topup2\x8a\x02\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2\xbc\x02\n" +
+	"\vWalletTopUP\x12p\n" +
+	"\fCreateWallet\x12!.proto_wallet.CreateWalletRequest\x1a\".proto_wallet.CreateWalletResponse\"\x19\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/wallet/create\x12_\n" +
+	"\aBalance\x12\x1c.proto_wallet.BalanceRequest\x1a\x1d.proto_wallet.BalanceResponse\"\x17\x82\xd3\xe4\x93\x02\x11\x12\x0f/wallet/balance\x12Z\n" +
+	"\x05TopUp\x12\x1a.proto_wallet.TopUpRequest\x1a\x1b.proto_wallet.TopUpResponse\"\x18\x82\xd3\xe4\x93\x02\x12:\x01*\"\r/wallet/topup2\x8a\x02\n" +
 	"\x06Wallet\x12U\n" +
 	"\fReserveFunds\x12!.proto_wallet.ReserveFundsRequest\x1a\".proto_wallet.ReserveFundsResponse\x12U\n" +
 	"\fReleaseFunds\x12!.proto_wallet.ReleaseFundsRequest\x1a\".proto_wallet.ReleaseFundsResponse\x12R\n" +
