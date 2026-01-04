@@ -41,38 +41,29 @@ func (g *Gateway) Run() error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	// Create gRPC-Gateway mux
 	mux := runtime.NewServeMux()
 
-	// Register gRPC-Gateway handlers
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	// Используем 127.0.0.1 вместо localhost для совместимости с Docker
 	grpcEndpoint := fmt.Sprintf("127.0.0.1:%d", g.grpcPort)
 
 	g.log.Infow("Connecting to gRPC server", "endpoint", grpcEndpoint)
 
-	// Register Auth service
 	err := proto.RegisterAuthHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
 	if err != nil {
 		return fmt.Errorf("%s: failed to register auth handler: %w", op, err)
 	}
 
-	// Register Validator service
 	err = proto.RegisterValidatorHandlerFromEndpoint(ctx, mux, grpcEndpoint, opts)
 	if err != nil {
 		return fmt.Errorf("%s: failed to register validator handler: %w", op, err)
 	}
 
-	// Create HTTP mux with health check
 	httpMux := http.NewServeMux()
 
-	// Register gRPC-Gateway handlers
 	httpMux.Handle("/", mux)
 
-	// Register health check endpoint
 	httpMux.HandleFunc("/health", g.healthCheck)
 
-	// Create HTTP server
 	g.httpServer = &http.Server{
 		Addr:              fmt.Sprintf("0.0.0.0:%d", g.port),
 		Handler:           httpMux,
