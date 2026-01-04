@@ -55,10 +55,19 @@ func (g *Gateway) Start(ctx context.Context) error {
 		"grpcAddr", g.grpcAddr,
 	)
 
+	// Create HTTP mux with health check
+	httpMux := http.NewServeMux()
+
+	// Register gRPC-Gateway handlers
+	httpMux.Handle("/", g.mux)
+
+	// Register health check endpoint
+	httpMux.HandleFunc("/health", g.healthCheck)
+
 	// Create HTTP server
 	g.httpServer = &http.Server{
 		Addr:         fmt.Sprintf(":%d", g.httpPort),
-		Handler:      corsMiddleware(loggingMiddleware(g.mux, g.logger)),
+		Handler:      corsMiddleware(loggingMiddleware(httpMux, g.logger)),
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
 		IdleTimeout:  1 * time.Second,
@@ -90,6 +99,13 @@ func (g *Gateway) Stop(ctx context.Context) error {
 
 	g.logger.Info("HTTP gateway server stopped successfully")
 	return nil
+}
+
+// healthCheck handles health check requests
+func (g *Gateway) healthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{"status":"healthy","service":"wallet-service","timestamp":%d}`, time.Now().Unix())
 }
 
 // customErrorHandler handles errors from gRPC-Gateway
