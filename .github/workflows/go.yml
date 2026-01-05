@@ -315,12 +315,12 @@ jobs:
           echo "🗄️ Deploying PostgreSQL..."
           
           # Создаем namespace для datastore если не существует
-          kubectl apply -f deploy/k8s/postgres/00-namespace.yaml || true
+          kubectl apply -f deploy/k8s/stateful/postgres/00-namespace.yaml || true
           
           # Применяем манифесты PostgreSQL
-          kubectl apply -f deploy/k8s/postgres/01-secret.yaml
-          kubectl apply -f deploy/k8s/postgres/02-service.yaml
-          kubectl apply -f deploy/k8s/postgres/03-stateful-set.yaml
+          kubectl apply -f deploy/k8s/stateful/postgres/01-secret.yaml
+          kubectl apply -f deploy/k8s/stateful/postgres/02-service.yaml
+          kubectl apply -f deploy/k8s/stateful/postgres/03-stateful-set.yaml
           
           # Ждем пока PostgreSQL будет готов
           echo "⏳ Waiting for PostgreSQL to be ready..."
@@ -367,13 +367,13 @@ jobs:
             --dry-run=client -o yaml | kubectl apply -f -
           
           # Применяем манифесты
-          kubectl apply -f deploy/k8s/sso-service/00-namespace.yaml
-          kubectl apply -f deploy/k8s/sso-service/01-secret.yaml
-          kubectl apply -f deploy/k8s/sso-service/02-configmap.yaml
-          kubectl apply -f deploy/k8s/sso-service/03-deployment.yaml
-          kubectl apply -f deploy/k8s/sso-service/04-service.yaml
-          kubectl apply -f deploy/k8s/sso-service/05-hpa.yaml
-          kubectl apply -f deploy/k8s/sso-service/06-ingress.yaml
+          kubectl apply -f deploy/k8s/services/sso-service/00-namespace.yaml
+          kubectl apply -f deploy/k8s/services/sso-service/01-secret.yaml
+          kubectl apply -f deploy/k8s/services/sso-service/02-configmap.yaml
+          kubectl apply -f deploy/k8s/services/sso-service/03-deployment.yaml
+          kubectl apply -f deploy/k8s/services/sso-service/04-service.yaml
+          kubectl apply -f deploy/k8s/services/sso-service/05-hpa.yaml
+          kubectl apply -f deploy/k8s/services/sso-service/06-ingress.yaml
           
           # Принудительно перезапускаем deployment чтобы подтянуть новый образ
           echo "🔄 Restarting deployment to pull new image..."
@@ -397,12 +397,12 @@ jobs:
           echo "🚀 Deploying Products Service to Kubernetes..."
           
           # Применяем манифесты
-          kubectl apply -f deploy/k8s/products-service/01-secret.yaml
-          kubectl apply -f deploy/k8s/products-service/02-configmap.yaml
-          kubectl apply -f deploy/k8s/products-service/03-deployment.yaml
-          kubectl apply -f deploy/k8s/products-service/04-service.yaml
-          kubectl apply -f deploy/k8s/products-service/05-hpa.yaml
-          kubectl apply -f deploy/k8s/products-service/06-ingress.yaml
+          kubectl apply -f deploy/k8s/services/products-service/01-secret.yaml
+          kubectl apply -f deploy/k8s/services/products-service/02-configmap.yaml
+          kubectl apply -f deploy/k8s/services/products-service/03-deployment.yaml
+          kubectl apply -f deploy/k8s/services/products-service/04-service.yaml
+          kubectl apply -f deploy/k8s/services/products-service/05-hpa.yaml
+          kubectl apply -f deploy/k8s/services/products-service/06-ingress.yaml
           
           # Принудительно перезапускаем deployment чтобы подтянуть новый образ
           echo "🔄 Restarting deployment to pull new image..."
@@ -426,12 +426,12 @@ jobs:
           echo "🚀 Deploying Wallet Service to Kubernetes..."
           
           # Применяем манифесты
-          kubectl apply -f deploy/k8s/wallet-service/01-secret.yaml
-          kubectl apply -f deploy/k8s/wallet-service/02-configmap.yaml
-          kubectl apply -f deploy/k8s/wallet-service/03-deployment.yaml
-          kubectl apply -f deploy/k8s/wallet-service/04-service.yaml
-          kubectl apply -f deploy/k8s/wallet-service/05-hpa.yaml
-          kubectl apply -f deploy/k8s/wallet-service/06-ingress.yaml
+          kubectl apply -f deploy/k8s/services/wallet-service/01-secret.yaml
+          kubectl apply -f deploy/k8s/services/wallet-service/02-configmap.yaml
+          kubectl apply -f deploy/k8s/services/wallet-service/03-deployment.yaml
+          kubectl apply -f deploy/k8s/services/wallet-service/04-service.yaml
+          kubectl apply -f deploy/k8s/services/wallet-service/05-hpa.yaml
+          kubectl apply -f deploy/k8s/services/wallet-service/06-ingress.yaml
           
           # Принудительно перезапускаем deployment чтобы подтянуть новый образ
           echo "🔄 Restarting deployment to pull new image..."
