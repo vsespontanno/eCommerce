@@ -55,15 +55,15 @@ func main() {
 	defer cancel()
 
 	if cfg.KafkaBroker != "" {
-		var err error
-		kafkaProducer, err = kafka.NewProducer(&kafka.ConfigMap{
+		var kafkaErr error
+		kafkaProducer, kafkaErr = kafka.NewProducer(&kafka.ConfigMap{
 			"bootstrap.servers":  cfg.KafkaBroker,
 			"acks":               "all",
 			"retries":            10,
 			"enable.idempotence": true,
 		})
-		if err != nil {
-			logger.Log.Warnw("Failed to create Kafka producer, continuing without it", "error", err)
+		if kafkaErr != nil {
+			logger.Log.Warnw("Failed to create Kafka producer, continuing without it", "error", kafkaErr)
 		} else {
 			logger.Log.Info("Kafka producer initialized successfully")
 			defer kafkaProducer.Close()
@@ -107,16 +107,22 @@ func main() {
 	healthMux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":  "healthy",
 			"service": "saga-orchestrator",
 			"time":    time.Now().Unix(),
-		})
+		}); err != nil {
+			logger.Log.Errorw("Failed to encode health response", "error", err)
+		}
 	})
 
 	healthServer := &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.HTTPHealthPort),
-		Handler: healthMux,
+		Addr:              fmt.Sprintf(":%d", cfg.HTTPHealthPort),
+		Handler:           healthMux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       30 * time.Second,
 	}
 
 	go func() {
