@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cart-service
+  namespace: ecommerce
+  labels:
+    app: cart-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cart-service
+  template:
+    metadata:
+      labels:
+        app: cart-service
+    spec:
+      imagePullSecrets:
+      - name: yc-registry-secret
+      containers:
+      - name: cart-service
+        image: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-cart-service:main
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: PG_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: PG_HOST
+        - name: PG_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: PG_PORT
+        - name: PG_USER
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: PG_USER
+        - name: PG_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: PG_NAME
+        - name: PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cart-service-secret
+              key: PG_PASSWORD
+        - name: HTTP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: HTTP_PORT
+        - name: REDIS_ADDR
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: REDIS_ADDR
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: cart-service-secret
+              key: REDIS_PASSWORD
+        - name: REDIS_DB
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: REDIS_DB
+        - name: RATE_LIMIT_RPS
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: RATE_LIMIT_RPS
+        - name: MAX_PRODUCT_QUANTITY
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: MAX_PRODUCT_QUANTITY
+        - name: GRPC_JWT_CLIENT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: GRPC_JWT_CLIENT_PORT
+        - name: GRPC_PRODUCTS_CLIENT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: GRPC_PRODUCTS_CLIENT_PORT
+        - name: GRPC_ORDER_CLIENT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: GRPC_ORDER_CLIENT_PORT
+        - name: GRPC_SAGA_CLIENT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: GRPC_SAGA_CLIENT_PORT
+        - name: KAFKA_BROKER
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: KAFKA_BROKER
+        - name: KAFKA_GROUP_ID
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: KAFKA_GROUP_ID
+        - name: KAFKA_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: cart-service-config
+              key: KAFKA_TOPIC
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
