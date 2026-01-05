@@ -79,16 +79,23 @@ func main() {
 	grpcJWTClientPort := cfg.GRPCJWTClientPort
 	jwtClient := jwtClient.NewJwtClient(grpcJWTClientPort)
 
-	kafkaConsumer, err := messaging.NewKafkaConsumer(cfg.KafkaBroker, cfg.KafkaGroup, cfg.KafkaTopic, logger.Log, orderService)
-	if err != nil {
-		logger.Log.Fatalf("Failed to connect to kafka: %v", err)
+	var kafkaConsumer *messaging.KafkaConsumer
+	var kafkaCancel context.CancelFunc
+
+	if cfg.KafkaBroker != "" {
+		var err error
+		kafkaConsumer, err = messaging.NewKafkaConsumer(cfg.KafkaBroker, cfg.KafkaGroup, cfg.KafkaTopic, logger.Log, orderService)
+		if err != nil {
+			logger.Log.Warnw("Failed to connect to Kafka, continuing without it", "error", err)
+		} else {
+			logger.Log.Info("Kafka consumer initialized successfully")
+			kafkaCtx, cancel := context.WithCancel(context.Background())
+			kafkaCancel = cancel
+			kafkaConsumer.Poll(kafkaCtx)
+		}
+	} else {
+		logger.Log.Info("Kafka broker not configured, running without Kafka consumer")
 	}
-
-	// Создаем контекст для Kafka consumer с возможностью отмены
-	kafkaCtx, kafkaCancel := context.WithCancel(context.Background())
-	defer kafkaCancel()
-
-	kafkaConsumer.Poll(kafkaCtx)
 
 	handler := handlers.New(cartService, logger.Log, jwtClient, rateLimiter, sagaService)
 	handler.RegisterRoutes(app.HTTPApp.Router())
@@ -107,10 +114,14 @@ func main() {
 	<-stop
 	logger.Log.Info("Shutting down server...")
 
-	// Останавливаем Kafka consumer
-	kafkaCancel()
-	kafkaConsumer.Close()
-	logger.Log.Info("Kafka consumer stopped")
+	// Останавливаем Kafka consumer если он был инициализирован
+	if kafkaConsumer != nil {
+		if kafkaCancel != nil {
+			kafkaCancel()
+		}
+		kafkaConsumer.Close()
+		logger.Log.Info("Kafka consumer stopped")
+	}
 
 	// Останавливаем HTTP сервер
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

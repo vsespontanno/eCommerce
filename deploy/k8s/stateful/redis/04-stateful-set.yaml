@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-stack
+  namespace: redis
+spec:
+  serviceName: "redis-service"
+  replicas: 2
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      initContainers:
+      - name: init-redis
+        image: redis:7-alpine
+        command:
+        - sh
+        - -c
+        - |
+          set -ex
+          # Extract pod ordinal index from hostname
+          # hostname format: redis-stack-0, redis-stack-1, etc.
+          ordinal=$(hostname | sed 's/.*-//')
+          
+          echo "Pod ordinal: ${ordinal}"
+
+          # Copy the appropriate redis config files from the config map
+          config_map_path="/mnt"
+          config_destination="/etc/redis-config.conf"
+
+          if [ "${ordinal}" = "0" ]; then
+            echo "Configuring as master"
+            cp "${config_map_path}/master.conf" "${config_destination}"
+          else
+            echo "Configuring as slave"
+            cp "${config_map_path}/slave.conf" "${config_destination}"
+          fi
+          
+          echo "Configuration copied successfully"
+        volumeMounts:
+        - name: redis-claim
+          mountPath: /etc
+        - name: config-map
+          mountPath: /mnt/
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        command:
+          - redis-server
+          - "/etc/redis-config.conf"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        - name: redis-claim
+          mountPath: /etc
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config-map
+        configMap:
+          name: redis-stack-configuration
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-claim
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+      storageClassName: standard
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+      storageClassName: standard

@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	GRPCServerPort         int
+	HTTPHealthPort         int
 	GRPCWalletClientPort   string
 	GRPCProductsClientPort string
 	KafkaBroker            string
@@ -26,6 +27,7 @@ func MustLoad() (*Config, error) {
 	//nolint:errcheck // .env файл опционален, игнорируем ошибку если его нет
 	_ = godotenv.Load(".env")
 	cfg.GRPCServerPort = getEnvAsInt("GRPC_SERVER_PORT", 50051)
+	cfg.HTTPHealthPort = getEnvAsInt("HTTP_HEALTH_PORT", 8080)
 	cfg.GRPCWalletClientPort = os.Getenv("GRPC_WALLET_CLIENT_PORT")
 	cfg.GRPCProductsClientPort = os.Getenv("GRPC_PRODUCTS_CLIENT_PORT")
 	cfg.KafkaBroker = os.Getenv("KAFKA_BROKER")

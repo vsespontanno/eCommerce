@@ -449,32 +449,82 @@ jobs:
           
           echo "✅ Wallet Service deployment completed successfully"
           echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
-      
-      - name: Deploy Kafka
+
+      - name: Deploy Redis
         run: |
-          echo "🚀 Deploying Kafka to Kubernetes..."
+          echo "🚀 Deploying Redis to Kubernetes..."
           
-          # Применяем манифесты Kafka
-          kubectl apply -f deploy/k8s/kafka/01-namespace.yaml
-          kubectl apply -f deploy/k8s/kafka/02-zookeeper-service.yaml
-          kubectl apply -f deploy/k8s/kafka/03-zookeeper-statefulset.yaml
-          kubectl apply -f deploy/k8s/kafka/04-kafka-service.yaml
-          kubectl apply -f deploy/k8s/kafka/05-kafka-statefulset.yaml
+          # Создаем namespace для Redis если не существует
+          kubectl apply -f deploy/k8s/stateful/redis/00-namespace.yaml || true
           
-          echo "✅ Kafka manifests applied successfully"
-      
-      - name: Wait for Kafka rollout
+          # Применяем манифесты Redis
+          kubectl apply -f deploy/k8s/stateful/redis/01-standard-storageclass.yaml
+          kubectl apply -f deploy/k8s/stateful/redis/02-configmap.yaml
+          kubectl apply -f deploy/k8s/stateful/redis/03-service.yaml
+          kubectl apply -f deploy/k8s/stateful/redis/04-stateful-set.yaml
+          
+          # Ждем пока Redis будет готов
+          echo "⏳ Waiting for Redis to be ready..."
+          kubectl wait --for=condition=ready pod -l app=redis -n redis --timeout=5m || true
+          
+          echo "✅ Redis deployed"
+
+      - name: Deploy Cart Service
         run: |
-          echo "⏳ Waiting for Zookeeper to be ready..."
-          kubectl rollout status statefulset/zookeeper -n kafka --timeout=5m
+          echo "🚀 Deploying Cart Service to Kubernetes..."
           
-          echo "⏳ Waiting for Kafka to be ready..."
-          kubectl rollout status statefulset/kafka -n kafka --timeout=5m
+          # Применяем манифесты
+          kubectl apply -f deploy/k8s/services/cart-service/01-configmap.yaml
+          kubectl apply -f deploy/k8s/services/cart-service/02-secret.yaml
+          kubectl apply -f deploy/k8s/services/cart-service/03-deployment.yaml
+          kubectl apply -f deploy/k8s/services/cart-service/04-service.yaml
+          kubectl apply -f deploy/k8s/services/cart-service/05-hpa.yaml
+          kubectl apply -f deploy/k8s/services/cart-service/06-ingress.yaml
           
-          echo "📊 Kafka status:"
-          kubectl get pods -n kafka
+          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
+          echo "🔄 Restarting deployment to pull new image..."
+          kubectl rollout restart deployment/cart-service -n ecommerce
           
-          echo "✅ Kafka is ready"
+          echo "✅ Cart Service manifests applied successfully"
+
+      - name: Wait for Cart deployment
+        run: |
+          echo "⏳ Waiting for Cart deployment to be ready..."
+          kubectl rollout status deployment/cart-service -n ecommerce --timeout=5m
+          
+          echo "📊 Cart Deployment status:"
+          kubectl get pods -n ecommerce -l app=cart-service
+          
+          echo "✅ Cart Service deployment completed successfully"
+          echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
+
+      - name: Deploy Saga Orchestrator
+        run: |
+          echo "🚀 Deploying Saga Orchestrator to Kubernetes..."
+          
+          # Применяем манифесты
+          kubectl apply -f deploy/k8s/services/saga-orchestrator/01-configmap.yaml
+          kubectl apply -f deploy/k8s/services/saga-orchestrator/02-secret.yaml
+          kubectl apply -f deploy/k8s/services/saga-orchestrator/03-deployment.yaml
+          kubectl apply -f deploy/k8s/services/saga-orchestrator/04-service.yaml
+          kubectl apply -f deploy/k8s/services/saga-orchestrator/05-hpa.yaml
+          
+          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
+          echo "🔄 Restarting deployment to pull new image..."
+          kubectl rollout restart deployment/saga-orchestrator -n ecommerce
+          
+          echo "✅ Saga Orchestrator manifests applied successfully"
+
+      - name: Wait for Saga Orchestrator deployment
+        run: |
+          echo "⏳ Waiting for Saga Orchestrator deployment to be ready..."
+          kubectl rollout status deployment/saga-orchestrator -n ecommerce --timeout=5m
+          
+          echo "📊 Saga Orchestrator Deployment status:"
+          kubectl get pods -n ecommerce -l app=saga-orchestrator
+          
+          echo "✅ Saga Orchestrator deployment completed successfully"
+          echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
 
   # Job 7: Notify Build Status
   notify:

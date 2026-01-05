@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saga-orchestrator
+  namespace: ecommerce
+  labels:
+    app: saga-orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: saga-orchestrator
+  template:
+    metadata:
+      labels:
+        app: saga-orchestrator
+    spec:
+      imagePullSecrets:
+      - name: yc-registry-secret
+      containers:
+      - name: saga-orchestrator
+        image: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-saga-orchestrator:main
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 50051
+          name: grpc
+          protocol: TCP
+        - containerPort: 8080
+          name: http-health
+          protocol: TCP
+        env:
+        - name: PG_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: PG_HOST
+        - name: PG_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: PG_PORT
+        - name: PG_USER
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: PG_USER
+        - name: PG_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: PG_NAME
+        - name: PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: saga-orchestrator-secret
+              key: PG_PASSWORD
+        - name: GRPC_SERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: GRPC_SERVER_PORT
+        - name: HTTP_HEALTH_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: HTTP_HEALTH_PORT
+        - name: GRPC_WALLET_CLIENT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: GRPC_WALLET_CLIENT_PORT
+        - name: GRPC_PRODUCTS_CLIENT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: GRPC_PRODUCTS_CLIENT_PORT
+        - name: KAFKA_BROKER
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: KAFKA_BROKER
+        - name: KAFKA_GROUP_ID
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: KAFKA_GROUP_ID
+        - name: KAFKA_TOPIC
+          valueFrom:
+            configMapKeyRef:
+              name: saga-orchestrator-config
+              key: KAFKA_TOPIC
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3

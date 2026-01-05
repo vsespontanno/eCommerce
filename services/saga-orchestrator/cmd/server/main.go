@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -46,31 +48,41 @@ func main() {
 	// Outbox repository
 	outboxRepo := repository.NewOutboxRepository(postgresDB, logger.Log)
 
-	// Kafka producer для outbox publisher
-	kafkaProducer, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers":  cfg.KafkaBroker,
-		"acks":               "all",
-		"retries":            10,
-		"enable.idempotence": true,
-	})
-	if err != nil {
-		logger.Log.Fatalw("failed to create kafka producer", "error", err)
-	}
-	defer kafkaProducer.Close()
-
-	// Outbox publisher (фоновый worker)
-	outboxPublisher := outbox.NewOutboxPublisher(
-		postgresDB,
-		kafkaProducer,
-		logger.Log,
-		cfg.KafkaTopic,
-		5*time.Second,
-	)
-
-	// Запускаем outbox publisher
+	// Kafka is optional - service can work without it
+	var kafkaProducer *kafka.Producer
+	var outboxPublisher *outbox.Publisher
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	outboxPublisher.Start(ctx)
+
+	if cfg.KafkaBroker != "" {
+		var err error
+		kafkaProducer, err = kafka.NewProducer(&kafka.ConfigMap{
+			"bootstrap.servers":  cfg.KafkaBroker,
+			"acks":               "all",
+			"retries":            10,
+			"enable.idempotence": true,
+		})
+		if err != nil {
+			logger.Log.Warnw("Failed to create Kafka producer, continuing without it", "error", err)
+		} else {
+			logger.Log.Info("Kafka producer initialized successfully")
+			defer kafkaProducer.Close()
+
+			// Outbox publisher (фоновый worker)
+			outboxPublisher = outbox.NewOutboxPublisher(
+				postgresDB,
+				kafkaProducer,
+				logger.Log,
+				cfg.KafkaTopic,
+				5*time.Second,
+			)
+
+			// Запускаем outbox publisher
+			outboxPublisher.Start(ctx)
+		}
+	} else {
+		logger.Log.Info("Kafka broker not configured, running without Kafka producer")
+	}
 
 	// gRPC clients
 	walletClient := wallet.NewWalletClient(cfg.GRPCWalletClientPort, logger.Log)
@@ -90,6 +102,30 @@ func main() {
 
 	logger.Log.Infof("Saga orchestrator gRPC server started on port %d", cfg.GRPCServerPort)
 
+	// Start HTTP health check server
+	healthMux := http.NewServeMux()
+	healthMux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "healthy",
+			"service": "saga-orchestrator",
+			"time":    time.Now().Unix(),
+		})
+	})
+
+	healthServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", cfg.HTTPHealthPort),
+		Handler: healthMux,
+	}
+
+	go func() {
+		logger.Log.Infof("Health check HTTP server started on port %d", cfg.HTTPHealthPort)
+		if err := healthServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Log.Errorw("Health check server stopped", "error", err)
+		}
+	}()
+
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
 			logger.Log.Errorw("gRPC server stopped", "error", err)
@@ -103,9 +139,18 @@ func main() {
 
 	logger.Log.Info("Shutting down Saga orchestrator...")
 
-	// Останавливаем outbox publisher
-	cancel()
-	time.Sleep(1 * time.Second)
+	// Останавливаем outbox publisher если он был инициализирован
+	if outboxPublisher != nil {
+		cancel()
+		time.Sleep(1 * time.Second)
+	}
+
+	// Останавливаем HTTP health server
+	healthCtx, healthCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer healthCancel()
+	if err := healthServer.Shutdown(healthCtx); err != nil {
+		logger.Log.Errorw("Health server shutdown failed", "error", err)
+	}
 
 	// Останавливаем gRPC
 	grpcServer.GracefulStop()
