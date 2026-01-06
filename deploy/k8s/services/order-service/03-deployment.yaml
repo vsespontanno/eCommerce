@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: ecommerce
+  labels:
+    app: order-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      imagePullSecrets:
+        - name: yc-registry-secret
+      containers:
+      - name: order-service
+        image: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-order-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 50051
+          name: grpc
+          protocol: TCP
+        - containerPort: 8080
+          name: http-health
+          protocol: TCP
+        env:
+        - name: PG_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: order-service-config
+              key: PG_HOST
+        - name: PG_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: order-service-config
+              key: PG_PORT
+        - name: PG_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: order-service-config
+              key: PG_NAME
+        - name: PG_USER
+          valueFrom:
+            configMapKeyRef:
+              name: order-service-config
+              key: PG_USER
+        - name: PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: order-service-secret
+              key: PG_PASSWORD
+        - name: GRPC_SERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: order-service-config
+              key: GRPC_SERVER_PORT
+        - name: HTTP_HEALTH_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: order-service-config
+              key: HTTP_HEALTH_PORT
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
