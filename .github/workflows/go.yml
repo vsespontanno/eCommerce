@@ -526,6 +526,34 @@ jobs:
           echo "✅ Saga Orchestrator deployment completed successfully"
           echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
 
+      - name: Deploy Order Service
+        run: |
+          echo "🚀 Deploying Order Service to Kubernetes..."
+          
+          # Применяем манифесты
+          kubectl apply -f deploy/k8s/services/order-service/01-configmap.yaml
+          kubectl apply -f deploy/k8s/services/order-service/02-secret.yaml
+          kubectl apply -f deploy/k8s/services/order-service/03-deployment.yaml
+          kubectl apply -f deploy/k8s/services/order-service/04-service.yaml
+          kubectl apply -f deploy/k8s/services/order-service/05-hpa.yaml
+          
+          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
+          echo "🔄 Restarting deployment to pull new image..."
+          kubectl rollout restart deployment/order-service -n ecommerce
+          
+          echo "✅ Order Service manifests applied successfully"
+
+      - name: Wait for Order deployment
+        run: |
+          echo "⏳ Waiting for Order deployment to be ready..."
+          kubectl rollout status deployment/order-service -n ecommerce --timeout=5m
+          
+          echo "📊 Order Deployment status:"
+          kubectl get pods -n ecommerce -l app=order-service
+          
+          echo "✅ Order Service deployment completed successfully"
+          echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
+
   # Job 7: Notify Build Status
   notify:
     name: Notify Build Status

@@ -15,6 +15,7 @@ type Config struct {
 	PGHost         string
 	PGPort         string
 	GRPCServerPort int
+	HTTPHealthPort int
 }
 
 func MustLoad() (*Config, error) {
@@ -25,6 +26,14 @@ func MustLoad() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
+
+	HTTPHealthPort := 8080
+	if port := os.Getenv("HTTP_HEALTH_PORT"); port != "" {
+		if p, err := strconv.Atoi(port); err == nil {
+			HTTPHealthPort = p
+		}
+	}
+
 	return &Config{
 		PGUser:         os.Getenv("PG_USER"),
 		PGPassword:     os.Getenv("PG_PASSWORD"),
@@ -32,5 +41,6 @@ func MustLoad() (*Config, error) {
 		PGHost:         os.Getenv("PG_HOST"),
 		PGPort:         os.Getenv("PG_PORT"),
 		GRPCServerPort: GRPCServerPort,
+		HTTPHealthPort: HTTPHealthPort,
 	}, nil
 }
