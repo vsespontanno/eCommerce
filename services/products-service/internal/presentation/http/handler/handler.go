@@ -8,10 +8,13 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vsespontanno/eCommerce/services/products-service/internal/domain/apperrors"
 	"github.com/vsespontanno/eCommerce/services/products-service/internal/domain/products/entity"
 	client "github.com/vsespontanno/eCommerce/services/products-service/internal/infrastructure/client/grpc"
+	"github.com/vsespontanno/eCommerce/services/products-service/internal/infrastructure/metrics"
 	"github.com/vsespontanno/eCommerce/services/products-service/internal/presentation/http/handler/middleware"
+	metricsMiddleware "github.com/vsespontanno/eCommerce/services/products-service/internal/presentation/http/middleware"
 	"go.uber.org/zap"
 )
 
@@ -43,12 +46,19 @@ func New(cartStore CartStorer, productStore ProductStorer, sugarLogger *zap.Suga
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
+	// Подключаем metrics middleware ко всем роутам
+	router.Use(metricsMiddleware.MetricsMiddleware)
+
+	// Регистрируем роуты
 	router.HandleFunc("/products/{id}", h.GetProduct).Methods(http.MethodGet)
 	router.HandleFunc("/products", h.GetProducts).Methods(http.MethodGet)
 	router.Handle("/products/{id}/add-to-cart",
 		middleware.AuthMiddleware(http.HandlerFunc(h.AddProductToCart), h.grpcClient),
 	).Methods(http.MethodPost)
 	router.HandleFunc("/health", h.HealthCheck).Methods(http.MethodGet)
+
+	// Prometheus metrics endpoint
+	router.Handle("/metrics", promhttp.Handler())
 }
 
 // ---------- Helpers ----------
@@ -103,6 +113,9 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	// Записываем бизнес-метрику просмотра товараж
+	metrics.ProductViewsTotal.WithLabelValues(strconv.FormatInt(id, 10)).Inc()
 
 	h.sugarLogger.Infow("product retrieved", "id", id)
 
