@@ -42,4 +42,5 @@ spec:
           configMap:
             name: grafana-datasources
         - name: grafana-storage
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: grafana-pvc
