@@ -4,13 +4,13 @@ kind: Kustomization
 namespace: ecommerce
 
 resources:
-  - 01-configmap.yaml
-  - 02-secret.yaml
-  - 03-deployment.yaml
-  - 04-service.yaml
-  - 05-hpa.yaml
-  - 06-ingress.yaml
+- 01-configmap.yaml
+- 02-secret.yaml
+- 03-deployment.yaml
+- 04-service.yaml
+- 05-hpa.yaml
+- 06-ingress.yaml
 
 images:
-  - name: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-cart-service
-    newTag: latest  # Этот тег будет заменяться в CI/CD
+- name: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-cart-service
+  newTag: a3ed4c5
