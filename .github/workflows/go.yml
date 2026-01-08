@@ -107,6 +107,8 @@ jobs:
     needs: check-ycr-access
     if: github.event_name == 'push'
     
+    outputs:
+      image-tag: ${{ steps.tag.outputs.image-tag }}
     
     strategy:
       matrix:
@@ -151,26 +153,23 @@ jobs:
           username: json_key
           password: ${{ secrets.YC_REGISTRY_KEY }}
 
+      - name: Generate image tag
+        id: tag
+        run: |
+          # Используем короткий SHA для тега
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          IMAGE_TAG="${SHORT_SHA}"
+          echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "📦 Image tag: ${IMAGE_TAG}"
+      
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
+            type=raw,value=${{ steps.tag.outputs.image-tag }}
             type=raw,value=latest,enable={{is_default_branch}}
-      
-      - name: Save image tag for deployment
-        id: save-tag
-        run: |
-          # Берем первый тег из списка (обычно это branch name)
-          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -n1)
-          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "📦 Built image: $IMAGE_TAG"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -184,7 +183,67 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-  # Job 4: Security Scan
+  # Job 4: Update Kustomize manifests
+  update-manifests:
+    name: Update Kustomize Manifests
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Get image tag from build job
+        id: get-tag
+        run: |
+          # Получаем тег из build-and-push job
+          echo "image-tag=${{ needs.build-and-push.outputs.image-tag }}" >> $GITHUB_OUTPUT
+          echo "📦 Using image tag: ${{ needs.build-and-push.outputs.image-tag }}"
+      
+      - name: Install kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+          kustomize version
+      
+      - name: Update kustomization.yaml files
+        run: |
+          IMAGE_TAG="${{ steps.get-tag.outputs.image-tag }}"
+          echo "🔄 Updating kustomization.yaml files with tag: ${IMAGE_TAG}"
+          
+          # Обновляем каждый сервис
+          for service in sso-service products-service wallet-service cart-service saga-orchestrator order-service; do
+            KUSTOMIZE_FILE="deploy/k8s/services/${service}/kustomization.yaml"
+            if [ -f "$KUSTOMIZE_FILE" ]; then
+              echo "📝 Updating ${service}..."
+              cd "deploy/k8s/services/${service}"
+              kustomize edit set image "cr.yandex/${{ secrets.YC_REGISTRY_ID }}/ecommerce-${service}:${IMAGE_TAG}"
+              cd -
+            fi
+          done
+          
+          echo "✅ All kustomization.yaml files updated"
+      
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          
+          git add deploy/k8s/services/*/kustomization.yaml
+          
+          if git diff --staged --quiet; then
+            echo "ℹ️ No changes to commit"
+          else
+            git commit -m "chore: update image tags to ${{ steps.get-tag.outputs.image-tag }} [skip ci]"
+            git push
+            echo "✅ Changes committed and pushed"
+          fi
+
+  # Job 5: Security Scan
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -226,11 +285,11 @@ jobs:
         with:
           sarif_file: 'gosec-results.sarif'
   
-  # Job 5: Check Kubernetes Cluster Access
+  # Job 6: Check Kubernetes Cluster Access
   cluster-access-check:
     name: Check Kubernetes Cluster Access
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: [build-and-push, update-manifests]
     if: github.event_name == 'push'
 
     steps:
@@ -275,11 +334,11 @@ jobs:
           echo "📊 Getting nodes..."
           kubectl get nodes
 
-  # Job 6: Deploy to Kubernetes (только для main ветки)
+  # Job 7: Deploy to Kubernetes (только для main ветки)
   deploy-to-k8s:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
-    needs: [build-and-push, cluster-access-check]
+    needs: [build-and-push, update-manifests, cluster-access-check]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
@@ -554,11 +613,11 @@ jobs:
           echo "✅ Order Service deployment completed successfully"
           echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
 
-  # Job 7: Notify Build Status
+  # Job 8: Notify Build Status
   notify:
     name: Notify Build Status
     runs-on: ubuntu-latest
-    needs: [lint-and-test, check-ycr-access, build-and-push, security-scan, cluster-access-check, deploy-to-k8s]
+    needs: [lint-and-test, check-ycr-access, build-and-push, update-manifests, security-scan, cluster-access-check, deploy-to-k8s]
     if: always()
     
     steps:
