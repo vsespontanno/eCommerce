@@ -8,9 +8,11 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vsespontanno/eCommerce/services/cart-service/internal/domain/apperrors"
 	"github.com/vsespontanno/eCommerce/services/cart-service/internal/domain/cart/entity"
 	"github.com/vsespontanno/eCommerce/services/cart-service/internal/infrastructure/client/grpc/jwt/dto"
+	"github.com/vsespontanno/eCommerce/services/cart-service/internal/infrastructure/metrics"
 	"github.com/vsespontanno/eCommerce/services/cart-service/internal/presentation/http/handlers/middleware"
 	"go.uber.org/zap"
 )
@@ -57,6 +59,9 @@ func New(cartService CartServiceInterface, sugarLogger *zap.SugaredLogger,
 }
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
+	// Подключаем metrics middleware ко всем роутам
+	router.Use(middleware.MetricsMiddleware)
+
 	router.Handle("/cart",
 		h.rateLimiter.RateLimitMiddleware(
 			middleware.AuthMiddleware(http.HandlerFunc(h.GetCart), h.grpcAuthClient),
@@ -95,6 +100,9 @@ func (h *Handler) RegisterRoutes(router *mux.Router) {
 	).Methods(http.MethodPost)
 
 	router.HandleFunc("/health", h.HealthCheck).Methods(http.MethodGet)
+
+	// Prometheus metrics endpoint
+	router.Handle("/metrics", promhttp.Handler())
 }
 
 func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
@@ -102,12 +110,14 @@ func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
 	userID, ok := ctx.Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "failed to get user ID from context", http.StatusInternalServerError)
+		metrics.CartOperationsTotal.WithLabelValues("get_cart", "error").Inc()
 		return
 	}
 	cart, err := h.cartService.Cart(ctx, userID)
 	if err != nil {
 		// если это пустая корзина
 		if errors.Is(err, apperrors.ErrNoCartFound) {
+			metrics.CartOperationsTotal.WithLabelValues("get_cart", "empty").Inc()
 			if writeErr := writeJSON(w, http.StatusOK, map[string]interface{}{
 				"message": "Your cart is empty",
 				"items":   []entity.CartItem{},
@@ -118,9 +128,21 @@ func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.sugarLogger.Errorf("failed to get cart: %v", err)
+		metrics.CartOperationsTotal.WithLabelValues("get_cart", "error").Inc()
 		http.Error(w, "failed to get cart", http.StatusInternalServerError)
 		return
 	}
+
+	// Записываем метрики корзины
+	metrics.CartOperationsTotal.WithLabelValues("get_cart", "success").Inc()
+	metrics.CartItemsCount.WithLabelValues(strconv.FormatInt(userID, 10)).Observe(float64(len(cart.Items)))
+
+	// Подсчитываем общую стоимость корзины
+	var totalValue int64
+	for _, item := range cart.Items {
+		totalValue += item.Price * int64(item.Quantity)
+	}
+	metrics.CartTotalValue.WithLabelValues(strconv.FormatInt(userID, 10)).Observe(float64(totalValue))
 
 	if len(cart.Items) == 0 {
 		if writeErr := writeJSON(w, http.StatusOK, map[string]interface{}{
@@ -142,13 +164,16 @@ func (h *Handler) ClearCart(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
+		metrics.CartOperationsTotal.WithLabelValues("clear_cart", "error").Inc()
 		return
 	}
 	err := h.cartService.ClearCart(ctx, userID)
 	if err != nil {
 		http.Error(w, "Error while clearing cart", http.StatusBadRequest)
+		metrics.CartOperationsTotal.WithLabelValues("clear_cart", "error").Inc()
 		return
 	}
+	metrics.CartOperationsTotal.WithLabelValues("clear_cart", "success").Inc()
 	err = writeJSON(w, http.StatusOK, "")
 	if err != nil {
 		h.sugarLogger.Errorf("Failed to write response: %v", err)
@@ -161,6 +186,7 @@ func (h *Handler) RemoveProduct(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
+		metrics.CartOperationsTotal.WithLabelValues("remove_product", "error").Inc()
 		return
 	}
 	vars := mux.Vars(r)
@@ -168,13 +194,20 @@ func (h *Handler) RemoveProduct(w http.ResponseWriter, r *http.Request) {
 	intID, err := strconv.Atoi(stringID)
 	if err != nil || intID <= 0 || intID > 1000000 {
 		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		metrics.CartOperationsTotal.WithLabelValues("remove_product", "invalid_id").Inc()
 		return
 	}
 	err = h.cartService.DeleteProductFromCart(ctx, userID, int64(intID))
 	if err != nil {
 		http.Error(w, "Error while removing product", http.StatusBadRequest)
+		metrics.CartOperationsTotal.WithLabelValues("remove_product", "error").Inc()
 		return
 	}
+
+	// Записываем метрику удаления товара
+	metrics.ProductRemovedFromCartTotal.WithLabelValues(stringID).Inc()
+	metrics.CartOperationsTotal.WithLabelValues("remove_product", "success").Inc()
+
 	err = writeJSON(w, http.StatusOK, "")
 	if err != nil {
 		h.sugarLogger.Errorf("Failed to write response: %v", err)
@@ -188,6 +221,7 @@ func (h *Handler) IncrementProduct(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
+		metrics.CartOperationsTotal.WithLabelValues("increment_product", "error").Inc()
 		return
 	}
 	vars := mux.Vars(r)
@@ -195,19 +229,27 @@ func (h *Handler) IncrementProduct(w http.ResponseWriter, r *http.Request) {
 	intID, err := strconv.Atoi(stringID)
 	if err != nil || intID <= 0 || intID > 1000000 {
 		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		metrics.CartOperationsTotal.WithLabelValues("increment_product", "invalid_id").Inc()
 		return
 	}
 	err = h.cartService.AddProductToCart(ctx, userID, int64(intID))
 	if err != nil {
 		if errors.Is(err, apperrors.ErrTooManyProductsOfOneType) {
+			metrics.CartOperationsTotal.WithLabelValues("increment_product", "limit_exceeded").Inc()
 			if writeErr := writeJSON(w, http.StatusUnprocessableEntity, "You cannot add more than 100 products of one"); writeErr != nil {
 				h.sugarLogger.Errorw("failed to write error response", "error", writeErr)
 			}
 			return
 		}
 		http.Error(w, "Error while adding product", http.StatusBadRequest)
+		metrics.CartOperationsTotal.WithLabelValues("increment_product", "error").Inc()
 		return
 	}
+
+	// Записываем метрику добавления товара
+	metrics.ProductAddedToCartTotal.WithLabelValues(stringID).Inc()
+	metrics.CartOperationsTotal.WithLabelValues("increment_product", "success").Inc()
+
 	err = writeJSON(w, http.StatusOK, "")
 	if err != nil {
 		h.sugarLogger.Errorf("Failed to add product: %v", err)
@@ -222,6 +264,7 @@ func (h *Handler) DecrementProduct(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
+		metrics.CartOperationsTotal.WithLabelValues("decrement_product", "error").Inc()
 		return
 	}
 	vars := mux.Vars(r)
@@ -229,13 +272,18 @@ func (h *Handler) DecrementProduct(w http.ResponseWriter, r *http.Request) {
 	intID, err := strconv.Atoi(stringID)
 	if err != nil || intID <= 0 || intID > 1000000 {
 		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		metrics.CartOperationsTotal.WithLabelValues("decrement_product", "invalid_id").Inc()
 		return
 	}
 	err = h.cartService.Decrement(ctx, userID, int64(intID))
 	if err != nil {
 		http.Error(w, "Error while removing product", http.StatusBadRequest)
+		metrics.CartOperationsTotal.WithLabelValues("decrement_product", "error").Inc()
 		return
 	}
+
+	metrics.CartOperationsTotal.WithLabelValues("decrement_product", "success").Inc()
+
 	err = writeJSON(w, http.StatusOK, "")
 	if err != nil {
 		h.sugarLogger.Errorf("Failed to remove product: %v", err)
@@ -249,13 +297,19 @@ func (h *Handler) Checkout(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value(middleware.UserIDKey).(int64)
 	if !ok {
 		http.Error(w, "Failed to get user ID from context", http.StatusInternalServerError)
+		metrics.CheckoutTotal.WithLabelValues("error").Inc()
 		return
 	}
 	orderID, err := h.checkouter.Checkout(ctx, userID)
 	if err != nil {
 		http.Error(w, "Error while checking out", http.StatusBadRequest)
+		metrics.CheckoutTotal.WithLabelValues("error").Inc()
 		return
 	}
+
+	// Записываем успешный checkout
+	metrics.CheckoutTotal.WithLabelValues("success").Inc()
+
 	err = writeJSON(w, http.StatusAccepted, map[string]interface{}{
 		"message": "Order accepted and is being processed",
 		"orderId": orderID,
