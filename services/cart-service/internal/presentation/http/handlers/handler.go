@@ -140,7 +140,7 @@ func (h *Handler) GetCart(w http.ResponseWriter, r *http.Request) {
 	// Подсчитываем общую стоимость корзины
 	var totalValue int64
 	for _, item := range cart.Items {
-		totalValue += item.Price * int64(item.Quantity)
+		totalValue += item.Price * item.Quantity
 	}
 	metrics.CartTotalValue.WithLabelValues(strconv.FormatInt(userID, 10)).Observe(float64(totalValue))
 
