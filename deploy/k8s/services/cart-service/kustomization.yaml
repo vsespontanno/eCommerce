@@ -13,4 +13,4 @@ resources:
 
 images:
 - name: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-cart-service
-  newTag: a3ed4c5
+  newTag: 8dde885
