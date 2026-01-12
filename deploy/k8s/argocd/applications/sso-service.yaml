@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sso-service
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  
+  source:
+    repoURL: https://github.com/vsespontanno/eCommerce
+    targetRevision: main
+    path: deploy/k8s/services/sso-service
+    # ВАЖНО: ArgoCD автоматически определяет Kustomize по наличию kustomization.yaml
+    # Он выполнит: kustomize build deploy/k8s/services/sso-service
+  
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ecommerce
+  
+  syncPolicy:
+    automated:
+      prune: true      # Удалять ресурсы которых нет в Git
+      selfHeal: true   # Автоматически исправлять drift
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
