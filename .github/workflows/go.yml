@@ -285,339 +285,11 @@ jobs:
         with:
           sarif_file: 'gosec-results.sarif'
   
-  # Job 6: Check Kubernetes Cluster Access
-  cluster-access-check:
-    name: Check Kubernetes Cluster Access
-    runs-on: ubuntu-latest
-    needs: [build-and-push, update-manifests]
-    if: github.event_name == 'push'
-
-    steps:
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: latest
-
-      - name: Install Yandex Cloud CLI
-        run: |
-          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
-          
-      - name: Configure Yandex Cloud CLI
-        run: |
-          # Configure YC CLI with OAuth token
-          $HOME/yandex-cloud/bin/yc config profile create ci-profile
-          $HOME/yandex-cloud/bin/yc config set token ${{ secrets.YC_OAUTH_TOKEN }}
-          $HOME/yandex-cloud/bin/yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
-          $HOME/yandex-cloud/bin/yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
-
-      - name: Get kubeconfig from Yandex Cloud
-        run: |
-          echo "📥 Getting kubeconfig from Yandex Cloud..."
-          
-          # Get kubeconfig directly from YC (no need for secrets!)
-          $HOME/yandex-cloud/bin/yc managed-kubernetes cluster \
-            get-credentials ${{ secrets.YC_K8S_CLUSTER_NAME }} \
-            --external \
-            --force
-          
-          echo "✅ Kubeconfig configured successfully"
-
-      - name: Verify cluster access
-        run: |
-          echo "🔍 Checking cluster access..."
-          kubectl version --client
-          
-          echo "🔗 Attempting to connect to cluster..."
-          kubectl cluster-info
-          
-          echo "📊 Getting nodes..."
-          kubectl get nodes
-
-  # Job 7: Deploy to Kubernetes (только для main ветки)
-  deploy-to-k8s:
-    name: Deploy to Kubernetes
-    runs-on: ubuntu-latest
-    needs: [build-and-push, update-manifests, cluster-access-check]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: latest
-
-      - name: Install Yandex Cloud CLI
-        run: |
-          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
-          
-      - name: Configure Yandex Cloud CLI
-        run: |
-          $HOME/yandex-cloud/bin/yc config profile create ci-profile
-          $HOME/yandex-cloud/bin/yc config set token ${{ secrets.YC_OAUTH_TOKEN }}
-          $HOME/yandex-cloud/bin/yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
-          $HOME/yandex-cloud/bin/yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
-
-      - name: Get kubeconfig
-        run: |
-          $HOME/yandex-cloud/bin/yc managed-kubernetes cluster \
-            get-credentials ${{ secrets.YC_K8S_CLUSTER_NAME }} \
-            --external \
-            --force
-
-      - name: Deploy PostgreSQL
-        run: |
-          echo "🗄️ Deploying PostgreSQL..."
-          
-          # Создаем namespace для datastore если не существует
-          kubectl apply -f deploy/k8s/stateful/postgres/00-namespace.yaml || true
-          
-          # Применяем манифесты PostgreSQL
-          kubectl apply -f deploy/k8s/stateful/postgres/01-secret.yaml
-          kubectl apply -f deploy/k8s/stateful/postgres/02-service.yaml
-          kubectl apply -f deploy/k8s/stateful/postgres/03-stateful-set.yaml
-          
-          # Ждем пока PostgreSQL будет готов
-          echo "⏳ Waiting for PostgreSQL to be ready..."
-          kubectl wait --for=condition=ready pod -l app=postgres -n datastore --timeout=5m || true
-          
-          echo "✅ PostgreSQL deployed"
-
-      - name: Run Database Migrations
-        run: |
-          echo "🗄️ Running database migrations..."
-          
-          # Удаляем старый Job если существует
-          kubectl delete job db-migrations -n ecommerce --ignore-not-found=true
-          
-          # Применяем Job для миграций
-          kubectl apply -f deploy/k8s/migrations/migration-job.yaml
-          
-          # Ждем завершения миграций
-          kubectl wait --for=condition=complete --timeout=5m job/db-migrations -n ecommerce || true
-          
-          # Показываем логи миграций
-          echo "📋 Migration logs:"
-          kubectl logs job/db-migrations -n ecommerce || echo "No logs available yet"
-          
-          # Проверяем статус
-          JOB_STATUS=$(kubectl get job db-migrations -n ecommerce -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}')
-          if [ "$JOB_STATUS" == "True" ]; then
-            echo "✅ Migrations completed successfully"
-          else
-            echo "⚠️ Migrations may have failed, check logs above"
-          fi
-
-      - name: Deploy SSO Service
-        run: |
-          echo "🚀 Deploying SSO Service to Kubernetes..."
-          
-          # Create imagePullSecret for Yandex Container Registry
-          echo "🔐 Creating imagePullSecret for YCR..."
-          kubectl create secret docker-registry yc-registry-secret \
-            --docker-server=cr.yandex \
-            --docker-username=json_key \
-            --docker-password='${{ secrets.YC_REGISTRY_KEY }}' \
-            -n ecommerce \
-            --dry-run=client -o yaml | kubectl apply -f -
-          
-          # Применяем манифесты
-          kubectl apply -f deploy/k8s/services/sso-service/00-namespace.yaml
-          kubectl apply -f deploy/k8s/services/sso-service/01-secret.yaml
-          kubectl apply -f deploy/k8s/services/sso-service/02-configmap.yaml
-          kubectl apply -f deploy/k8s/services/sso-service/03-deployment.yaml
-          kubectl apply -f deploy/k8s/services/sso-service/04-service.yaml
-          kubectl apply -f deploy/k8s/services/sso-service/05-hpa.yaml
-          kubectl apply -f deploy/k8s/services/sso-service/06-ingress.yaml
-          
-          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
-          echo "🔄 Restarting deployment to pull new image..."
-          kubectl rollout restart deployment/sso-service -n ecommerce
-          
-          echo "✅ SSO Service manifests applied successfully"
-
-      - name: Wait for SSO deployment
-        run: |
-          echo "⏳ Waiting for SSO deployment to be ready..."
-          kubectl rollout status deployment/sso-service -n ecommerce --timeout=5m
-          
-          echo "📊 SSO Deployment status:"
-          kubectl get pods -n ecommerce -l app=sso-service
-          
-          echo "✅ SSO Service deployment completed successfully"
-          echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
-
-      - name: Deploy Products Service
-        run: |
-          echo "🚀 Deploying Products Service to Kubernetes..."
-          
-          # Применяем манифесты
-          kubectl apply -f deploy/k8s/services/products-service/01-secret.yaml
-          kubectl apply -f deploy/k8s/services/products-service/02-configmap.yaml
-          kubectl apply -f deploy/k8s/services/products-service/03-deployment.yaml
-          kubectl apply -f deploy/k8s/services/products-service/04-service.yaml
-          kubectl apply -f deploy/k8s/services/products-service/05-hpa.yaml
-          kubectl apply -f deploy/k8s/services/products-service/06-ingress.yaml
-          
-          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
-          echo "🔄 Restarting deployment to pull new image..."
-          kubectl rollout restart deployment/products-service -n ecommerce
-          
-          echo "✅ Products Service manifests applied successfully"
-
-      - name: Wait for Products deployment
-        run: |
-          echo "⏳ Waiting for Products deployment to be ready..."
-          kubectl rollout status deployment/products-service -n ecommerce --timeout=5m
-          
-          echo "📊 Products Deployment status:"
-          kubectl get pods -n ecommerce -l app=products-service
-          
-          echo "✅ Products Service deployment completed successfully"
-          echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
-
-      - name: Deploy Wallet Service
-        run: |
-          echo "🚀 Deploying Wallet Service to Kubernetes..."
-          
-          # Применяем манифесты
-          kubectl apply -f deploy/k8s/services/wallet-service/01-secret.yaml
-          kubectl apply -f deploy/k8s/services/wallet-service/02-configmap.yaml
-          kubectl apply -f deploy/k8s/services/wallet-service/03-deployment.yaml
-          kubectl apply -f deploy/k8s/services/wallet-service/04-service.yaml
-          kubectl apply -f deploy/k8s/services/wallet-service/05-hpa.yaml
-          kubectl apply -f deploy/k8s/services/wallet-service/06-ingress.yaml
-          
-          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
-          echo "🔄 Restarting deployment to pull new image..."
-          kubectl rollout restart deployment/wallet-service -n ecommerce
-          
-          echo "✅ Wallet Service manifests applied successfully"
-
-      - name: Wait for Wallet deployment
-        run: |
-          echo "⏳ Waiting for Wallet deployment to be ready..."
-          kubectl rollout status deployment/wallet-service -n ecommerce --timeout=5m
-          
-          echo "📊 Wallet Deployment status:"
-          kubectl get pods -n ecommerce -l app=wallet-service
-          
-          echo "✅ Wallet Service deployment completed successfully"
-          echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
-
-      - name: Deploy Redis
-        run: |
-          echo "🚀 Deploying Redis to Kubernetes..."
-          
-          # Создаем namespace для Redis если не существует
-          kubectl apply -f deploy/k8s/stateful/redis/00-namespace.yaml || true
-          
-          # Применяем манифесты Redis
-          kubectl apply -f deploy/k8s/stateful/redis/01-standard-storageclass.yaml
-          kubectl apply -f deploy/k8s/stateful/redis/02-configmap.yaml
-          kubectl apply -f deploy/k8s/stateful/redis/03-service.yaml
-          kubectl apply -f deploy/k8s/stateful/redis/04-stateful-set.yaml
-          
-          # Ждем пока Redis будет готов
-          echo "⏳ Waiting for Redis to be ready..."
-          kubectl wait --for=condition=ready pod -l app=redis -n redis --timeout=5m || true
-          
-          echo "✅ Redis deployed"
-
-      - name: Deploy Cart Service
-        run: |
-          echo "🚀 Deploying Cart Service to Kubernetes..."
-          
-          # Применяем манифесты
-          kubectl apply -f deploy/k8s/services/cart-service/01-configmap.yaml
-          kubectl apply -f deploy/k8s/services/cart-service/02-secret.yaml
-          kubectl apply -f deploy/k8s/services/cart-service/03-deployment.yaml
-          kubectl apply -f deploy/k8s/services/cart-service/04-service.yaml
-          kubectl apply -f deploy/k8s/services/cart-service/05-hpa.yaml
-          kubectl apply -f deploy/k8s/services/cart-service/06-ingress.yaml
-          
-          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
-          echo "🔄 Restarting deployment to pull new image..."
-          kubectl rollout restart deployment/cart-service -n ecommerce
-          
-          echo "✅ Cart Service manifests applied successfully"
-
-      - name: Wait for Cart deployment
-        run: |
-          echo "⏳ Waiting for Cart deployment to be ready..."
-          kubectl rollout status deployment/cart-service -n ecommerce --timeout=5m
-          
-          echo "📊 Cart Deployment status:"
-          kubectl get pods -n ecommerce -l app=cart-service
-          
-          echo "✅ Cart Service deployment completed successfully"
-          echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
-
-      - name: Deploy Saga Orchestrator
-        run: |
-          echo "🚀 Deploying Saga Orchestrator to Kubernetes..."
-          
-          # Применяем манифесты
-          kubectl apply -f deploy/k8s/services/saga-orchestrator/01-configmap.yaml
-          kubectl apply -f deploy/k8s/services/saga-orchestrator/02-secret.yaml
-          kubectl apply -f deploy/k8s/services/saga-orchestrator/03-deployment.yaml
-          kubectl apply -f deploy/k8s/services/saga-orchestrator/04-service.yaml
-          kubectl apply -f deploy/k8s/services/saga-orchestrator/05-hpa.yaml
-          
-          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
-          echo "🔄 Restarting deployment to pull new image..."
-          kubectl rollout restart deployment/saga-orchestrator -n ecommerce
-          
-          echo "✅ Saga Orchestrator manifests applied successfully"
-
-      - name: Wait for Saga Orchestrator deployment
-        run: |
-          echo "⏳ Waiting for Saga Orchestrator deployment to be ready..."
-          kubectl rollout status deployment/saga-orchestrator -n ecommerce --timeout=5m
-          
-          echo "📊 Saga Orchestrator Deployment status:"
-          kubectl get pods -n ecommerce -l app=saga-orchestrator
-          
-          echo "✅ Saga Orchestrator deployment completed successfully"
-          echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
-
-      - name: Deploy Order Service
-        run: |
-          echo "🚀 Deploying Order Service to Kubernetes..."
-          
-          # Применяем манифесты
-          kubectl apply -f deploy/k8s/services/order-service/01-configmap.yaml
-          kubectl apply -f deploy/k8s/services/order-service/02-secret.yaml
-          kubectl apply -f deploy/k8s/services/order-service/03-deployment.yaml
-          kubectl apply -f deploy/k8s/services/order-service/04-service.yaml
-          kubectl apply -f deploy/k8s/services/order-service/05-hpa.yaml
-          
-          # Принудительно перезапускаем deployment чтобы подтянуть новый образ
-          echo "🔄 Restarting deployment to pull new image..."
-          kubectl rollout restart deployment/order-service -n ecommerce
-          
-          echo "✅ Order Service manifests applied successfully"
-
-      - name: Wait for Order deployment
-        run: |
-          echo "⏳ Waiting for Order deployment to be ready..."
-          kubectl rollout status deployment/order-service -n ecommerce --timeout=5m
-          
-          echo "📊 Order Deployment status:"
-          kubectl get pods -n ecommerce -l app=order-service
-          
-          echo "✅ Order Service deployment completed successfully"
-          echo "🏥 Health checks are managed by Kubernetes readiness/liveness probes"
-
-  # Job 8: Notify Build Status
+  # Job 6: Notify Build Status
   notify:
     name: Notify Build Status
     runs-on: ubuntu-latest
-    needs: [lint-and-test, check-ycr-access, build-and-push, update-manifests, security-scan, cluster-access-check, deploy-to-k8s]
+    needs: [lint-and-test, check-ycr-access, build-and-push, update-manifests, security-scan]
     if: always()
     
     steps:
@@ -631,17 +303,15 @@ jobs:
           LINT_TEST="${{ needs.lint-and-test.result }}"
           YCR_ACCESS="${{ needs.check-ycr-access.result }}"
           BUILD_PUSH="${{ needs.build-and-push.result }}"
+          UPDATE_MANIFESTS="${{ needs.update-manifests.result }}"
           SECURITY="${{ needs.security-scan.result }}"
-          CLUSTER_ACCESS="${{ needs.cluster-access-check.result }}"
-          DEPLOY="${{ needs.deploy-to-k8s.result }}"
           
-          # SUCCESS только если все успешны или пропущены (skipped для deploy на не-main ветках)
+          # SUCCESS только если все успешны или пропущены
           if [ "$LINT_TEST" == "success" ] && \
              [ "$SECURITY" == "success" ] && \
              ([ "$YCR_ACCESS" == "success" ] || [ "$YCR_ACCESS" == "skipped" ]) && \
              ([ "$BUILD_PUSH" == "success" ] || [ "$BUILD_PUSH" == "skipped" ]) && \
-             ([ "$CLUSTER_ACCESS" == "success" ] || [ "$CLUSTER_ACCESS" == "skipped" ]) && \
-             ([ "$DEPLOY" == "success" ] || [ "$DEPLOY" == "skipped" ]); then
+             ([ "$UPDATE_MANIFESTS" == "success" ] || [ "$UPDATE_MANIFESTS" == "skipped" ]); then
             echo "status=✅ SUCCESS" >> $GITHUB_OUTPUT
             echo "emoji=🎉" >> $GITHUB_OUTPUT
             echo "color=success" >> $GITHUB_OUTPUT
@@ -672,8 +342,9 @@ jobs:
             • Lint & Test: ${{ needs.lint-and-test.result == 'success' && '✅' || '❌' }}
             • YCR Access: ${{ needs.check-ycr-access.result == 'success' && '✅' || needs.check-ycr-access.result == 'skipped' && '⏭️' || '❌' }}
             • Build & Push: ${{ needs.build-and-push.result == 'success' && '✅' || needs.build-and-push.result == 'skipped' && '⏭️' || '❌' }}
+            • Update Manifests: ${{ needs.update-manifests.result == 'success' && '✅' || needs.update-manifests.result == 'skipped' && '⏭️' || '❌' }}
             • Security Scan: ${{ needs.security-scan.result == 'success' && '✅' || '❌' }}
-            • Cluster Access: ${{ needs.cluster-access-check.result == 'success' && '✅' || needs.cluster-access-check.result == 'skipped' && '⏭️' || '❌' }}
-            • Deploy to K8s: ${{ needs.deploy-to-k8s.result == 'success' && '✅' || needs.deploy-to-k8s.result == 'skipped' && '⏭️' || '❌' }}
+            
+            🚀 *ArgoCD will automatically deploy changes from Git*
             
             🔗 [View Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
