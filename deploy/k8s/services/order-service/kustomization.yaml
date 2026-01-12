@@ -12,4 +12,4 @@ resources:
 
 images:
 - name: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-order-service
-  newTag: 8c9f90b
+  newTag: edca9ef
