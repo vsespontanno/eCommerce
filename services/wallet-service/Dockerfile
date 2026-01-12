@@ -10,6 +10,6 @@ COPY . .
 WORKDIR /app
 RUN go build -o /app/wallet-service-bin ./services/wallet-service/cmd/server/main.go
 
-EXPOSE 50051 8080
+EXPOSE 50051 50054 8080
 
 CMD ["/app/wallet-service-bin"]
