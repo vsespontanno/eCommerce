@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: sso-service
+  name: products-service
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: https://github.com/vsespontanno/eCommerce
     targetRevision: main
-    path: deploy/k8s/services/sso-service
+    path: deploy/k8s/services/products-service
   
   destination:
     server: https://kubernetes.default.svc
@@ -19,8 +19,8 @@ spec:
   
   syncPolicy:
     automated:
-      prune: true      # Удалять ресурсы которых нет в Git
-      selfHeal: true   # Автоматически исправлять drift
+      prune: true
+      selfHeal: true
       allowEmpty: false
     syncOptions:
       - CreateNamespace=true

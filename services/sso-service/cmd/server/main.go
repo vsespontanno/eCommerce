@@ -23,10 +23,7 @@ func main() {
 		logger.Log.Warn("Failed to connect to db: " + err.Error())
 	}
 
-	// HTTP port по умолчанию 8080
-	httpPort := 8080
-
-	application := app.New(logger.Log, cfg.GRPCPort, httpPort, sDb, cfg.JWTSecret, 1*time.Hour)
+	application := app.New(logger.Log, cfg.GRPCPort, cfg.HTTPPort, sDb, cfg.JWTSecret, 1*time.Hour)
 
 	// Запуск gRPC сервера
 	go func() {
