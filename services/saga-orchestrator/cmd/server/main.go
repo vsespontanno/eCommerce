@@ -105,7 +105,9 @@ func main() {
 			)
 
 			// Запускаем outbox publisher
-			outboxPublisher.Start(ctx)
+			go func() {
+				outboxPublisher.Start(ctx)
+			}()
 		}
 	} else {
 		logger.Log.Info("Kafka broker not configured, running without Kafka producer")
