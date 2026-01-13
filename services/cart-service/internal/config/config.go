@@ -84,11 +84,3 @@ func MustLoad() (*Config, error) {
 		KafkaSASLMechanism:     os.Getenv("KAFKA_SASL_MECHANISM"),
 	}, nil
 }
-
-// getEnvOrDefault returns environment variable value or default if not set
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}

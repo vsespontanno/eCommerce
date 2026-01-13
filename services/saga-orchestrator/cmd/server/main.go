@@ -65,12 +65,17 @@ func main() {
 
 		// Add SASL/SSL configuration if credentials are provided (for Yandex Cloud Kafka)
 		if cfg.KafkaSASLUsername != "" && cfg.KafkaSASLPassword != "" {
+			//nolint:errcheck // SetKey errors are non-critical for Kafka config
 			_ = config.SetKey("security.protocol", cfg.KafkaSecurityProtocol)
+			//nolint:errcheck
 			_ = config.SetKey("sasl.mechanism", cfg.KafkaSASLMechanism)
+			//nolint:errcheck
 			_ = config.SetKey("sasl.username", cfg.KafkaSASLUsername)
+			//nolint:errcheck
 			_ = config.SetKey("sasl.password", cfg.KafkaSASLPassword)
 
 			if cfg.KafkaSSLCAPath != "" {
+				//nolint:errcheck
 				_ = config.SetKey("ssl.ca.location", cfg.KafkaSSLCAPath)
 			}
 

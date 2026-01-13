@@ -51,14 +51,6 @@ func MustLoad() (*Config, error) {
 	return &cfg, nil
 }
 
-// getEnvOrDefault returns environment variable value or default if not set
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
 func getEnvAsInt(name string, defaultVal int) int {
 	val := os.Getenv(name)
 	if val == "" {

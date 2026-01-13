@@ -25,12 +25,17 @@ func NewKafkaProducer(broker, topic, saslUsername, saslPassword, sslCAPath, secu
 
 	// Add SASL/SSL configuration if credentials are provided (for Yandex Cloud Kafka)
 	if saslUsername != "" && saslPassword != "" {
+		//nolint:errcheck // SetKey errors are non-critical for Kafka config
 		_ = config.SetKey("security.protocol", securityProtocol)
+		//nolint:errcheck
 		_ = config.SetKey("sasl.mechanism", saslMechanism)
+		//nolint:errcheck
 		_ = config.SetKey("sasl.username", saslUsername)
+		//nolint:errcheck
 		_ = config.SetKey("sasl.password", saslPassword)
 
 		if sslCAPath != "" {
+			//nolint:errcheck
 			_ = config.SetKey("ssl.ca.location", sslCAPath)
 		}
 
