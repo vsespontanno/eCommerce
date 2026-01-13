@@ -108,18 +108,48 @@ spec:
         - name: KAFKA_BROKER
           valueFrom:
             configMapKeyRef:
-              name: cart-service-config
+              name: kafka-config
               key: KAFKA_BROKER
         - name: KAFKA_GROUP_ID
           valueFrom:
             configMapKeyRef:
-              name: cart-service-config
+              name: kafka-config
               key: KAFKA_GROUP_ID
         - name: KAFKA_TOPIC
           valueFrom:
             configMapKeyRef:
-              name: cart-service-config
+              name: kafka-config
               key: KAFKA_TOPIC
+        # Yandex Cloud Kafka SASL/SSL settings
+        - name: KAFKA_SASL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: kafka-credentials
+              key: username
+        - name: KAFKA_SASL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kafka-credentials
+              key: password
+        - name: KAFKA_SECURITY_PROTOCOL
+          valueFrom:
+            configMapKeyRef:
+              name: kafka-config
+              key: KAFKA_SECURITY_PROTOCOL
+        - name: KAFKA_SASL_MECHANISM
+          valueFrom:
+            configMapKeyRef:
+              name: kafka-config
+              key: KAFKA_SASL_MECHANISM
+        - name: KAFKA_SSL_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              name: kafka-config
+              key: KAFKA_SSL_CA_PATH
+        volumeMounts:
+        - name: kafka-ca-cert
+          mountPath: /etc/kafka/certs
+          readOnly: true
         resources:
           requests:
             memory: "128Mi"
@@ -143,3 +173,7 @@ spec:
           periodSeconds: 10
           timeoutSeconds: 3
           failureThreshold: 3
+      volumes:
+      - name: kafka-ca-cert
+        configMap:
+          name: kafka-ca-cert

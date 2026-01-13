@@ -56,12 +56,39 @@ func main() {
 
 	if cfg.KafkaBroker != "" {
 		var kafkaErr error
-		kafkaProducer, kafkaErr = kafka.NewProducer(&kafka.ConfigMap{
+		config := &kafka.ConfigMap{
 			"bootstrap.servers":  cfg.KafkaBroker,
 			"acks":               "all",
 			"retries":            10,
 			"enable.idempotence": true,
-		})
+		}
+
+		// Add SASL/SSL configuration if credentials are provided (for Yandex Cloud Kafka)
+		if cfg.KafkaSASLUsername != "" && cfg.KafkaSASLPassword != "" {
+			//nolint:errcheck // SetKey errors are non-critical for Kafka config
+			_ = config.SetKey("security.protocol", cfg.KafkaSecurityProtocol)
+			//nolint:errcheck
+			_ = config.SetKey("sasl.mechanism", cfg.KafkaSASLMechanism)
+			//nolint:errcheck
+			_ = config.SetKey("sasl.username", cfg.KafkaSASLUsername)
+			//nolint:errcheck
+			_ = config.SetKey("sasl.password", cfg.KafkaSASLPassword)
+
+			if cfg.KafkaSSLCAPath != "" {
+				//nolint:errcheck
+				_ = config.SetKey("ssl.ca.location", cfg.KafkaSSLCAPath)
+			}
+
+			logger.Log.Infow("Kafka producer configured with SASL/SSL",
+				"security.protocol", cfg.KafkaSecurityProtocol,
+				"sasl.mechanism", cfg.KafkaSASLMechanism,
+				"ssl.ca.location", cfg.KafkaSSLCAPath,
+			)
+		} else {
+			logger.Log.Info("Kafka producer configured without SASL/SSL (local mode)")
+		}
+
+		kafkaProducer, kafkaErr = kafka.NewProducer(config)
 		if kafkaErr != nil {
 			logger.Log.Warnw("Failed to create Kafka producer, continuing without it", "error", kafkaErr)
 		} else {

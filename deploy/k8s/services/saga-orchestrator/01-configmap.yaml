@@ -12,7 +12,4 @@ data:
   HTTP_HEALTH_PORT: "8080"
   GRPC_WALLET_CLIENT_PORT: "wallet-service.ecommerce.svc.cluster.local:50054"
   GRPC_PRODUCTS_CLIENT_PORT: "products-service.ecommerce.svc.cluster.local:50051"
-  # Kafka is optional - leave empty to run without Kafka
-  KAFKA_BROKER: ""
-  KAFKA_GROUP_ID: "saga-orchestrator-group"
-  KAFKA_TOPIC: "order-events"
+  # Kafka settings moved to kafka-config ConfigMap

@@ -35,3 +35,4 @@ Makefile
 *seed*
 .idea/
 google/
+kafka*.yaml

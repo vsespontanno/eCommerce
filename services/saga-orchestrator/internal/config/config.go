@@ -20,6 +20,11 @@ type Config struct {
 	PGName                 string
 	PGHost                 string
 	PGPort                 string
+	KafkaSASLUsername      string
+	KafkaSASLPassword      string
+	KafkaSSLCAPath         string
+	KafkaSecurityProtocol  string
+	KafkaSASLMechanism     string
 }
 
 func MustLoad() (*Config, error) {
@@ -38,6 +43,11 @@ func MustLoad() (*Config, error) {
 	cfg.PGName = os.Getenv("PG_NAME")
 	cfg.PGHost = os.Getenv("PG_HOST")
 	cfg.PGPort = os.Getenv("PG_PORT")
+	cfg.KafkaSASLUsername = os.Getenv("KAFKA_SASL_USERNAME")
+	cfg.KafkaSASLPassword = os.Getenv("KAFKA_SASL_PASSWORD")
+	cfg.KafkaSSLCAPath = os.Getenv("KAFKA_SSL_CA_PATH")
+	cfg.KafkaSecurityProtocol = os.Getenv("KAFKA_SECURITY_PROTOCOL")
+	cfg.KafkaSASLMechanism = os.Getenv("KAFKA_SASL_MECHANISM")
 	return &cfg, nil
 }
 

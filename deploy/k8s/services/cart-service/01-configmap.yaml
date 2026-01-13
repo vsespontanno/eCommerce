@@ -17,7 +17,4 @@ data:
   GRPC_PRODUCTS_CLIENT_PORT: "products-service.ecommerce.svc.cluster.local:50051"
   GRPC_ORDER_CLIENT_PORT: "order-service.ecommerce.svc.cluster.local:50051"
   GRPC_SAGA_CLIENT_PORT: "saga-orchestrator.ecommerce.svc.cluster.local:50051"
-  # Kafka is optional - leave empty to run without Kafka
-  KAFKA_BROKER: ""
-  KAFKA_GROUP_ID: "cart-service-group"
-  KAFKA_TOPIC: "order-events"
+  # Kafka settings moved to kafka-config ConfigMap
