@@ -20,12 +20,34 @@ type KafkaConsumer struct {
 	orderCompleter OrderCompleter
 }
 
-func NewKafkaConsumer(brokers, groupID, topic string, logger *zap.SugaredLogger, orderCompleter OrderCompleter) (*KafkaConsumer, error) {
-	c, err := kafka.NewConsumer(&kafka.ConfigMap{
+func NewKafkaConsumer(brokers, groupID, topic, saslUsername, saslPassword, sslCAPath, securityProtocol, saslMechanism string, logger *zap.SugaredLogger, orderCompleter OrderCompleter) (*KafkaConsumer, error) {
+	config := &kafka.ConfigMap{
 		"bootstrap.servers": brokers,
 		"group.id":          groupID,
 		"auto.offset.reset": "earliest",
-	})
+	}
+
+	// Add SASL/SSL configuration if credentials are provided (for Yandex Cloud Kafka)
+	if saslUsername != "" && saslPassword != "" {
+		_ = config.SetKey("security.protocol", securityProtocol)
+		_ = config.SetKey("sasl.mechanism", saslMechanism)
+		_ = config.SetKey("sasl.username", saslUsername)
+		_ = config.SetKey("sasl.password", saslPassword)
+
+		if sslCAPath != "" {
+			_ = config.SetKey("ssl.ca.location", sslCAPath)
+		}
+
+		logger.Infow("Kafka consumer configured with SASL/SSL",
+			"security.protocol", securityProtocol,
+			"sasl.mechanism", saslMechanism,
+			"ssl.ca.location", sslCAPath,
+		)
+	} else {
+		logger.Info("Kafka consumer configured without SASL/SSL (local mode)")
+	}
+
+	c, err := kafka.NewConsumer(config)
 	if err != nil {
 		return nil, err
 	}

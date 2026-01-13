@@ -16,12 +16,34 @@ type KafkaProducer struct {
 	topic    string
 }
 
-func NewKafkaProducer(broker string, topic string, logger *zap.SugaredLogger) (*KafkaProducer, error) {
-	kafkaProducer, err := kafka.NewProducer(&kafka.ConfigMap{
+func NewKafkaProducer(broker, topic, saslUsername, saslPassword, sslCAPath, securityProtocol, saslMechanism string, logger *zap.SugaredLogger) (*KafkaProducer, error) {
+	config := &kafka.ConfigMap{
 		"bootstrap.servers": broker,
 		"acks":              "all",
 		"retries":           10,
-	})
+	}
+
+	// Add SASL/SSL configuration if credentials are provided (for Yandex Cloud Kafka)
+	if saslUsername != "" && saslPassword != "" {
+		_ = config.SetKey("security.protocol", securityProtocol)
+		_ = config.SetKey("sasl.mechanism", saslMechanism)
+		_ = config.SetKey("sasl.username", saslUsername)
+		_ = config.SetKey("sasl.password", saslPassword)
+
+		if sslCAPath != "" {
+			_ = config.SetKey("ssl.ca.location", sslCAPath)
+		}
+
+		logger.Infow("Kafka producer configured with SASL/SSL",
+			"security.protocol", securityProtocol,
+			"sasl.mechanism", saslMechanism,
+			"ssl.ca.location", sslCAPath,
+		)
+	} else {
+		logger.Info("Kafka producer configured without SASL/SSL (local mode)")
+	}
+
+	kafkaProducer, err := kafka.NewProducer(config)
 	if err != nil {
 		logger.Errorw("Error creating kafka producer", "error", err, "stage: ", "NewKafkaProducer")
 		return nil, err

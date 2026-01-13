@@ -84,7 +84,18 @@ func main() {
 
 	if cfg.KafkaBroker != "" {
 		var err error
-		kafkaConsumer, err = messaging.NewKafkaConsumer(cfg.KafkaBroker, cfg.KafkaGroup, cfg.KafkaTopic, logger.Log, orderService)
+		kafkaConsumer, err = messaging.NewKafkaConsumer(
+			cfg.KafkaBroker,
+			cfg.KafkaGroup,
+			cfg.KafkaTopic,
+			cfg.KafkaSASLUsername,
+			cfg.KafkaSASLPassword,
+			cfg.KafkaSSLCAPath,
+			cfg.KafkaSecurityProtocol,
+			cfg.KafkaSASLMechanism,
+			logger.Log,
+			orderService,
+		)
 		if err != nil {
 			logger.Log.Warnw("Failed to connect to Kafka, continuing without it", "error", err)
 		} else {

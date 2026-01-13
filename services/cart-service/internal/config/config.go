@@ -27,6 +27,11 @@ type Config struct {
 	KafkaGroup             string
 	KafkaTopic             string
 	MaxProductQuantity     int
+	KafkaSASLUsername      string
+	KafkaSASLPassword      string
+	KafkaSSLCAPath         string
+	KafkaSecurityProtocol  string
+	KafkaSASLMechanism     string
 }
 
 func MustLoad() (*Config, error) {
@@ -72,5 +77,18 @@ func MustLoad() (*Config, error) {
 		KafkaGroup:             os.Getenv("KAFKA_GROUP_ID"),
 		KafkaTopic:             os.Getenv("KAFKA_TOPIC"),
 		MaxProductQuantity:     MaxProductQuantity,
+		KafkaSASLUsername:      os.Getenv("KAFKA_SASL_USERNAME"),
+		KafkaSASLPassword:      os.Getenv("KAFKA_SASL_PASSWORD"),
+		KafkaSSLCAPath:         os.Getenv("KAFKA_SSL_CA_PATH"),
+		KafkaSecurityProtocol:  os.Getenv("KAFKA_SECURITY_PROTOCOL"),
+		KafkaSASLMechanism:     os.Getenv("KAFKA_SASL_MECHANISM"),
 	}, nil
+}
+
+// getEnvOrDefault returns environment variable value or default if not set
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
