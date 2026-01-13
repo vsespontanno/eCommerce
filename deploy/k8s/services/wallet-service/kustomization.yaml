@@ -13,4 +13,4 @@ resources:
 
 images:
 - name: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-wallet-service
-  newTag: edca9ef
+  newTag: f3b339d
