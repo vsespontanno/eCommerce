@@ -15,20 +15,20 @@ import (
 type Client struct {
 	client products.ProductsClient
 	logger *zap.SugaredLogger
-	port   string
+	addr   string
 }
 
-func NewProductsClient(port string, logger *zap.SugaredLogger) *Client {
-	addr := "localhost:" + port
+func NewProductsClient(addr string, logger *zap.SugaredLogger) *Client {
+	// addr уже содержит полный адрес из ConfigMap
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to dial gRPC server %s: %v", addr, err)
 	}
 	client := products.NewProductsClient(conn)
-	logger.Infow("Connected to Products service as a client")
+	logger.Infow("Connected to Products service as a client", "addr", addr)
 	return &Client{
 		client: client,
-		port:   port,
+		addr:   addr,
 		logger: logger,
 	}
 }
