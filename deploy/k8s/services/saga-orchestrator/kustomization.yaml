@@ -12,4 +12,4 @@ resources:
 
 images:
 - name: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-saga-orchestrator
-  newTag: b6a9686
+  newTag: 2dc743f
