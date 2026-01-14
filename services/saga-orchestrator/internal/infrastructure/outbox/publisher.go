@@ -106,7 +106,12 @@ func (p *Publisher) processOutbox(ctx context.Context) {
 		// Проверяем результат доставки
 		select {
 		case e := <-deliveryChan:
-			m := e.(*kafka.Message)
+			m, ok := e.(*kafka.Message)
+			if !ok {
+				p.log.Errorw("unexpected event type from delivery channel", "id", id, "aggregateID", aggregateID)
+				p.markAsFailed(ctx, id)
+				continue
+			}
 			if m.TopicPartition.Error != nil {
 				p.log.Errorw("kafka delivery failed",
 					"error", m.TopicPartition.Error,
