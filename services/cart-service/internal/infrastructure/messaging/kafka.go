@@ -99,24 +99,48 @@ func (k *KafkaConsumer) Poll(ctx context.Context) {
 				)
 
 				order, err := k.processMessage(msg)
-
 				if err != nil {
+					// Ошибка парсинга - коммитим offset чтобы не застрять на битом сообщении
+					k.logger.Errorw("Failed to parse message, committing offset to skip",
+						"error", err,
+						"partition", msg.TopicPartition.Partition,
+						"offset", msg.TopicPartition.Offset,
+					)
+					if _, commitErr := k.consumer.CommitMessage(msg); commitErr != nil {
+						k.logger.Errorw("Error committing offset after parse error", "error", commitErr)
+					}
 					continue
 				}
+
 				// Обрабатываем только успешно завершенные заказы из saga
 				if order.Status == "Completed" {
 					if err := k.orderCompleter.CompleteOrder(ctx, order); err != nil {
-						k.logger.Errorw("Error completing order", "order_id", order.OrderID, "error", err)
+						k.logger.Errorw("Error completing order",
+							"order_id", order.OrderID,
+							"user_id", order.UserID,
+							"eventType", order.EventType,
+							"error", err,
+						)
 						// НЕ коммитим offset при ошибке - сообщение будет обработано повторно
 						continue
 					}
-					k.logger.Infow("Order completed successfully", "order_id", order.OrderID, "user_id", order.UserID)
+					k.logger.Infow("Order completed successfully",
+						"order_id", order.OrderID,
+						"user_id", order.UserID,
+						"eventType", order.EventType,
+						"total", order.Total,
+					)
 				} else {
-					k.logger.Warnw("Received order with unexpected status", "order_id", order.OrderID, "status", order.Status)
+					k.logger.Warnw("Received order with unexpected status",
+						"order_id", order.OrderID,
+						"status", order.Status,
+						"eventType", order.EventType,
+					)
 				}
 
+				// Коммитим offset только после успешной обработки
 				if _, err := k.consumer.CommitMessage(msg); err != nil {
-					k.logger.Errorw("Error committing offset", "error", err)
+					k.logger.Errorw("Error committing offset", "error", err, "order_id", order.OrderID)
 				}
 
 			}
