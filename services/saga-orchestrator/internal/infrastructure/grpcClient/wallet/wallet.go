@@ -16,21 +16,21 @@ const Success = "success"
 type Client struct {
 	client wallet.WalletClient
 	logger *zap.SugaredLogger
-	port   string
+	addr   string
 }
 
-func NewWalletClient(port string, logger *zap.SugaredLogger) *Client {
-	address := "localhost:" + port
-
-	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+func NewWalletClient(addr string, logger *zap.SugaredLogger) *Client {
+	// addr уже содержит полный адрес из ConfigMap
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Failed to dial gRPC server %s: %v", address, err)
+		log.Fatalf("Failed to dial gRPC server %s: %v", addr, err)
 	}
 
 	client := wallet.NewWalletClient(conn)
+	logger.Infow("Connected to Wallet service", "addr", addr)
 	return &Client{
 		client: client,
-		port:   port,
+		addr:   addr,
 		logger: logger,
 	}
 }

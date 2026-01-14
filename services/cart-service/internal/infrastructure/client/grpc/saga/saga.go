@@ -14,20 +14,20 @@ import (
 type Client struct {
 	client saga.SagaClient
 	logger *zap.SugaredLogger
-	port   string
+	addr   string
 }
 
-func NewSagaClient(port string, logger *zap.SugaredLogger) *Client {
-	addr := "localhost:" + port
+func NewSagaClient(addr string, logger *zap.SugaredLogger) *Client {
+	// addr уже содержит полный адрес из ConfigMap
 	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to dial gRPC server %s: %v", addr, err)
 	}
 	client := saga.NewSagaClient(conn)
-	logger.Infow("Connected to Saga service as a client")
+	logger.Infow("Connected to Saga service as a client", "addr", addr)
 	return &Client{
 		client: client,
-		port:   port,
+		addr:   addr,
 		logger: logger,
 	}
 }

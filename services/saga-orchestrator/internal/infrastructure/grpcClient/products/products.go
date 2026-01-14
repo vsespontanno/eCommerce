@@ -14,21 +14,21 @@ import (
 type Client struct {
 	client products.SagaProductsClient
 	logger *zap.SugaredLogger
-	port   string
+	addr   string
 }
 
-func NewProductsClient(port string, logger *zap.SugaredLogger) *Client {
-	address := "localhost:" + port
-
-	conn, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+func NewProductsClient(addr string, logger *zap.SugaredLogger) *Client {
+	// addr уже содержит полный адрес из ConfigMap
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		logger.Fatalf("Failed to dial gRPC server %s: %v", address, err)
+		logger.Fatalf("Failed to dial gRPC server %s: %v", addr, err)
 	}
 
 	client := products.NewSagaProductsClient(conn)
+	logger.Infow("Connected to Products service", "addr", addr)
 	return &Client{
 		client: client,
-		port:   port,
+		addr:   addr,
 		logger: logger,
 	}
 }
