@@ -94,12 +94,12 @@ spec:
           valueFrom:
             secretKeyRef:
               name: kafka-credentials
-              key: username
+              key: KAFKA_SASL_USERNAME
         - name: KAFKA_SASL_PASSWORD
           valueFrom:
             secretKeyRef:
               name: kafka-credentials
-              key: password
+              key: KAFKA_SASL_PASSWORD
         - name: KAFKA_SECURITY_PROTOCOL
           valueFrom:
             configMapKeyRef:
