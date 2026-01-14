@@ -14,4 +14,4 @@ resources:
 
 images:
 - name: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-sso-service
-  newTag: 025ff12
+  newTag: "81e0211"
