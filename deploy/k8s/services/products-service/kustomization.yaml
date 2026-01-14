@@ -13,4 +13,4 @@ resources:
 
 images:
 - name: cr.yandex/crphjp07nodds7bvd5ar/ecommerce-products-service
-  newTag: "81e0211"
+  newTag: ba83041
