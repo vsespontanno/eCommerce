@@ -23,6 +23,11 @@ func NewOutboxRepository(db *sqlx.DB, log *zap.SugaredLogger) *OutboxRepository 
 
 // SaveEvent сохраняет событие в outbox таблицу
 func (r *OutboxRepository) SaveEvent(ctx context.Context, event entity.OrderEvent) error {
+	// Устанавливаем EventType если не задан
+	if event.EventType == "" {
+		event.EventType = entity.EventTypeOrderCompleted
+	}
+
 	payload, err := json.Marshal(event)
 	if err != nil {
 		r.log.Errorw("failed to marshal event", "error", err, "orderID", event.OrderID)
@@ -36,8 +41,8 @@ func (r *OutboxRepository) SaveEvent(ctx context.Context, event entity.OrderEven
 
 	_, err = r.db.ExecContext(ctx, query,
 		event.OrderID,
-		"saga",
-		"OrderCompleted",
+		"Order",
+		event.EventType,
 		payload,
 	)
 
@@ -46,6 +51,10 @@ func (r *OutboxRepository) SaveEvent(ctx context.Context, event entity.OrderEven
 		return err
 	}
 
-	r.log.Infow("event saved to outbox", "orderID", event.OrderID, "eventType", "OrderCompleted")
+	r.log.Infow("event saved to outbox",
+		"orderID", event.OrderID,
+		"eventType", event.EventType,
+		"userID", event.UserID,
+	)
 	return nil
 }
