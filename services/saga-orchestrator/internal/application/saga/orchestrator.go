@@ -91,16 +91,22 @@ func (o *Orchestrator) SagaTransaction(ctx context.Context, order orderEntity.Or
 		return fmt.Errorf("products commit failed: %w", err)
 	}
 
-	// Шаг 5: ТОЛЬКО ПОСЛЕ успешного commit отправляем в Kafka
+	// Шаг 5: ТОЛЬКО ПОСЛЕ успешного commit отправляем событие в outbox
 	order.Status = "Completed"
+	order.EventType = orderEntity.EventTypeOrderCompleted
 	err = o.outboxer.SaveEvent(ctx, order)
 	if err != nil {
-		o.logger.Errorw("Failed to save event", "error", err, "orderID", order.OrderID)
+		o.logger.Errorw("Failed to save event to outbox", "error", err, "orderID", order.OrderID)
 		o.rollbackTransaction(ctx, order, StepProducts)
-		return fmt.Errorf("failed to save event: %w", err)
+		return fmt.Errorf("failed to save event to outbox: %w", err)
 	}
 
-	o.logger.Infow("Saga transaction completed successfully", "orderID", order.OrderID, "userID", order.UserID)
+	o.logger.Infow("Saga transaction completed successfully",
+		"orderID", order.OrderID,
+		"userID", order.UserID,
+		"total", order.Total,
+		"eventType", order.EventType,
+	)
 	return nil
 }
 

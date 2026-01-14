@@ -17,14 +17,30 @@ func NewOrderService(repo interfaces.OrderRepo, logger *zap.SugaredLogger) *Serv
 	return &Service{repo: repo, logger: logger}
 }
 
-// Called by Saga when order is confirmed/reserved
+// Called by Cart Service when order is confirmed by Saga
 func (s *Service) CreateOrder(ctx context.Context, order *entity.Order) (string, error) {
+	s.logger.Infow("Creating order",
+		"order_id", order.OrderID,
+		"user_id", order.UserID,
+		"total", order.Total,
+		"status", order.Status,
+		"items_count", len(order.Products),
+	)
+
 	err := s.repo.CreateOrder(ctx, order)
 	if err != nil {
-		s.logger.Errorw("repo create order failed", "err", err)
+		s.logger.Errorw("Failed to create order in repository",
+			"order_id", order.OrderID,
+			"user_id", order.UserID,
+			"error", err,
+		)
 		return "", err
 	}
 
+	s.logger.Infow("Order created successfully",
+		"order_id", order.OrderID,
+		"user_id", order.UserID,
+	)
 	return order.OrderID, nil
 }
 
