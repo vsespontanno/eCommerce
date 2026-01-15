@@ -57,191 +57,194 @@ jobs:
       #     fail_ci_if_error: false
 
   # Job 2: Check Yandex Container Registry Access
-  check-ycr-access:
-    name: Check YCR Access
-    runs-on: ubuntu-latest
-    needs: lint-and-test
-    if: github.event_name == 'push'
+  # DISABLED: Yandex Container Registry is not available
+  # check-ycr-access:
+  #   name: Check YCR Access
+  #   runs-on: ubuntu-latest
+  #   needs: lint-and-test
+  #   if: github.event_name == 'push'
     
-    steps:
-      - name: Install Yandex Cloud CLI
-        run: |
-          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
-      
-      - name: Configure Yandex Cloud CLI
-        run: |
-          $HOME/yandex-cloud/bin/yc config profile create ci-profile
-          $HOME/yandex-cloud/bin/yc config set token ${{ secrets.YC_OAUTH_TOKEN }}
-          $HOME/yandex-cloud/bin/yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
-          $HOME/yandex-cloud/bin/yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
-      
-      - name: Verify Container Registry access
-        run: |
-          echo "🔍 Checking Yandex Container Registry access..."
-          
-          # Проверяем что registry существует в указанном folder
-          $HOME/yandex-cloud/bin/yc container registry get ${{ secrets.YC_REGISTRY_ID }} \
-            --folder-id ${{ secrets.YC_CONTAINER_FOLDER_ID }}
-          
-          echo "✅ Container Registry access verified"
-          echo "📦 Registry ID: ${{ secrets.YC_REGISTRY_ID }}"
-          echo "📁 Folder ID: ${{ secrets.YC_CONTAINER_FOLDER_ID }}"
-      
-      - name: Test Docker login to YCR
-        run: |
-          echo "🔐 Testing Docker login to Yandex Container Registry..."
-          
-          # Логинимся в YCR
-          echo '${{ secrets.YC_REGISTRY_KEY }}' | docker login \
-            --username json_key \
-            --password-stdin \
-            cr.yandex
-          
-          echo "✅ Docker login successful"
+  #   steps:
+  #     - name: Install Yandex Cloud CLI
+  #       run: |
+  #         curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+  #         echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+  #
+  #     - name: Configure Yandex Cloud CLI
+  #       run: |
+  #         $HOME/yandex-cloud/bin/yc config profile create ci-profile
+  #         $HOME/yandex-cloud/bin/yc config set token ${{ secrets.YC_OAUTH_TOKEN }}
+  #         $HOME/yandex-cloud/bin/yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}
+  #         $HOME/yandex-cloud/bin/yc config set folder-id ${{ secrets.YC_FOLDER_ID }}
+  #
+  #     - name: Verify Container Registry access
+  #       run: |
+  #         echo "🔍 Checking Yandex Container Registry access..."
+  #
+  #         # Проверяем что registry существует в указанном folder
+  #         $HOME/yandex-cloud/bin/yc container registry get ${{ secrets.YC_REGISTRY_ID }} \
+  #           --folder-id ${{ secrets.YC_CONTAINER_FOLDER_ID }}
+  #
+  #         echo "✅ Container Registry access verified"
+  #         echo "📦 Registry ID: ${{ secrets.YC_REGISTRY_ID }}"
+  #         echo "📁 Folder ID: ${{ secrets.YC_CONTAINER_FOLDER_ID }}"
+  #
+  #     - name: Test Docker login to YCR
+  #       run: |
+  #         echo "🔐 Testing Docker login to Yandex Container Registry..."
+  #
+  #         # Логинимся в YCR
+  #         echo '${{ secrets.YC_REGISTRY_KEY }}' | docker login \
+  #           --username json_key \
+  #           --password-stdin \
+  #           cr.yandex
+  #
+  #         echo "✅ Docker login successful"
 
   # Job 3: Build and Push Docker Images
-  build-and-push:
-    name: Build & Push Docker Images
-    runs-on: ubuntu-latest
-    needs: check-ycr-access
-    if: github.event_name == 'push'
+  # DISABLED: Yandex Container Registry is not available
+  # build-and-push:
+  #   name: Build & Push Docker Images
+  #   runs-on: ubuntu-latest
+  #   needs: check-ycr-access
+  #   if: github.event_name == 'push'
     
-    outputs:
-      image-tag: ${{ steps.tag.outputs.image-tag }}
-    
-    strategy:
-      matrix:
-        service:
-          - name: sso-service
-            dockerfile: services/sso-service/Dockerfile
-            context: .
-          - name: products-service
-            dockerfile: services/products-service/Dockerfile
-            context: .
-          - name: wallet-service
-            dockerfile: services/wallet-service/Dockerfile
-            context: .
-          - name: cart-service
-            dockerfile: services/cart-service/Dockerfile
-            context: .
-          - name: order-service
-            dockerfile: services/order-service/Dockerfile
-            context: .
-          - name: saga-orchestrator
-            dockerfile: services/saga-orchestrator/Dockerfile
-            context: .
-          - name: migrations
-            dockerfile: migrations/Dockerfile
-            context: migrations
-
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Yandex Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: cr.yandex
-          username: json_key
-          password: ${{ secrets.YC_REGISTRY_KEY }}
-
-      - name: Generate image tag
-        id: tag
-        run: |
-          # Используем короткий SHA для тега
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-          IMAGE_TAG="${SHORT_SHA}"
-          echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
-          echo "📦 Image tag: ${IMAGE_TAG}"
-      
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}
-          tags: |
-            type=raw,value=${{ steps.tag.outputs.image-tag }}
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.service.context }}
-          file: ${{ matrix.service.dockerfile }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
+  #   outputs:
+  #     image-tag: ${{ steps.tag.outputs.image-tag }}
+  #
+  #   strategy:
+  #     matrix:
+  #       service:
+  #         - name: sso-service
+  #           dockerfile: services/sso-service/Dockerfile
+  #           context: .
+  #         - name: products-service
+  #           dockerfile: services/products-service/Dockerfile
+  #           context: .
+  #         - name: wallet-service
+  #           dockerfile: services/wallet-service/Dockerfile
+  #           context: .
+  #         - name: cart-service
+  #           dockerfile: services/cart-service/Dockerfile
+  #           context: .
+  #         - name: order-service
+  #           dockerfile: services/order-service/Dockerfile
+  #           context: .
+  #         - name: saga-orchestrator
+  #           dockerfile: services/saga-orchestrator/Dockerfile
+  #           context: .
+  #         - name: migrations
+  #           dockerfile: migrations/Dockerfile
+  #           context: migrations
+  #
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Set up Docker Buildx
+  #       uses: docker/setup-buildx-action@v3
+  #
+  #     - name: Log in to Yandex Container Registry
+  #       uses: docker/login-action@v3
+  #       with:
+  #         registry: cr.yandex
+  #         username: json_key
+  #         password: ${{ secrets.YC_REGISTRY_KEY }}
+  #
+  #     - name: Generate image tag
+  #       id: tag
+  #       run: |
+  #         # Используем короткий SHA для тега
+  #         SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+  #         IMAGE_TAG="${SHORT_SHA}"
+  #         echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+  #         echo "📦 Image tag: ${IMAGE_TAG}"
+  #
+  #     - name: Extract metadata
+  #       id: meta
+  #       uses: docker/metadata-action@v5
+  #       with:
+  #         images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}
+  #         tags: |
+  #           type=raw,value=${{ steps.tag.outputs.image-tag }}
+  #           type=raw,value=latest,enable={{is_default_branch}}
+  #
+  #     - name: Build and push Docker image
+  #       uses: docker/build-push-action@v6
+  #       with:
+  #         context: ${{ matrix.service.context }}
+  #         file: ${{ matrix.service.dockerfile }}
+  #         push: true
+  #         tags: ${{ steps.meta.outputs.tags }}
+  #         labels: ${{ steps.meta.outputs.labels }}
+  #         cache-from: type=gha
+  #         cache-to: type=gha,mode=max
+  #         platforms: linux/amd64
 
   # Job 4: Update Kustomize manifests
-  update-manifests:
-    name: Update Kustomize Manifests
-    runs-on: ubuntu-latest
-    needs: build-and-push
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  # DISABLED: Yandex Container Registry is not available
+  # update-manifests:
+  #   name: Update Kustomize Manifests
+  #   runs-on: ubuntu-latest
+  #   needs: build-and-push
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
-          fetch-depth: 0
-      
-      - name: Get image tag from build job
-        id: get-tag
-        run: |
-          # Получаем тег из build-and-push job
-          echo "image-tag=${{ needs.build-and-push.outputs.image-tag }}" >> $GITHUB_OUTPUT
-          echo "📦 Using image tag: ${{ needs.build-and-push.outputs.image-tag }}"
-      
-      - name: Install kustomize
-        run: |
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
-          kustomize version
-      
-      - name: Update kustomization.yaml files
-        run: |
-          IMAGE_TAG="${{ steps.get-tag.outputs.image-tag }}"
-          echo "🔄 Updating kustomization.yaml files with tag: ${IMAGE_TAG}"
-          
-          # Обновляем каждый сервис
-          for service in sso-service products-service wallet-service cart-service saga-orchestrator order-service; do
-            KUSTOMIZE_FILE="deploy/k8s/services/${service}/kustomization.yaml"
-            if [ -f "$KUSTOMIZE_FILE" ]; then
-              echo "📝 Updating ${service}..."
-              cd "deploy/k8s/services/${service}"
-              kustomize edit set image "cr.yandex/${{ secrets.YC_REGISTRY_ID }}/ecommerce-${service}:${IMAGE_TAG}"
-              cd -
-            fi
-          done
-          
-          echo "✅ All kustomization.yaml files updated"
-      
-      - name: Commit and push changes
-        run: |
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-          
-          git add deploy/k8s/services/*/kustomization.yaml
-          
-          if git diff --staged --quiet; then
-            echo "ℹ️ No changes to commit"
-          else
-            git commit -m "chore: update image tags to ${{ steps.get-tag.outputs.image-tag }} [skip ci]"
-            git push
-            echo "✅ Changes committed and pushed"
-          fi
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #       with:
+  #         token: ${{ secrets.PAT_TOKEN }}
+  #         fetch-depth: 0
+  #
+  #     - name: Get image tag from build job
+  #       id: get-tag
+  #       run: |
+  #         # Получаем тег из build-and-push job
+  #         echo "image-tag=${{ needs.build-and-push.outputs.image-tag }}" >> $GITHUB_OUTPUT
+  #         echo "📦 Using image tag: ${{ needs.build-and-push.outputs.image-tag }}"
+  #
+  #     - name: Install kustomize
+  #       run: |
+  #         curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+  #         sudo mv kustomize /usr/local/bin/
+  #         kustomize version
+  #
+  #     - name: Update kustomization.yaml files
+  #       run: |
+  #         IMAGE_TAG="${{ steps.get-tag.outputs.image-tag }}"
+  #         echo "🔄 Updating kustomization.yaml files with tag: ${IMAGE_TAG}"
+  #
+  #         # Обновляем каждый сервис
+  #         for service in sso-service products-service wallet-service cart-service saga-orchestrator order-service; do
+  #           KUSTOMIZE_FILE="deploy/k8s/services/${service}/kustomization.yaml"
+  #           if [ -f "$KUSTOMIZE_FILE" ]; then
+  #             echo "📝 Updating ${service}..."
+  #             cd "deploy/k8s/services/${service}"
+  #             kustomize edit set image "cr.yandex/${{ secrets.YC_REGISTRY_ID }}/ecommerce-${service}:${IMAGE_TAG}"
+  #             cd -
+  #           fi
+  #         done
+  #
+  #         echo "✅ All kustomization.yaml files updated"
+  #
+  #     - name: Commit and push changes
+  #       run: |
+  #         git config --global user.name "GitHub Actions Bot"
+  #         git config --global user.email "actions@github.com"
+  #
+  #         git add deploy/k8s/services/*/kustomization.yaml
+  #
+  #         if git diff --staged --quiet; then
+  #           echo "ℹ️ No changes to commit"
+  #         else
+  #           git commit -m "chore: update image tags to ${{ steps.get-tag.outputs.image-tag }} [skip ci]"
+  #           git push
+  #           echo "✅ Changes committed and pushed"
+  #         fi
 
   # Job 5: Security Scan
   security-scan:
@@ -289,7 +292,8 @@ jobs:
   notify:
     name: Notify Build Status
     runs-on: ubuntu-latest
-    needs: [lint-and-test, check-ycr-access, build-and-push, update-manifests, security-scan]
+    needs: [lint-and-test, security-scan]
+    # DISABLED: check-ycr-access, build-and-push, update-manifests
     if: always()
     
     steps:
@@ -301,17 +305,10 @@ jobs:
         run: |
           # Проверяем все критичные джобы
           LINT_TEST="${{ needs.lint-and-test.result }}"
-          YCR_ACCESS="${{ needs.check-ycr-access.result }}"
-          BUILD_PUSH="${{ needs.build-and-push.result }}"
-          UPDATE_MANIFESTS="${{ needs.update-manifests.result }}"
           SECURITY="${{ needs.security-scan.result }}"
           
-          # SUCCESS только если все успешны или пропущены
-          if [ "$LINT_TEST" == "success" ] && \
-             [ "$SECURITY" == "success" ] && \
-             ([ "$YCR_ACCESS" == "success" ] || [ "$YCR_ACCESS" == "skipped" ]) && \
-             ([ "$BUILD_PUSH" == "success" ] || [ "$BUILD_PUSH" == "skipped" ]) && \
-             ([ "$UPDATE_MANIFESTS" == "success" ] || [ "$UPDATE_MANIFESTS" == "skipped" ]); then
+          # SUCCESS только если все успешны
+          if [ "$LINT_TEST" == "success" ] && [ "$SECURITY" == "success" ]; then
             echo "status=✅ SUCCESS" >> $GITHUB_OUTPUT
             echo "emoji=🎉" >> $GITHUB_OUTPUT
             echo "color=success" >> $GITHUB_OUTPUT
@@ -340,11 +337,8 @@ jobs:
             
             📊 *Job Results:*
             • Lint & Test: ${{ needs.lint-and-test.result == 'success' && '✅' || '❌' }}
-            • YCR Access: ${{ needs.check-ycr-access.result == 'success' && '✅' || needs.check-ycr-access.result == 'skipped' && '⏭️' || '❌' }}
-            • Build & Push: ${{ needs.build-and-push.result == 'success' && '✅' || needs.build-and-push.result == 'skipped' && '⏭️' || '❌' }}
-            • Update Manifests: ${{ needs.update-manifests.result == 'success' && '✅' || needs.update-manifests.result == 'skipped' && '⏭️' || '❌' }}
             • Security Scan: ${{ needs.security-scan.result == 'success' && '✅' || '❌' }}
             
-            🚀 *ArgoCD will automatically deploy changes from Git*
+            ⚠️ *Docker build and deployment jobs are disabled*
             
             🔗 [View Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})

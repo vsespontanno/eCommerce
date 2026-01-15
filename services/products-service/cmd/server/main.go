@@ -34,6 +34,7 @@ func main() {
 		cfg.PGName,
 		cfg.PGHost,
 		cfg.PGPort,
+		logger.Log,
 	)
 	if err != nil {
 		logger.Log.Fatalf("Failed to connect to database: %v", err)
@@ -42,7 +43,7 @@ func main() {
 
 	store := postgres.NewProductStore(dataBase)
 	cartStore := postgres.NewCartStore(dataBase)
-	sagaStore := postgres.NewSagaStore(dataBase)
+	sagaStore := postgres.NewSagaStore(dataBase, logger.Log)
 	sagaService := saga.NewSagaService(sagaStore, logger.Log)
 	// Initialize application
 	app := app.New(logger.Log, cfg.HTTPPort, cfg.GRPCProductsServerPort, cfg.GRPCSagaServerPort, store, sagaService)
@@ -73,21 +74,36 @@ func main() {
 	<-stop
 	logger.Log.Info("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// Shutdown HTTP server with timeout
+	httpCtx, httpCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer httpCancel()
 
-	if err := app.HTTPApp.Shutdown(ctx); err != nil {
+	if err := app.HTTPApp.Shutdown(httpCtx); err != nil {
 		logger.Log.Errorf("HTTP server shutdown failed: %v", err)
 	} else {
 		logger.Log.Info("HTTP Server gracefully stopped")
 	}
 
-	app.GRPCApp.Stop()
-	logger.Log.Info("gRPC Server gracefully stopped")
+	// Graceful stop gRPC servers with timeout
+	grpcStopDone := make(chan struct{})
+	go func() {
+		app.GRPCApp.Stop()
+		close(grpcStopDone)
+	}()
+
+	select {
+	case <-grpcStopDone:
+		logger.Log.Info("gRPC Servers gracefully stopped")
+	case <-time.After(10 * time.Second):
+		logger.Log.Warn("gRPC Servers shutdown timeout exceeded, forcing stop")
+	}
+
 	logger.Log.Info("Server stopped")
 }
 
 func seedSomeValues(store *postgres.ProductStore) {
+	ctx := context.Background()
+
 	product1 := &entity.Product{
 		Name:         "Red Bull",
 		Description:  "Good energy drink for gym",
@@ -98,7 +114,7 @@ func seedSomeValues(store *postgres.ProductStore) {
 
 	product2 := &entity.Product{
 		Name:         "Chapman Red",
-		Description:  "vERy tasty ciagarettes for your deepression",
+		Description:  "Very tasty cigarettes for your depression",
 		Price:        253.0,
 		ID:           2,
 		CountInStock: 100,
@@ -106,8 +122,8 @@ func seedSomeValues(store *postgres.ProductStore) {
 
 	// Игнорируем ошибки дубликатов - продукты уже могут существовать
 	//nolint:errcheck // Seed данные опциональны, игнорируем ошибки дубликатов
-	_ = store.SaveProduct(context.TODO(), product1)
+	_ = store.SaveProduct(ctx, product1)
 	//nolint:errcheck // Seed данные опциональны, игнорируем ошибки дубликатов
-	_ = store.SaveProduct(context.TODO(), product2)
+	_ = store.SaveProduct(ctx, product2)
 	logger.Log.Info("Products seed completed")
 }
