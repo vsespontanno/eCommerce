@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/vsespontanno/eCommerce/services/products-service/internal/domain/apperrors"
@@ -17,28 +18,36 @@ import (
 type SagaStore struct {
 	db      *sqlx.DB
 	builder sq.StatementBuilderType
+	logger  *zap.SugaredLogger
 }
 
-func NewSagaStore(db *sqlx.DB) *SagaStore {
+func NewSagaStore(db *sqlx.DB, logger *zap.SugaredLogger) *SagaStore {
 	return &SagaStore{
 		db:      db,
 		builder: sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
+		logger:  logger,
 	}
 }
 
 func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) error {
+	if len(items) == 0 {
+		return nil
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			// Log rollback errors (real errors only, ignore ErrTxDone)
-			fmt.Printf("failed to rollback transaction: %v\n", rbErr)
+			s.logger.Errorw("failed to rollback reserve transaction", "error", rbErr)
 		}
 	}()
 
 	for _, it := range items {
+		if it.Qty <= 0 {
+			return fmt.Errorf("invalid quantity: productID=%d qty=%d", it.ProductID, it.Qty)
+		}
 		qb := s.builder.
 			Select("productquantity", "reserved").
 			From("products").
@@ -87,17 +96,24 @@ func (s *SagaStore) ReserveTxn(ctx context.Context, items []*dto.ItemRequest) er
 }
 
 func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) error {
+	if len(items) == 0 {
+		return nil
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			fmt.Printf("failed to rollback transaction: %v\n", rbErr)
+			s.logger.Errorw("failed to rollback release transaction", "error", rbErr)
 		}
 	}()
 
 	for _, it := range items {
+		if it.Qty <= 0 {
+			return fmt.Errorf("invalid quantity: productID=%d qty=%d", it.ProductID, it.Qty)
+		}
 		qb := s.builder.
 			Select("reserved").
 			From("products").
@@ -130,17 +146,24 @@ func (s *SagaStore) ReleaseTxn(ctx context.Context, items []*dto.ItemRequest) er
 }
 
 func (s *SagaStore) CommitTxn(ctx context.Context, items []*dto.ItemRequest) error {
+	if len(items) == 0 {
+		return nil
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if rbErr := tx.Rollback(); rbErr != nil && rbErr != sql.ErrTxDone {
-			fmt.Printf("failed to rollback transaction: %v\n", rbErr)
+			s.logger.Errorw("failed to rollback commit transaction", "error", rbErr)
 		}
 	}()
 
 	for _, it := range items {
+		if it.Qty <= 0 {
+			return fmt.Errorf("invalid quantity: productID=%d qty=%d", it.ProductID, it.Qty)
+		}
 		var quantity, reserved int
 		qb := s.builder.
 			Select("productquantity", "reserved").

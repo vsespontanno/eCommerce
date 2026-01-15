@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 	ErrAppNotFound  = errors.New("app not found")
 )
 
-func ConnectToPostgres(user, password, dbname, host, port string) (*sql.DB, error) {
+func ConnectToPostgres(user, password, dbname, host, port string, logger *zap.SugaredLogger) (*sql.DB, error) {
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		user, password, host, port, dbname)
 
@@ -34,6 +34,13 @@ func ConnectToPostgres(user, password, dbname, host, port string) (*sql.DB, erro
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 	db.SetConnMaxIdleTime(2 * time.Minute)
-	log.Println("Connected to Postgres")
+
+	logger.Infow("Connected to Postgres",
+		"host", host,
+		"port", port,
+		"database", dbname,
+		"max_open_conns", 25,
+		"max_idle_conns", 5,
+	)
 	return db, nil
 }

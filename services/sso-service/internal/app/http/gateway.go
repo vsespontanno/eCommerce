@@ -44,7 +44,8 @@ func (g *Gateway) Run() error {
 	mux := runtime.NewServeMux()
 
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	grpcEndpoint := fmt.Sprintf("127.0.0.1:%d", g.grpcPort)
+	// Use localhost instead of 127.0.0.1 for better compatibility
+	grpcEndpoint := fmt.Sprintf("localhost:%d", g.grpcPort)
 
 	g.log.Infow("Connecting to gRPC server", "endpoint", grpcEndpoint)
 
@@ -67,6 +68,9 @@ func (g *Gateway) Run() error {
 	g.httpServer = &http.Server{
 		Addr:              fmt.Sprintf("0.0.0.0:%d", g.port),
 		Handler:           httpMux,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second, // Prevent Slowloris attacks
 	}
 
@@ -90,7 +94,12 @@ func (g *Gateway) Stop() {
 
 	g.log.Infow("stopping HTTP gateway", "port", g.port, "op", op)
 
-	if err := g.httpServer.Shutdown(context.Background()); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := g.httpServer.Shutdown(ctx); err != nil {
 		g.log.Errorw("failed to shutdown HTTP server", "op", op, "error", err)
+	} else {
+		g.log.Info("HTTP gateway stopped successfully")
 	}
 }

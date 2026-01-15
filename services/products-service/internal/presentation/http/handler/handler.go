@@ -114,7 +114,7 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Записываем бизнес-метрику просмотра товараж
+	// Записываем бизнес-метрику просмотра товара
 	metrics.ProductViewsTotal.WithLabelValues(strconv.FormatInt(id, 10)).Inc()
 
 	h.sugarLogger.Infow("product retrieved", "id", id)
