@@ -2,8 +2,10 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -11,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 // Gateway represents HTTP gateway for gRPC services
@@ -64,13 +67,13 @@ func (g *Gateway) Start(ctx context.Context) error {
 	// Register health check endpoint
 	httpMux.HandleFunc("/health", g.healthCheck)
 
-	// Create HTTP server
+	// Create HTTP server with production-ready timeouts
 	g.httpServer = &http.Server{
 		Addr:         fmt.Sprintf(":%d", g.httpPort),
 		Handler:      corsMiddleware(loggingMiddleware(httpMux, g.logger)),
-		ReadTimeout:  1 * time.Second,
-		WriteTimeout: 1 * time.Second,
-		IdleTimeout:  1 * time.Second,
+		ReadTimeout:  30 * time.Second,  // Time to read request body
+		WriteTimeout: 30 * time.Second,  // Time to write response
+		IdleTimeout:  120 * time.Second, // Time to keep connection alive
 	}
 
 	g.logger.Infow("Starting HTTP gateway server",
@@ -93,6 +96,14 @@ func (g *Gateway) Stop(ctx context.Context) error {
 	}
 
 	g.logger.Info("Stopping HTTP gateway server")
+
+	// Create timeout context if not provided
+	if ctx == nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+	}
+
 	if err := g.httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("failed to shutdown HTTP gateway: %w", err)
 	}
@@ -108,9 +119,38 @@ func (g *Gateway) healthCheck(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{"status":"healthy","service":"wallet-service","timestamp":%d}`, time.Now().Unix())
 }
 
-// customErrorHandler handles errors from gRPC-Gateway
+// customErrorHandler handles errors from gRPC-Gateway with user-friendly messages
 func customErrorHandler(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w http.ResponseWriter, r *http.Request, err error) {
-	runtime.DefaultHTTPErrorHandler(ctx, mux, marshaler, w, r, err)
+	// Extract gRPC status
+	s := status.Convert(err)
+
+	// Get error message
+	errMsg := s.Message()
+
+	// Clean up proto parsing errors to be more user-friendly
+	if strings.Contains(errMsg, "proto:") && strings.Contains(errMsg, "invalid value") {
+		// Extract field name if possible
+		if strings.Contains(errMsg, "field amount") {
+			errMsg = "invalid amount: must be a valid number"
+		} else {
+			errMsg = "invalid request format: please check your input"
+		}
+	}
+
+	// Create custom error response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(runtime.HTTPStatusFromCode(s.Code()))
+
+	errorResponse := map[string]interface{}{
+		"error": map[string]interface{}{
+			"code":    int(s.Code()),
+			"message": errMsg,
+		},
+	}
+
+	if err := json.NewEncoder(w).Encode(errorResponse); err != nil {
+		return
+	}
 }
 
 // customHeaderMatcher matches incoming HTTP headers to gRPC metadata

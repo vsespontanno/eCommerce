@@ -14,8 +14,8 @@ import (
 const (
 	// MaxTopUpAmount maximum amount for a single top-up (100,000 rubles in kopecks)
 	MaxTopUpAmount = 10_000_000
-	// MinTopUpAmount minimum amount for a single top-up (1 ruble in kopecks)
-	MinTopUpAmount = 100
+	// MinTopUpAmount minimum amount for a single top-up (1 kopeck)
+	MinTopUpAmount = 1
 )
 
 type SSOValidator interface {
@@ -58,6 +58,31 @@ func (s *WalletService) GetBalance(ctx context.Context) (int64, error) {
 	)
 
 	return balance, nil
+}
+
+// GetBalanceWithReserved returns both balance and reserved amount for the authenticated user
+func (s *WalletService) GetBalanceWithReserved(ctx context.Context) (balance int64, reserved int64, err error) {
+	userID, err := s.getUserIDFromContext(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	balance, reserved, err = s.walletRepo.GetBalanceWithReserved(ctx, userID)
+	if err != nil {
+		s.logger.Errorw("Failed to get balance with reserved",
+			"userID", userID,
+			"error", err,
+		)
+		return 0, 0, err
+	}
+
+	s.logger.Infow("Balance with reserved retrieved successfully",
+		"userID", userID,
+		"balance", balance,
+		"reserved", reserved,
+	)
+
+	return balance, reserved, nil
 }
 
 // UpdateBalance adds funds to the user's wallet (top up)

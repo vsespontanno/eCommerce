@@ -131,83 +131,97 @@ func (a *App) Run() error {
 
 	errCh := make(chan error, 3)
 
-	// start user server
-	go func() {
-		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.userPort))
-		if err != nil {
-			errCh <- fmt.Errorf("%s (user listen): %w", op, err)
-			return
-		}
-		a.Log.Infof("User gRPC server listening on :%d", a.userPort)
-		if err := a.usrServ.Serve(lis); err != nil {
-			// ignore normal server stop
-			if err == grpc.ErrServerStopped {
-				a.Log.Infow("user grpc server stopped gracefully")
-				return
-			}
-			errCh <- fmt.Errorf("%s (user serve): %w", op, err)
-		}
-	}()
+	// Start all servers
+	a.startServers(ctx, errCh, op)
 
-	// start saga server
-	go func() {
-		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.sagaPort))
-		if err != nil {
-			errCh <- fmt.Errorf("%s (saga listen): %w", op, err)
-			return
-		}
-		a.Log.Infof("Saga gRPC server listening on :%d", a.sagaPort)
-		if err := a.sagaSrv.Serve(lis); err != nil {
-			if err == grpc.ErrServerStopped {
-				a.Log.Infow("saga grpc server stopped gracefully")
-				return
-			}
-			errCh <- fmt.Errorf("%s (saga serve): %w", op, err)
-		}
-	}()
-
-	// start HTTP gateway
-	go func() {
-		a.Log.Infof("HTTP Gateway starting on :%d", a.gatewayPort)
-		if err := a.gateway.Start(ctx); err != nil {
-			a.Log.Infow("HTTP gateway stopped", "error", err)
-		}
-	}()
-
-	// wait for either context cancel (signal) or any server error
+	// Wait for either context cancel (signal) or any server error
 	select {
 	case <-ctx.Done():
-		// shutdown initiated by signal
 		a.Log.Infow("shutdown signal received, graceful stopping servers", "reason", ctx.Err())
 		st := time.Now()
-
-		// Stop HTTP gateway
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := a.gateway.Stop(shutdownCtx); err != nil {
-			a.Log.Errorw("failed to stop HTTP gateway", "error", err)
-		}
-
-		// Stop gRPC servers
-		a.usrServ.GracefulStop()
-		a.sagaSrv.GracefulStop()
-
+		a.shutdownServers()
 		a.Log.Infow("servers stopped", "duration", time.Since(st).String())
 		return nil
 	case err := <-errCh:
-		// server returned an unexpected error
 		a.Log.Errorw("server returned error", "error", err)
+		a.shutdownServers()
+		return err
+	}
+}
 
-		// attempt graceful shutdown
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if stopErr := a.gateway.Stop(shutdownCtx); stopErr != nil {
-			a.Log.Errorw("failed to stop gateway during error shutdown", "error", stopErr)
-		}
+// startServers starts all servers in goroutines
+func (a *App) startServers(ctx context.Context, errCh chan error, op string) {
+	// Start user server
+	go a.startUserServer(errCh, op)
+	// Start saga server
+	go a.startSagaServer(errCh, op)
+	// Start HTTP gateway
+	go a.startGateway(ctx)
+}
 
+// startUserServer starts the user gRPC server
+func (a *App) startUserServer(errCh chan error, op string) {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.userPort))
+	if err != nil {
+		errCh <- fmt.Errorf("%s (user listen): %w", op, err)
+		return
+	}
+	a.Log.Infof("User gRPC server listening on :%d", a.userPort)
+	if err := a.usrServ.Serve(lis); err != nil && err != grpc.ErrServerStopped {
+		errCh <- fmt.Errorf("%s (user serve): %w", op, err)
+	}
+}
+
+// startSagaServer starts the saga gRPC server
+func (a *App) startSagaServer(errCh chan error, op string) {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.sagaPort))
+	if err != nil {
+		errCh <- fmt.Errorf("%s (saga listen): %w", op, err)
+		return
+	}
+	a.Log.Infof("Saga gRPC server listening on :%d", a.sagaPort)
+	if err := a.sagaSrv.Serve(lis); err != nil && err != grpc.ErrServerStopped {
+		errCh <- fmt.Errorf("%s (saga serve): %w", op, err)
+	}
+}
+
+// startGateway starts the HTTP gateway
+func (a *App) startGateway(ctx context.Context) {
+	a.Log.Infof("HTTP Gateway starting on :%d", a.gatewayPort)
+	if err := a.gateway.Start(ctx); err != nil {
+		a.Log.Infow("HTTP gateway stopped", "error", err)
+	}
+}
+
+// shutdownServers gracefully shuts down all servers
+func (a *App) shutdownServers() {
+	// Stop HTTP gateway
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := a.gateway.Stop(shutdownCtx); err != nil {
+		a.Log.Errorw("failed to stop HTTP gateway", "error", err)
+	}
+
+	// Stop gRPC servers with timeout
+	a.stopGRPCServers()
+}
+
+// stopGRPCServers stops gRPC servers with timeout
+func (a *App) stopGRPCServers() {
+	done := make(chan struct{})
+	go func() {
 		a.usrServ.GracefulStop()
 		a.sagaSrv.GracefulStop()
-		return err
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		a.Log.Info("gRPC servers stopped gracefully")
+	case <-time.After(10 * time.Second):
+		a.Log.Warn("gRPC servers shutdown timeout exceeded, forcing stop")
+		a.usrServ.Stop()
+		a.sagaSrv.Stop()
 	}
 }
 
@@ -215,16 +229,7 @@ func (a *App) Run() error {
 func (a *App) Stop() {
 	a.Log.Info("shutting down all servers and database connection")
 
-	// Stop HTTP gateway
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := a.gateway.Stop(ctx); err != nil {
-		a.Log.Errorw("failed to stop HTTP gateway", "error", err)
-	}
-
-	// Stop gRPC servers
-	a.usrServ.GracefulStop()
-	a.sagaSrv.GracefulStop()
+	a.shutdownServers()
 
 	// Close database connection
 	if a.db != nil {

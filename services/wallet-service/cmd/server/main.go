@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/vsespontanno/eCommerce/pkg/logger"
 	"github.com/vsespontanno/eCommerce/services/wallet-service/internal/app"
@@ -19,18 +20,33 @@ func main() {
 
 	a, err := app.New(logger.Log, cfg)
 	if err != nil {
-		logger.Log.Fatal(err)
+		logger.Log.Fatalf("Failed to initialize app: %v", err)
 	}
+
+	// Start application in goroutine
 	go func() {
 		a.MustRun()
 	}()
 
-	// Graceful shutdown
-	a.Log.Info("signal sigint")
+	// Wait for interrupt signal for graceful shutdown
+	logger.Log.Info("Wallet service started, waiting for shutdown signal")
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
 
 	<-stop
+	logger.Log.Info("Shutdown signal received, initiating graceful shutdown")
 
-	a.Stop()
+	// Graceful shutdown with timeout
+	done := make(chan struct{})
+	go func() {
+		a.Stop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		logger.Log.Info("Graceful shutdown completed successfully")
+	case <-time.After(15 * time.Second):
+		logger.Log.Warn("Graceful shutdown timeout exceeded, forcing exit")
+	}
 }

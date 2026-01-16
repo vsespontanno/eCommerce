@@ -35,3 +35,22 @@ func (r *baseRepo) GetBalance(ctx context.Context, userID int64) (int64, error) 
 
 	return balance, nil
 }
+
+// GetBalanceWithReserved returns both balance and reserved amount for a user
+func (r *baseRepo) GetBalanceWithReserved(ctx context.Context, userID int64) (balance int64, reserved int64, err error) {
+	err = r.builder.Select("balance", "reserved").
+		From("wallets").
+		Where(sq.Eq{"user_id": userID}).
+		RunWith(r.db).
+		QueryRowContext(ctx).
+		Scan(&balance, &reserved)
+
+	if err == sql.ErrNoRows {
+		return 0, 0, apperrors.ErrNoWallet
+	}
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to get wallet for user %d: %w", userID, err)
+	}
+
+	return balance, reserved, nil
+}
