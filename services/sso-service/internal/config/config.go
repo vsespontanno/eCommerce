@@ -32,8 +32,8 @@ func MustLoad() (*Config, error) {
 		return nil, fmt.Errorf("%s: failed to parse GRPC_PORT: %w", op, err)
 	}
 
-	// HTTP порт по умолчанию 8080 если не указан
-	httpPort := 8080
+	// если порт не указан, значит тесчу локально, а локально 8080 порт сто пудов занят )
+	httpPort := 8081
 	if httpPortStr := os.Getenv("HTTP_PORT"); httpPortStr != "" {
 		httpPort, err = strconv.Atoi(httpPortStr)
 		if err != nil {
