@@ -148,7 +148,9 @@ func customErrorHandler(ctx context.Context, mux *runtime.ServeMux, marshaler ru
 		},
 	}
 
-	json.NewEncoder(w).Encode(errorResponse)
+	if err := json.NewEncoder(w).Encode(errorResponse); err != nil {
+		return
+	}
 }
 
 // customHeaderMatcher matches incoming HTTP headers to gRPC metadata
