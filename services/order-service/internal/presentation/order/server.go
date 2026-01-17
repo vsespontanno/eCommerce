@@ -6,6 +6,8 @@ import (
 	proto "github.com/vsespontanno/eCommerce/proto/orders"
 	"github.com/vsespontanno/eCommerce/services/order-service/internal/domain/order/entity"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type OrderSvc interface {
@@ -27,7 +29,16 @@ func NewGRPCServer(svc OrderSvc, logger *zap.SugaredLogger) *Server {
 func (s *Server) CreateOrder(ctx context.Context, req *proto.CreateOrderRequest) (*proto.CreateOrderResponse, error) {
 	o := req.Order
 	if o == nil {
-		return &proto.CreateOrderResponse{Error: "empty order"}, nil
+		s.logger.Warnw("CreateOrder called with empty order")
+		return nil, status.Error(codes.InvalidArgument, "order is required")
+	}
+
+	// Validate required fields
+	if o.OrderId == "" {
+		return nil, status.Error(codes.InvalidArgument, "order_id is required")
+	}
+	if o.UserId <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "valid user_id is required")
 	}
 
 	order := entity.Order{
@@ -37,8 +48,12 @@ func (s *Server) CreateOrder(ctx context.Context, req *proto.CreateOrderRequest)
 		Status:  o.Status,
 	}
 
-	// items
+	// Convert items
 	for _, it := range o.Items {
+		if it.ProductId <= 0 || it.Quantity <= 0 {
+			s.logger.Warnw("Invalid order item", "product_id", it.ProductId, "quantity", it.Quantity)
+			continue
+		}
 		order.Products = append(order.Products, entity.OrderItem{
 			ProductID: it.ProductId,
 			Quantity:  it.Quantity,
@@ -47,8 +62,8 @@ func (s *Server) CreateOrder(ctx context.Context, req *proto.CreateOrderRequest)
 
 	id, err := s.svc.CreateOrder(ctx, &order)
 	if err != nil {
-		s.logger.Errorw("create order failed", "err", err)
-		return &proto.CreateOrderResponse{Error: err.Error()}, nil
+		s.logger.Errorw("create order failed", "order_id", o.OrderId, "err", err)
+		return nil, status.Error(codes.Internal, "failed to create order")
 	}
 
 	return &proto.CreateOrderResponse{OrderId: id}, nil
@@ -89,15 +104,18 @@ func (s *Server) GetOrder(ctx context.Context, req *proto.GetOrderRequest) (*pro
 }
 
 func (s *Server) ListOrders(ctx context.Context, req *proto.ListOrdersRequest) (*proto.ListOrdersResponse, error) {
-	// Валидация
+	// Validation
 	if req.UserId <= 0 {
 		s.logger.Warnw("invalid user_id in ListOrders", "user_id", req.UserId)
-		return &proto.ListOrdersResponse{Orders: []*proto.GetOrderResponse{}}, nil
+		return nil, status.Error(codes.InvalidArgument, "valid user_id is required")
 	}
 
+	// Apply sensible defaults and limits
 	limit := uint64(req.Limit) // #nosec G115 - req.Limit is int32, safe range for uint64
-	if limit > 100 {
+	if limit == 0 {
 		limit = 10 // default
+	} else if limit > 100 {
+		limit = 100 // max limit
 	}
 
 	offset := uint64(req.Offset) // #nosec G115 - req.Offset is int32, safe range for uint64
@@ -105,7 +123,7 @@ func (s *Server) ListOrders(ctx context.Context, req *proto.ListOrdersRequest) (
 	orders, err := s.svc.ListOrdersByUser(ctx, req.UserId, limit, offset)
 	if err != nil {
 		s.logger.Errorw("list orders failed", "user_id", req.UserId, "err", err)
-		return nil, err
+		return nil, status.Error(codes.Internal, "failed to list orders")
 	}
 
 	resp := &proto.ListOrdersResponse{
