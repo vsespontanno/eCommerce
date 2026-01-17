@@ -129,10 +129,6 @@ func (s *OrderStore) ListOrdersByUser(ctx context.Context, userID int64, limit, 
 	}
 	defer rows.Close()
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
-	}
-
 	orders := make([]entity.Order, 0)
 
 	for rows.Next() {
@@ -141,31 +137,46 @@ func (s *OrderStore) ListOrdersByUser(ctx context.Context, userID int64, limit, 
 			return nil, fmt.Errorf("scan order: %w", err)
 		}
 
-		// load items
-		itemsRows, err := s.db.QueryxContext(ctx,
-			`SELECT product_id, quantity 
-             FROM order_items WHERE order_id = $1`, o.OrderID,
-		)
-
-		defer func() {
-			if closeErr := itemsRows.Close(); closeErr != nil {
-				s.logger.Errorw("failed to close items rows", "error", closeErr)
-			}
-		}()
-
+		// Load items for this order
+		items, err := s.loadOrderItems(ctx, o.OrderID)
 		if err != nil {
-			return nil, fmt.Errorf("items: %w", err)
+			return nil, fmt.Errorf("load items for order %s: %w", o.OrderID, err)
 		}
-
-		for itemsRows.Next() {
-			var it entity.OrderItem
-			if err := itemsRows.StructScan(&it); err == nil {
-				o.Products = append(o.Products, it)
-			}
-		}
+		o.Products = items
 
 		orders = append(orders, o)
 	}
 
+	// Check for errors after iteration
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
 	return orders, nil
+}
+
+// loadOrderItems loads items for a specific order
+func (s *OrderStore) loadOrderItems(ctx context.Context, orderID string) ([]entity.OrderItem, error) {
+	itemsRows, err := s.db.QueryxContext(ctx,
+		`SELECT product_id, quantity FROM order_items WHERE order_id = $1`, orderID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query items: %w", err)
+	}
+	defer itemsRows.Close()
+
+	var items []entity.OrderItem
+	for itemsRows.Next() {
+		var it entity.OrderItem
+		if err := itemsRows.StructScan(&it); err != nil {
+			return nil, fmt.Errorf("scan item: %w", err)
+		}
+		items = append(items, it)
+	}
+
+	if err := itemsRows.Err(); err != nil {
+		return nil, fmt.Errorf("items rows error: %w", err)
+	}
+
+	return items, nil
 }
