@@ -3,6 +3,7 @@ package ordergrpc
 import (
 	"context"
 
+	"github.com/google/uuid"
 	proto "github.com/vsespontanno/eCommerce/proto/orders"
 	"github.com/vsespontanno/eCommerce/services/order-service/internal/domain/order/entity"
 	"go.uber.org/zap"
@@ -33,10 +34,15 @@ func (s *Server) CreateOrder(ctx context.Context, req *proto.CreateOrderRequest)
 		return nil, status.Error(codes.InvalidArgument, "order is required")
 	}
 
-	// Validate required fields
 	if o.OrderId == "" {
 		return nil, status.Error(codes.InvalidArgument, "order_id is required")
 	}
+
+	if _, err := uuid.Parse(o.OrderId); err != nil {
+		s.logger.Warnw("Invalid order_id format", "order_id", o.OrderId)
+		return nil, status.Error(codes.InvalidArgument, "order_id must be a valid UUID")
+	}
+
 	if o.UserId <= 0 {
 		return nil, status.Error(codes.InvalidArgument, "valid user_id is required")
 	}
@@ -72,17 +78,23 @@ func (s *Server) CreateOrder(ctx context.Context, req *proto.CreateOrderRequest)
 func (s *Server) GetOrder(ctx context.Context, req *proto.GetOrderRequest) (*proto.GetOrderResponse, error) {
 	if req.OrderId == "" {
 		s.logger.Warnw("empty order_id in GetOrder request")
-		return &proto.GetOrderResponse{}, nil
+		return nil, status.Error(codes.InvalidArgument, "order_id is required")
+	}
+
+	// Validate UUID format
+	if _, err := uuid.Parse(req.OrderId); err != nil {
+		s.logger.Warnw("Invalid order_id format in GetOrder", "order_id", req.OrderId)
+		return nil, status.Error(codes.InvalidArgument, "order_id must be a valid UUID")
 	}
 
 	o, err := s.svc.GetOrder(ctx, req.OrderId)
 	if err != nil {
 		s.logger.Errorw("get order failed", "order_id", req.OrderId, "err", err)
-		return nil, err
+		return nil, status.Error(codes.Internal, "failed to get order")
 	}
 	if o == nil {
 		s.logger.Warnw("order not found", "order_id", req.OrderId)
-		return &proto.GetOrderResponse{}, nil
+		return nil, status.Error(codes.NotFound, "order not found")
 	}
 
 	// Конвертируем entity.Order в proto.OrderEvent
