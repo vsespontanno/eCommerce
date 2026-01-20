@@ -8,12 +8,16 @@ import (
 	"github.com/vsespontanno/eCommerce/services/sso-service/internal/domain/models"
 )
 
+const (
+	testSecret = "test-secret"
+)
+
 func TestNewToken(t *testing.T) {
 	user := models.User{
 		ID:    1,
 		Email: "test@example.com",
 	}
-	secret := "test-secret"
+	secret := testSecret
 	duration := time.Hour
 
 	token, err := NewToken(user, secret, duration)
@@ -51,7 +55,7 @@ func TestNewTokenWithExpiry(t *testing.T) {
 		ID:    1,
 		Email: "test@example.com",
 	}
-	secret := "test-secret"
+	secret := testSecret
 	duration := time.Hour
 
 	tokenPair, err := NewTokenWithExpiry(user, secret, duration)
@@ -98,7 +102,7 @@ func TestNewToken_InvalidSecret(t *testing.T) {
 		ID:    1,
 		Email: "test@example.com",
 	}
-	secret := "test-secret"
+	secret := testSecret
 	wrongSecret := "wrong-secret"
 	duration := time.Hour
 
