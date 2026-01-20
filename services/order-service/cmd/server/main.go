@@ -94,15 +94,27 @@ func main() {
 
 	logger.Log.Info("Shutting down Order service...")
 
+	// Останавливаем gRPC с timeout
+	grpcStopDone := make(chan struct{})
+	go func() {
+		grpcServer.GracefulStop()
+		close(grpcStopDone)
+	}()
+
+	select {
+	case <-grpcStopDone:
+		logger.Log.Info("gRPC server stopped gracefully")
+	case <-time.After(10 * time.Second):
+		logger.Log.Warn("gRPC server shutdown timeout, forcing stop")
+		grpcServer.Stop()
+	}
+
 	// Останавливаем HTTP health server
 	healthCtx, healthCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer healthCancel()
 	if err := healthServer.Shutdown(healthCtx); err != nil {
 		logger.Log.Errorw("Health server shutdown failed", "error", err)
 	}
-
-	// Останавливаем gRPC
-	grpcServer.GracefulStop()
 
 	logger.Log.Info("Order service stopped gracefully")
 }
