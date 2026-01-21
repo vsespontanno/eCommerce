@@ -87,7 +87,7 @@ func TestHandler_GetProducts(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := New(nil, tt.mockStore(), logger.Log, nil)
 
-			req, _ := http.NewRequest("GET", "/products", nil)
+			req, _ := http.NewRequestWithContext(context.Background(), "GET", "/products", nil)
 			rr := httptest.NewRecorder()
 
 			h.GetProducts(rr, req)
@@ -164,7 +164,7 @@ func TestHandler_GetProduct(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := New(nil, tt.mockStore(), logger.Log, nil)
 
-			req, _ := http.NewRequest("GET", "/products/"+tt.id, nil)
+			req, _ := http.NewRequestWithContext(context.Background(), "GET", "/products/"+tt.id, nil)
 			req = mux.SetURLVars(req, map[string]string{"id": tt.id})
 			rr := httptest.NewRecorder()
 
@@ -262,7 +262,7 @@ func TestHandler_AddProductToCart(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := New(tt.mockCart(), tt.mockProduct(), logger.Log, nil)
 
-			req, _ := http.NewRequest("POST", "/products/"+tt.id+"/add-to-cart", nil)
+			req, _ := http.NewRequestWithContext(context.Background(), "POST", "/products/"+tt.id+"/add-to-cart", nil)
 			req = mux.SetURLVars(req, map[string]string{"id": tt.id})
 			if tt.userID != nil {
 				ctx := context.WithValue(req.Context(), middleware.UserIDKey, tt.userID)
