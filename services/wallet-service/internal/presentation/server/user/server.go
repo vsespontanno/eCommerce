@@ -64,7 +64,7 @@ func (s *WalletServer) Balance(ctx context.Context, req *proto.BalanceRequest) (
 			}, nil
 		}
 
-		s.log.Errorw("Balance failed", "error", err)
+		s.log.Errorw("Failed to retrieve wallet balance", "error", err)
 		return nil, status.Error(codes.Internal, "failed to get balance")
 	}
 
