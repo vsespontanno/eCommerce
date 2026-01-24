@@ -23,7 +23,7 @@ import (
 	"github.com/vsespontanno/eCommerce/services/saga-orchestrator/internal/infrastructure/grpcClient/wallet"
 	"github.com/vsespontanno/eCommerce/services/saga-orchestrator/internal/infrastructure/outbox"
 	"github.com/vsespontanno/eCommerce/services/saga-orchestrator/internal/infrastructure/repository"
-	"github.com/vsespontanno/eCommerce/services/saga-orchestrator/internal/presentation/saga"
+	"github.com/vsespontanno/eCommerce/services/saga-orchestrator/internal/presentation/server/saga"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
