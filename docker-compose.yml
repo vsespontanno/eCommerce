@@ -52,313 +52,313 @@ services:
       - ecommerce-network
 
   # NGINX API Gateway
-  nginx:
-    image: nginx:alpine
-    container_name: nginx-gateway
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - sso-service-1
-      - sso-service-2
-      - sso-service-3
-      - products-service-1
-      - products-service-2
-      - products-service-3
-      - wallet-service-1
-      - wallet-service-2
-      - cart-service-1
-      - cart-service-2
-    restart: always
-    networks:
-      - ecommerce-network
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: nginx-gateway
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #   depends_on:
+  #     - sso-service-1
+  #     - sso-service-2
+  #     - sso-service-3
+  #     - products-service-1
+  #     - products-service-2
+  #     - products-service-3
+  #     - wallet-service-1
+  #     - wallet-service-2
+  #     - cart-service-1
+  #     - cart-service-2
+  #   restart: always
+  #   networks:
+  #     - ecommerce-network
 
-  # SSO Service - Replica 1
-  sso-service-1:
-    build:
-      context: .
-      dockerfile: services/sso-service/Dockerfile
-    container_name: sso-service-1
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      JWT_SECRET: ${JWT_SECRET}
-      GRPC_PORT: 50051
-      HTTP_PORT: 8080
-      TOKEN_TTL: 1h
-    depends_on:
-      - postgres
-    networks:
-      - ecommerce-network
+  # # SSO Service - Replica 1
+  # sso-service-1:
+  #   build:
+  #     context: .
+  #     dockerfile: services/sso-service/Dockerfile
+  #   container_name: sso-service-1
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     JWT_SECRET: ${JWT_SECRET}
+  #     GRPC_PORT: 50051
+  #     HTTP_PORT: 8080
+  #     TOKEN_TTL: 1h
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - ecommerce-network
 
-  # SSO Service - Replica 2
-  sso-service-2:
-    build:
-      context: .
-      dockerfile: services/sso-service/Dockerfile
-    container_name: sso-service-2
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      JWT_SECRET: ${JWT_SECRET}
-      GRPC_PORT: 50051
-      HTTP_PORT: 8080
-      TOKEN_TTL: 1h
-    depends_on:
-      - postgres
-    networks:
-      - ecommerce-network
+  # # SSO Service - Replica 2
+  # sso-service-2:
+  #   build:
+  #     context: .
+  #     dockerfile: services/sso-service/Dockerfile
+  #   container_name: sso-service-2
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     JWT_SECRET: ${JWT_SECRET}
+  #     GRPC_PORT: 50051
+  #     HTTP_PORT: 8080
+  #     TOKEN_TTL: 1h
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - ecommerce-network
 
-  # SSO Service - Replica 3
-  sso-service-3:
-    build:
-      context: .
-      dockerfile: services/sso-service/Dockerfile
-    container_name: sso-service-3
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      JWT_SECRET: ${JWT_SECRET}
-      GRPC_PORT: 50051
-      HTTP_PORT: 8080
-      TOKEN_TTL: 1h
-    depends_on:
-      - postgres
-    networks:
-      - ecommerce-network
+  # # SSO Service - Replica 3
+  # sso-service-3:
+  #   build:
+  #     context: .
+  #     dockerfile: services/sso-service/Dockerfile
+  #   container_name: sso-service-3
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     JWT_SECRET: ${JWT_SECRET}
+  #     GRPC_PORT: 50051
+  #     HTTP_PORT: 8080
+  #     TOKEN_TTL: 1h
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - ecommerce-network
 
-  # Products Service - Replica 1
-  products-service-1:
-    build:
-      context: .
-      dockerfile: services/products-service/Dockerfile
-    container_name: products-service-1
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      HTTP_PORT: 8080
-      GRPC_PRODUCTS_SERVER_PORT: 50051
-      GRPC_SAGA_SERVER_PORT: 50051
-      GRPC_JWT_CLIENT_PORT: sso-service-1:50051
-    depends_on:
-      - postgres
-      - sso-service-1
-    networks:
-      - ecommerce-network
+  # # Products Service - Replica 1
+  # products-service-1:
+  #   build:
+  #     context: .
+  #     dockerfile: services/products-service/Dockerfile
+  #   container_name: products-service-1
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     HTTP_PORT: 8080
+  #     GRPC_PRODUCTS_SERVER_PORT: 50051
+  #     GRPC_SAGA_SERVER_PORT: 50051
+  #     GRPC_JWT_CLIENT_PORT: sso-service-1:50051
+  #   depends_on:
+  #     - postgres
+  #     - sso-service-1
+  #   networks:
+  #     - ecommerce-network
 
-  # Products Service - Replica 2
-  products-service-2:
-    build:
-      context: .
-      dockerfile: services/products-service/Dockerfile
-    container_name: products-service-2
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      HTTP_PORT: 8080
-      GRPC_PRODUCTS_SERVER_PORT: 50051
-      GRPC_SAGA_SERVER_PORT: 50051
-      GRPC_JWT_CLIENT_PORT: sso-service-2:50051
-    depends_on:
-      - postgres
-      - sso-service-2
-    networks:
-      - ecommerce-network
+  # # Products Service - Replica 2
+  # products-service-2:
+  #   build:
+  #     context: .
+  #     dockerfile: services/products-service/Dockerfile
+  #   container_name: products-service-2
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     HTTP_PORT: 8080
+  #     GRPC_PRODUCTS_SERVER_PORT: 50051
+  #     GRPC_SAGA_SERVER_PORT: 50051
+  #     GRPC_JWT_CLIENT_PORT: sso-service-2:50051
+  #   depends_on:
+  #     - postgres
+  #     - sso-service-2
+  #   networks:
+  #     - ecommerce-network
 
-  # Products Service - Replica 3
-  products-service-3:
-    build:
-      context: .
-      dockerfile: services/products-service/Dockerfile
-    container_name: products-service-3
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      HTTP_PORT: 8080
-      GRPC_PRODUCTS_SERVER_PORT: 50051
-      GRPC_SAGA_SERVER_PORT: 50051
-      GRPC_JWT_CLIENT_PORT: sso-service-3:50051
-    depends_on:
-      - postgres
-      - sso-service-3
-    networks:
-      - ecommerce-network
+  # # Products Service - Replica 3
+  # products-service-3:
+  #   build:
+  #     context: .
+  #     dockerfile: services/products-service/Dockerfile
+  #   container_name: products-service-3
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     HTTP_PORT: 8080
+  #     GRPC_PRODUCTS_SERVER_PORT: 50051
+  #     GRPC_SAGA_SERVER_PORT: 50051
+  #     GRPC_JWT_CLIENT_PORT: sso-service-3:50051
+  #   depends_on:
+  #     - postgres
+  #     - sso-service-3
+  #   networks:
+  #     - ecommerce-network
 
-  # Wallet Service - Replica 1
-  wallet-service-1:
-    build:
-      context: .
-      dockerfile: services/wallet-service/Dockerfile
-    container_name: wallet-service-1
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      GRPC_USER_SERVER_PORT: 50051
-      GRPC_SAGA_SERVER_PORT: 50051
-      HTTP_GATEWAY_PORT: 8080
-      GRPC_CLIENT_PORT: sso-service-1:50051
-    depends_on:
-      - postgres
-      - sso-service-1
-    networks:
-      - ecommerce-network
+  # # Wallet Service - Replica 1
+  # wallet-service-1:
+  #   build:
+  #     context: .
+  #     dockerfile: services/wallet-service/Dockerfile
+  #   container_name: wallet-service-1
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     GRPC_USER_SERVER_PORT: 50051
+  #     GRPC_SAGA_SERVER_PORT: 50051
+  #     HTTP_GATEWAY_PORT: 8080
+  #     GRPC_CLIENT_PORT: sso-service-1:50051
+  #   depends_on:
+  #     - postgres
+  #     - sso-service-1
+  #   networks:
+  #     - ecommerce-network
 
-  # Wallet Service - Replica 2
-  wallet-service-2:
-    build:
-      context: .
-      dockerfile: services/wallet-service/Dockerfile
-    container_name: wallet-service-2
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      GRPC_USER_SERVER_PORT: 50051
-      GRPC_SAGA_SERVER_PORT: 50051
-      HTTP_GATEWAY_PORT: 8080
-      GRPC_CLIENT_PORT: sso-service-2:50051
-    depends_on:
-      - postgres
-      - sso-service-2
-    networks:
-      - ecommerce-network
+  # # Wallet Service - Replica 2
+  # wallet-service-2:
+  #   build:
+  #     context: .
+  #     dockerfile: services/wallet-service/Dockerfile
+  #   container_name: wallet-service-2
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     GRPC_USER_SERVER_PORT: 50051
+  #     GRPC_SAGA_SERVER_PORT: 50051
+  #     HTTP_GATEWAY_PORT: 8080
+  #     GRPC_CLIENT_PORT: sso-service-2:50051
+  #   depends_on:
+  #     - postgres
+  #     - sso-service-2
+  #   networks:
+  #     - ecommerce-network
 
-  # Cart Service - Replica 1
-  cart-service-1:
-    build:
-      context: .
-      dockerfile: services/cart-service/Dockerfile
-    container_name: cart-service-1
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      REDIS_ADDR: redis:6379
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_DB: 0
-      HTTP_PORT: 8080
-      GRPC_JWT_CLIENT_PORT: sso-service-1:50051
-      GRPC_PRODUCTS_CLIENT_PORT: products-service-1:50051
-      GRPC_SAGA_CLIENT_PORT: saga-orchestrator:50051
-      GRPC_ORDER_CLIENT_PORT: order-service:50051
-      KAFKA_BROKER: broker:9092
-      KAFKA_TOPIC: order-completed
-      KAFKA_GROUP_ID: cart-service-group
-    depends_on:
-      - postgres
-      - redis
-      - broker
-      - sso-service-1
-      - products-service-1
-      - saga-orchestrator
-      - order-service
-    networks:
-      - ecommerce-network
+  # # Cart Service - Replica 1
+  # cart-service-1:
+  #   build:
+  #     context: .
+  #     dockerfile: services/cart-service/Dockerfile
+  #   container_name: cart-service-1
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     REDIS_ADDR: redis:6379
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     REDIS_DB: 0
+  #     HTTP_PORT: 8080
+  #     GRPC_JWT_CLIENT_PORT: sso-service-1:50051
+  #     GRPC_PRODUCTS_CLIENT_PORT: products-service-1:50051
+  #     GRPC_SAGA_CLIENT_PORT: saga-orchestrator:50051
+  #     GRPC_ORDER_CLIENT_PORT: order-service:50051
+  #     KAFKA_BROKER: broker:9092
+  #     KAFKA_TOPIC: order-completed
+  #     KAFKA_GROUP_ID: cart-service-group
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #     - broker
+  #     - sso-service-1
+  #     - products-service-1
+  #     - saga-orchestrator
+  #     - order-service
+  #   networks:
+  #     - ecommerce-network
 
-  # Cart Service - Replica 2
-  cart-service-2:
-    build:
-      context: .
-      dockerfile: services/cart-service/Dockerfile
-    container_name: cart-service-2
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      REDIS_ADDR: redis:6379
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_DB: 0
-      HTTP_PORT: 8080
-      GRPC_JWT_CLIENT_PORT: sso-service-2:50051
-      GRPC_PRODUCTS_CLIENT_PORT: products-service-2:50051
-      GRPC_SAGA_CLIENT_PORT: saga-orchestrator:50051
-      GRPC_ORDER_CLIENT_PORT: order-service:50051
-      KAFKA_BROKER: broker:9092
-      KAFKA_TOPIC: order-completed
-      KAFKA_GROUP_ID: cart-service-group
-    depends_on:
-      - postgres
-      - redis
-      - broker
-      - sso-service-2
-      - products-service-2
-      - saga-orchestrator
-      - order-service
-    networks:
-      - ecommerce-network
+  # # Cart Service - Replica 2
+  # cart-service-2:
+  #   build:
+  #     context: .
+  #     dockerfile: services/cart-service/Dockerfile
+  #   container_name: cart-service-2
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     REDIS_ADDR: redis:6379
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     REDIS_DB: 0
+  #     HTTP_PORT: 8080
+  #     GRPC_JWT_CLIENT_PORT: sso-service-2:50051
+  #     GRPC_PRODUCTS_CLIENT_PORT: products-service-2:50051
+  #     GRPC_SAGA_CLIENT_PORT: saga-orchestrator:50051
+  #     GRPC_ORDER_CLIENT_PORT: order-service:50051
+  #     KAFKA_BROKER: broker:9092
+  #     KAFKA_TOPIC: order-completed
+  #     KAFKA_GROUP_ID: cart-service-group
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #     - broker
+  #     - sso-service-2
+  #     - products-service-2
+  #     - saga-orchestrator
+  #     - order-service
+  #   networks:
+  #     - ecommerce-network
 
-  # Order Service
-  order-service:
-    build:
-      context: .
-      dockerfile: services/order-service/Dockerfile
-    container_name: order-service
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      GRPC_PORT: 50051
-    depends_on:
-      - postgres
-    networks:
-      - ecommerce-network
+  # # Order Service
+  # order-service:
+  #   build:
+  #     context: .
+  #     dockerfile: services/order-service/Dockerfile
+  #   container_name: order-service
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     GRPC_PORT: 50051
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - ecommerce-network
 
-  # Saga Orchestrator
-  saga-orchestrator:
-    build:
-      context: .
-      dockerfile: services/saga-orchestrator/Dockerfile
-    container_name: saga-orchestrator
-    environment:
-      PG_HOST: postgres
-      PG_PORT: 5432
-      PG_USER: ${PG_USER}
-      PG_PASSWORD: ${PG_PASSWORD}
-      PG_NAME: ${PG_DB}
-      GRPC_SERVER_PORT: 50051
-      GRPC_PRODUCTS_CLIENT_PORT: products-service-1:50051
-      GRPC_WALLET_CLIENT_PORT: wallet-service-1:50051
-      KAFKA_BROKER: broker:9092
-      KAFKA_TOPIC: order-completed
-    depends_on:
-      - postgres
-      - broker
-      - products-service-1
-      - wallet-service-1
-    networks:
-      - ecommerce-network
+  # # Saga Orchestrator
+  # saga-orchestrator:
+  #   build:
+  #     context: .
+  #     dockerfile: services/saga-orchestrator/Dockerfile
+  #   container_name: saga-orchestrator
+  #   environment:
+  #     PG_HOST: postgres
+  #     PG_PORT: 5432
+  #     PG_USER: ${PG_USER}
+  #     PG_PASSWORD: ${PG_PASSWORD}
+  #     PG_NAME: ${PG_DB}
+  #     GRPC_SERVER_PORT: 50051
+  #     GRPC_PRODUCTS_CLIENT_PORT: products-service-1:50051
+  #     GRPC_WALLET_CLIENT_PORT: wallet-service-1:50051
+  #     KAFKA_BROKER: broker:9092
+  #     KAFKA_TOPIC: order-completed
+  #   depends_on:
+  #     - postgres
+  #     - broker
+  #     - products-service-1
+  #     - wallet-service-1
+  #   networks:
+  #     - ecommerce-network
 
 networks:
   ecommerce-network:
