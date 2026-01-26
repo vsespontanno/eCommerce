@@ -42,7 +42,7 @@ func (c *SSOClient) Register(ctx context.Context, req RegisterRequest) error {
 		return err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"auth/register", bytes.NewBuffer(body))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/auth/register", bytes.NewBuffer(body))
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (c *SSOClient) Login(ctx context.Context, email, password string) (*LoginRe
 		return nil, err
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"auth/login", bytes.NewBuffer(body))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/auth/login", bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
 	}

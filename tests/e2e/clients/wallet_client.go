@@ -29,7 +29,7 @@ type BalanceResponse struct {
 }
 
 func (c *WalletClient) CreateWallet(ctx context.Context, token string) error {
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/wallet", nil)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/wallet/create", nil)
 	if err != nil {
 		return err
 	}
