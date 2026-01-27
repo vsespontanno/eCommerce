@@ -2,6 +2,7 @@ package models
 
 type User struct {
 	ID        int64
+	PublicID  string
 	FirstName string
 	LastName  string
 	Email     string

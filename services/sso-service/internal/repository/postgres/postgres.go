@@ -56,7 +56,7 @@ func (s *Storage) SaveUser(ctx context.Context, email, firstName, lastName strin
 
 func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 	const op = "postgres.User"
-	query := s.builder.Select("id", "email", "first_name", "last_name", "pass_hash").
+	query := s.builder.Select("id", "public_id", "email", "first_name", "last_name", "pass_hash").
 		From("users").
 		Where(sq.Eq{"email": email})
 
@@ -67,7 +67,7 @@ func (s *Storage) User(ctx context.Context, email string) (models.User, error) {
 
 	row := s.db.QueryRowContext(ctx, sqlStr, args...)
 	var user models.User
-	if err := row.Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, &user.PassHash); err != nil {
+	if err := row.Scan(&user.ID, &user.PublicID, &user.Email, &user.FirstName, &user.LastName, &user.PassHash); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return models.User{}, fmt.Errorf("%s: %w", op, repository.ErrUserNotFound)
 		}
