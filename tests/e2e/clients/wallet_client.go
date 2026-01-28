@@ -25,7 +25,7 @@ type TopUpRequest struct {
 }
 
 type BalanceResponse struct {
-	Balance int64 `json:"balance"`
+	Balance json.Number `json:"balance"`
 }
 
 func (c *WalletClient) CreateWallet(ctx context.Context, token string) error {
@@ -97,5 +97,9 @@ func (c *WalletClient) GetBalance(ctx context.Context, token string) (int64, err
 		return 0, err
 	}
 
-	return balanceResp.Balance, nil
+	balance, err := balanceResp.Balance.Int64()
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse balance: %w", err)
+	}
+	return balance, nil
 }
