@@ -17,8 +17,8 @@ type MockOrchestrator struct {
 	mock.Mock
 }
 
-func (m *MockOrchestrator) SagaTransaction(ctx context.Context, Order orderEntity.OrderEvent) error {
-	args := m.Called(ctx, Order)
+func (m *MockOrchestrator) SagaTransaction(ctx context.Context, order orderEntity.OrderEvent) error {
+	args := m.Called(ctx, order)
 	return args.Error(0)
 }
 

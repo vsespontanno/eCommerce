@@ -93,13 +93,13 @@ func (c *WalletClient) GetBalance(ctx context.Context, token string) (int64, err
 	}
 
 	var balanceResp BalanceResponse
-	if err := json.NewDecoder(resp.Body).Decode(&balanceResp); err != nil {
-		return 0, err
+	if decodeErr := json.NewDecoder(resp.Body).Decode(&balanceResp); decodeErr != nil {
+		return 0, decodeErr
 	}
 
-	balance, err := balanceResp.Balance.Int64()
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse balance: %w", err)
+	balance, parseErr := balanceResp.Balance.Int64()
+	if parseErr != nil {
+		return 0, fmt.Errorf("failed to parse balance: %w", parseErr)
 	}
 	return balance, nil
 }

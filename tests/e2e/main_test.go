@@ -56,7 +56,11 @@ func waitForURL(ctx context.Context, url string) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			resp, err := http.Get(url)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+			if err != nil {
+				return err
+			}
+			resp, err := http.DefaultClient.Do(req)
 			if err == nil && resp.StatusCode == http.StatusOK {
 				resp.Body.Close()
 				return nil

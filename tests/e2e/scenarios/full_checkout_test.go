@@ -41,7 +41,8 @@ func (s *FullCheckoutSuite) TearDownSuite() {
 }
 
 func (s *FullCheckoutSuite) TestFullCheckoutFlow() {
-	ctx, cancel := context.WithTimeout(context.Background(), s.cfg.RequestTimeout*5)
+	// Increase timeout to accommodate polling (PollTimeout is 60s)
+	ctx, cancel := context.WithTimeout(context.Background(), s.cfg.PollTimeout+30*time.Second)
 	defer cancel()
 	t := time.Now().Unix()
 	timestamp := strconv.Itoa(int(t))
@@ -122,9 +123,11 @@ func (s *FullCheckoutSuite) TestFullCheckoutFlow() {
 	s.T().Logf("Checkout successful, OrderID: %s", orderID)
 
 	// 6. Verify Order Status (Polling)
+	time.Sleep(2 * time.Second) // Wait for Saga to propagate
 	s.Eventually(func() bool {
-		order, err := s.orderClient.GetOrder(ctx, orderID)
-		if err != nil {
+		order, getErr := s.orderClient.GetOrder(ctx, orderID)
+		if getErr != nil {
+			s.T().Logf("GetOrder failed: %v", getErr)
 			return false
 		}
 		s.T().Logf("Order Status: %s", order.Status)
