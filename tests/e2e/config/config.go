@@ -23,7 +23,7 @@ func LoadConfig() *E2EConfig {
 		WalletBaseURL:   getEnv("WALLET_BASE_URL", "http://localhost:8080"),
 		ProductsBaseURL: getEnv("PRODUCTS_BASE_URL", "http://localhost:8082"),
 		CartBaseURL:     getEnv("CART_BASE_URL", "http://localhost:8083"),
-		OrderGRPCAddr:   getEnv("ORDER_GRPC_ADDR", "http://localhost:50056"),
+		OrderGRPCAddr:   getEnv("ORDER_GRPC_ADDR", "localhost:50056"),
 		RequestTimeout:  10 * time.Second,
 		PollTimeout:     60 * time.Second,
 		PollInterval:    1 * time.Second,
